@@ -1,0 +1,474 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RecordStatus { ACTIVE INACTIVE ARCHIVED }
+enum AdminStatus { ACTIVE DISABLED }
+enum ProductStatus { DRAFT ACTIVE INACTIVE ARCHIVED RESTRICTED_REVIEW }
+enum ProductCategory { personal_safety_alarm training knuckle_stun_device visibility }
+enum InventoryTransactionType { STOCK_IN STOCK_OUT ADJUSTMENT RESERVATION RELEASE FULFILLMENT }
+enum InventoryReservationStatus { ACTIVE RELEASED CONSUMED EXPIRED }
+enum CouponStatus { ACTIVE INACTIVE ARCHIVED }
+enum CartStatus { ACTIVE ORDERED ABANDONED }
+enum OrderStatus { DRAFT PENDING_ELIGIBILITY MANUAL_REVIEW DOCUMENTS_REQUIRED READY_FOR_PAYMENT PAYMENT_FAILED PAID FULFILLMENT_HOLD FULFILLED CANCELLED BLOCKED ARCHIVED }
+enum PaymentProviderKind { MOCK NMI }
+enum PaymentProviderStatus { DEVELOPMENT_APPROVED MANUAL_REVIEW DISABLED }
+enum PaymentAttemptStatus { NOT_STARTED READY APPROVED DECLINED FAILED MANUAL_REVIEW }
+enum RefundStatus { REQUESTED APPROVED DECLINED PROCESSED FAILED }
+enum RuleOutcome { ALLOW BLOCK MANUAL_REVIEW DOCUMENTS_REQUIRED }
+enum RuleReviewStatus { DRAFT MANUAL_REVIEW COUNSEL_REVIEW_REQUIRED INACTIVE ARCHIVED }
+enum VerificationTemplateCode { AGE_18_ATTESTATION_ONLY AGE_18_ID_VERIFICATION AGE_21_ID_VERIFICATION FOID_OR_PERMIT_REQUIRED LICENSE_TO_CARRY_OR_FIREARM_ID_REQUIRED LOCAL_LICENSE_BACKGROUND_BRIEFING_REQUIRED SELLER_LICENSE_OR_VOLUME_THRESHOLD_REQUIRED BLOCKED MANUAL_REVIEW_DEFAULT }
+enum VerificationRequirementType { ATTESTATION ID_DOCUMENT PERMIT LOCAL_LICENSE SELLER_LICENSE BACKGROUND_BRIEFING MANUAL_REVIEW BLOCKED }
+enum VerificationRecordStatus { PENDING AUTOMATIC_APPROVED DOCUMENTS_REQUIRED MANUAL_REVIEW APPROVED REJECTED EXPIRED }
+enum VerificationDocumentStatus { PENDING APPROVED REJECTED EXPIRED }
+enum AuditAction { CREATE UPDATE ARCHIVE DEACTIVATE REVIEW APPROVE REJECT PAYMENT MOCK_EVENT SEED }
+enum LaunchGateStatus { DISABLED BLOCKED READY ENABLED }
+
+model User {
+  id             String       @id @default(cuid())
+  email          String       @unique
+  name           String?
+  status         RecordStatus @default(ACTIVE)
+  membershipTierId String?
+  membershipTier MembershipTier? @relation(fields: [membershipTierId], references: [id])
+  carts          Cart[]
+  orders         Order[]
+  verificationRecords BuyerVerificationRecord[]
+  couponRedemptions CouponRedemption[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  archivedAt     DateTime?
+}
+
+model AdminUser {
+  id        String      @id @default(cuid())
+  email     String      @unique
+  name      String
+  status    AdminStatus @default(ACTIVE)
+  roleId    String
+  role      AdminRole   @relation(fields: [roleId], references: [id])
+  auditLogs AuditLog[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  archivedAt DateTime?
+}
+
+model AdminRole {
+  id          String       @id @default(cuid())
+  code        String       @unique
+  name        String
+  description String?
+  status      RecordStatus @default(ACTIVE)
+  admins      AdminUser[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model MembershipTier {
+  id          String       @id @default(cuid())
+  code        String       @unique
+  name        String
+  description String?
+  discountBps Int          @default(0)
+  status      RecordStatus @default(ACTIVE)
+  users       User[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Product {
+  id          String          @id @default(cuid())
+  slug        String          @unique
+  brand       String
+  name        String
+  category    ProductCategory
+  description String
+  status      ProductStatus   @default(DRAFT)
+  restricted  Boolean         @default(false)
+  archivedAt  DateTime?
+  variants    ProductVariant[]
+  images      ProductImage[]
+  features    ProductFeature[]
+  stateRestrictionRules StateRestrictionRule[]
+  localRestrictionRules LocalRestrictionRule[]
+  featureRestrictionRules ProductFeatureRestrictionRule[]
+  orderItems  OrderItem[]
+  cartItems   CartItem[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model ProductVariant {
+  id        String        @id @default(cuid())
+  productId String
+  product   Product       @relation(fields: [productId], references: [id])
+  sku       String        @unique
+  name      String
+  priceCents Int
+  status    ProductStatus @default(ACTIVE)
+  inventory Inventory?
+  orderItems OrderItem[]
+  cartItems  CartItem[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  archivedAt DateTime?
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  url       String
+  alt       String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model ProductFeature {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  code      String
+  label     String
+  value     String
+  restrictedRelevant Boolean @default(false)
+  createdAt DateTime @default(now())
+  @@unique([productId, code])
+}
+
+model Inventory {
+  id        String   @id @default(cuid())
+  variantId String  @unique
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+  onHand    Int      @default(0)
+  reserved  Int      @default(0)
+  reorderThreshold Int @default(0)
+  status    RecordStatus @default(ACTIVE)
+  transactions InventoryTransaction[]
+  reservations InventoryReservation[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model InventoryTransaction {
+  id          String @id @default(cuid())
+  inventoryId String
+  inventory   Inventory @relation(fields: [inventoryId], references: [id])
+  type        InventoryTransactionType
+  quantity    Int
+  reason      String
+  createdAt   DateTime @default(now())
+}
+
+model InventoryReservation {
+  id          String @id @default(cuid())
+  inventoryId String
+  inventory   Inventory @relation(fields: [inventoryId], references: [id])
+  cartItemId  String?
+  orderItemId String?
+  quantity    Int
+  status      InventoryReservationStatus @default(ACTIVE)
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Coupon {
+  id          String @id @default(cuid())
+  code        String @unique
+  description String?
+  percentOff  Int?
+  amountOffCents Int?
+  status      CouponStatus @default(ACTIVE)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  redemptions CouponRedemption[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  archivedAt  DateTime?
+}
+
+model CouponRedemption {
+  id        String @id @default(cuid())
+  couponId  String
+  coupon    Coupon @relation(fields: [couponId], references: [id])
+  userId    String?
+  user      User?  @relation(fields: [userId], references: [id])
+  orderId   String?
+  order     Order? @relation(fields: [orderId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Cart {
+  id        String @id @default(cuid())
+  userId    String?
+  user      User?  @relation(fields: [userId], references: [id])
+  status    CartStatus @default(ACTIVE)
+  items     CartItem[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CartItem {
+  id        String @id @default(cuid())
+  cartId    String
+  cart      Cart @relation(fields: [cartId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+  quantity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Order {
+  id        String @id @default(cuid())
+  orderNumber String @unique
+  userId    String?
+  user      User? @relation(fields: [userId], references: [id])
+  status    OrderStatus @default(PENDING_ELIGIBILITY)
+  subtotalCents Int @default(0)
+  shippingCents Int @default(0)
+  taxCents Int @default(0)
+  totalCents Int @default(0)
+  liveCheckoutEnabled Boolean @default(false)
+  liveFulfillmentEnabled Boolean @default(false)
+  items     OrderItem[]
+  shippingAddress ShippingAddress?
+  paymentAttempts PaymentAttempt[]
+  refunds   Refund[]
+  verificationSnapshot OrderVerificationSnapshot?
+  couponRedemptions CouponRedemption[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  archivedAt DateTime?
+}
+
+model OrderItem {
+  id        String @id @default(cuid())
+  orderId   String
+  order     Order @relation(fields: [orderId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+  name      String
+  sku       String
+  quantity  Int
+  unitPriceCents Int
+  createdAt DateTime @default(now())
+}
+
+model ShippingAddress {
+  id        String @id @default(cuid())
+  orderId   String @unique
+  order     Order @relation(fields: [orderId], references: [id])
+  name      String
+  line1     String
+  line2     String?
+  city      String
+  state     String
+  postalCode String
+  country   String @default("US")
+  county    String?
+  normalized Boolean @default(false)
+  deliverable Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PaymentAttempt {
+  id        String @id @default(cuid())
+  orderId   String
+  order     Order @relation(fields: [orderId], references: [id])
+  provider  PaymentProviderKind
+  providerStatus PaymentProviderStatus @default(DISABLED)
+  status    PaymentAttemptStatus @default(NOT_STARTED)
+  amountCents Int
+  livePaymentEnabled Boolean @default(false)
+  providerReference String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Refund {
+  id        String @id @default(cuid())
+  orderId   String
+  order     Order @relation(fields: [orderId], references: [id])
+  amountCents Int
+  reason    String
+  status    RefundStatus @default(REQUESTED)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StateRestrictionRule {
+  id        String @id @default(cuid())
+  stateCode String
+  productCategory ProductCategory
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+  outcome   RuleOutcome @default(MANUAL_REVIEW)
+  reviewStatus RuleReviewStatus @default(MANUAL_REVIEW)
+  reason    String
+  effectiveFrom DateTime @default(now())
+  effectiveTo DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  archivedAt DateTime?
+  @@unique([stateCode, productCategory, productId])
+}
+
+model LocalRestrictionRule {
+  id        String @id @default(cuid())
+  stateCode String
+  localityType String
+  localityName String
+  productCategory ProductCategory
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+  outcome   RuleOutcome @default(MANUAL_REVIEW)
+  reviewStatus RuleReviewStatus @default(MANUAL_REVIEW)
+  reason    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  archivedAt DateTime?
+}
+
+model ProductFeatureRestrictionRule {
+  id        String @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  featureCode String
+  outcome   RuleOutcome @default(MANUAL_REVIEW)
+  reviewStatus RuleReviewStatus @default(MANUAL_REVIEW)
+  reason    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  archivedAt DateTime?
+}
+
+model VerificationTemplate {
+  id        String @id @default(cuid())
+  code      VerificationTemplateCode @unique
+  name      String
+  description String
+  status    RecordStatus @default(ACTIVE)
+  requirements VerificationRequirement[]
+  stateRules StateVerificationRule[]
+  localRules LocalVerificationRule[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  archivedAt DateTime?
+}
+
+model VerificationRequirement {
+  id        String @id @default(cuid())
+  templateId String
+  template VerificationTemplate @relation(fields: [templateId], references: [id])
+  type      VerificationRequirementType
+  label     String
+  required  Boolean @default(true)
+  sortOrder Int @default(0)
+  createdAt DateTime @default(now())
+}
+
+model StateVerificationRule {
+  id        String @id @default(cuid())
+  stateCode String
+  productCategory ProductCategory
+  templateId String
+  template VerificationTemplate @relation(fields: [templateId], references: [id])
+  reviewStatus RuleReviewStatus @default(MANUAL_REVIEW)
+  reason    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  archivedAt DateTime?
+  @@unique([stateCode, productCategory])
+}
+
+model LocalVerificationRule {
+  id        String @id @default(cuid())
+  stateCode String
+  localityType String
+  localityName String
+  productCategory ProductCategory
+  templateId String
+  template VerificationTemplate @relation(fields: [templateId], references: [id])
+  reviewStatus RuleReviewStatus @default(MANUAL_REVIEW)
+  reason    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  archivedAt DateTime?
+}
+
+model BuyerVerificationRecord {
+  id        String @id @default(cuid())
+  userId    String?
+  user      User? @relation(fields: [userId], references: [id])
+  status    VerificationRecordStatus @default(PENDING)
+  stateCode String?
+  productCategory ProductCategory?
+  automatedFirst Boolean @default(true)
+  decisionReason String?
+  documents BuyerVerificationDocument[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  expiresAt DateTime?
+}
+
+model BuyerVerificationDocument {
+  id        String @id @default(cuid())
+  verificationRecordId String
+  verificationRecord BuyerVerificationRecord @relation(fields: [verificationRecordId], references: [id])
+  documentType String
+  fileKey String
+  status VerificationDocumentStatus @default(PENDING)
+  reviewerNote String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OrderVerificationSnapshot {
+  id        String @id @default(cuid())
+  orderId   String @unique
+  order     Order @relation(fields: [orderId], references: [id])
+  outcome   RuleOutcome
+  templateCode VerificationTemplateCode
+  stateCode String
+  reasons   Json
+  liveCheckoutEnabled Boolean @default(false)
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String @id @default(cuid())
+  actorAdminId String?
+  actorAdmin AdminUser? @relation(fields: [actorAdminId], references: [id])
+  action    AuditAction
+  entityType String
+  entityId   String
+  note       String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+}
+
+model LaunchGate {
+  id        String @id @default(cuid())
+  code      String @unique
+  name      String
+  status    LaunchGateStatus @default(DISABLED)
+  ownerOnly Boolean @default(true)
+  liveCheckoutEnabled Boolean @default(false)
+  livePaymentEnabled Boolean @default(false)
+  liveFulfillmentEnabled Boolean @default(false)
+  reason    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
