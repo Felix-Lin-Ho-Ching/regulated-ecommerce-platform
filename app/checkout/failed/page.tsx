@@ -1,0 +1,2 @@
+import Link from "next/link";import { AppShell, SectionHeader, AlertPanel } from "@/components/ui";
+export default function Failed(){return <AppShell><SectionHeader eyebrow="Payment failed" title="Hosted payment was not completed">Eligibility remains approved; payment can be retried.</SectionHeader><AlertPanel title="Mock processor failure" tone="danger">No order funds were captured. Retry hosted payment or contact support.</AlertPanel><Link className="btn btn-primary mt-5" href="/checkout/payment">Retry payment</Link></AppShell>}

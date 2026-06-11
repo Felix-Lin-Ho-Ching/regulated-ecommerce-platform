@@ -1,0 +1,2 @@
+import { AppShell, SectionHeader, AlertPanel } from "@/components/ui";
+export default function Page(){return <AppShell><SectionHeader eyebrow="Policy" title="returns policy">Static policy placeholder for UX review. Final legal copy requires counsel approval.</SectionHeader><AlertPanel title="Mock policy content" tone="info">This page exists to prove navigation, footer links, and launch-gate policy readiness. It is not legal advice.</AlertPanel></AppShell>}

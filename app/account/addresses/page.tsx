@@ -1,0 +1,2 @@
+import { AppShell, FormField, SectionHeader, AlertPanel } from "@/components/ui";
+export default function Addresses(){return <AppShell><SectionHeader eyebrow="Addresses" title="Saved addresses"/><section className="card p-5"><FormField label="Validated address" value="410 Congress Ave, Austin, TX 78701"/><div className="mt-4"><AlertPanel title="Validation status" tone="success">Deliverable and covered by current TX compliance rule.</AlertPanel></div></section></AppShell>}
