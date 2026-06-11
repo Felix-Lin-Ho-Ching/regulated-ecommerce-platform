@@ -8,7 +8,11 @@
     "start": "next start",
     "lint": "node scripts/static-check.mjs lint",
     "typecheck": "node scripts/static-check.mjs typecheck",
-    "smoke": "node scripts/static-check.mjs smoke"
+    "smoke": "node scripts/static-check.mjs smoke",
+    "prisma:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed"
   },
   "dependencies": {
     "next": "^15.5.6",
@@ -23,7 +27,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "@prisma/client": "^6.19.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
@@ -34,10 +39,15 @@
     "eslint-config-next": "^15.5.6",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.0",
+    "prisma": "^6.19.0",
+    "tsx": "^4.20.6"
   },
   "prototypeNotes": {
     "requestedUiStack": "shadcn/ui patterns, Radix-style accessible primitives, Tailwind CSS, TypeScript, Next.js",
     "dependencyInstallNote": "Registry returned 403 in this environment; prototype code uses shadcn-style local components without importing unavailable Radix packages."
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }

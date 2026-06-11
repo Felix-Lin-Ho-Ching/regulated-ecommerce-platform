@@ -1,5 +1,12 @@
-import Link from "next/link";import { products } from "@/lib/mock-data";import { money } from "@/lib/utils";import { AppShell, SectionHeader, RestrictedProductBadge, StatusBadge } from "@/components/ui";
-function Card({p}:{p:typeof products[number]}){return <article className="card p-5"><div className="mb-3 h-32 rounded-xl bg-gradient-to-br from-slate-100 to-stone-200" aria-hidden="true"/><div className="flex flex-wrap gap-2">{p.restricted&&<RestrictedProductBadge/>}<StatusBadge tone={p.stock>20?"success":"warning"}>{p.stock} in stock</StatusBadge></div><h2 className="mt-3 text-lg font-black">{p.name}</h2><p className="mt-2 text-sm text-slate-600">{p.description}</p><div className="mt-4 flex items-center justify-between"><strong>{money(p.price)}</strong><Link className="btn btn-primary" href={`/products/${p.slug}`}>View</Link></div></article>}
-function Grid(){return <section className="grid gap-4 md:col-span-3 md:grid-cols-2 xl:grid-cols-3">{products.map(p=><Card p={p} key={p.id}/>)}</section>}
-export const ProductCard={Card,Grid};export { AppShell, SectionHeader };
-export function ProductDetail({slug}:{slug:string}){const p=products.find(x=>x.slug===slug)||products[2];return <div className="grid gap-6 md:grid-cols-2"><div className="card h-96 bg-gradient-to-br from-slate-100 to-stone-200"/><section><div className="flex flex-wrap gap-2">{p.restricted&&<RestrictedProductBadge/>}<StatusBadge tone="info">SKU {p.sku}</StatusBadge></div><h1 className="mt-4 text-4xl font-black">{p.name}</h1><p className="mt-3 text-slate-600">{p.description}</p><p className="mt-5 text-3xl font-black">{money(p.price)}</p>{p.restricted&&<div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4"><h2 className="font-black">Restricted-product notice</h2><p className="mt-1 text-sm">Eligibility depends on destination law, verified address, buyer attestations, and possible document/manual review. Payment is collected only after approval.</p></div>}<div className="mt-6 flex gap-3"><Link className="btn btn-primary" href="/cart">Add to cart</Link><Link className="btn btn-secondary" href="/checkout">Start checkout</Link></div></section></div>}
+import {
+  ProductCard as StoreProductCard,
+  ProductDetail,
+  ProductGrid,
+} from "@/components/store/product-components";
+
+export { AppShell, SectionHeader } from "@/components/ui";
+export { ProductDetail, ProductGrid };
+export const ProductCard = {
+  Card: StoreProductCard,
+  Grid: ProductGrid,
+};

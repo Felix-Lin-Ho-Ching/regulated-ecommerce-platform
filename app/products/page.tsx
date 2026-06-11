@@ -1,1 +1,46 @@
-import Link from "next/link";import { AppShell, ProductCard, SectionHeader } from "@/components/store-products";export default function Products(){return <AppShell><SectionHeader eyebrow="Catalog" title="Products"><span>Browse mock self-defense and safety products with clear restricted-product labels.</span></SectionHeader><div className="grid gap-4 md:grid-cols-4"><aside className="card p-4"><h2 className="font-black">Filters</h2><label className="mt-3 block text-sm"><input type="checkbox"/> Show restricted products</label><label className="mt-3 block text-sm">State preview<select className="input mt-1"><option>TX</option><option>CA</option><option>NY</option></select></label><Link className="btn btn-secondary mt-4" href="/restricted-products-policy">Policy</Link></aside><ProductCard.Grid/></div></AppShell>}
+import Link from "next/link";
+import { AppShell, SectionHeader } from "@/components/ui";
+import { ProductGrid } from "@/components/store/product-components";
+import { getCatalogProducts } from "@/lib/db/catalog";
+
+export default async function Products() {
+  const products = await getCatalogProducts();
+
+  return (
+    <AppShell>
+      <SectionHeader eyebrow="Shop" title="Stun Fry products">
+        Browse safety products with clear pricing, stock status, and restricted-product eligibility notices.
+      </SectionHeader>
+      <div className="grid gap-5 md:grid-cols-4">
+        <aside className="card p-5">
+          <h2 className="font-black">Filter products</h2>
+          <label className="mt-4 flex items-center gap-2 text-sm">
+            <input type="checkbox" />
+            Show restricted products
+          </label>
+          <label className="mt-4 block text-sm font-bold">
+            Category
+            <select className="input mt-2">
+              <option>All categories</option>
+              <option>Personal alarms</option>
+              <option>Training kits</option>
+              <option>Restricted devices</option>
+            </select>
+          </label>
+          <label className="mt-4 block text-sm font-bold">
+            State preview
+            <select className="input mt-2">
+              <option>TX</option>
+              <option>CA</option>
+              <option>NY</option>
+            </select>
+          </label>
+          <Link className="btn btn-secondary mt-5 w-full" href="/restricted-products-policy">
+            Restricted policy
+          </Link>
+        </aside>
+        <ProductGrid products={products} />
+      </div>
+    </AppShell>
+  );
+}
