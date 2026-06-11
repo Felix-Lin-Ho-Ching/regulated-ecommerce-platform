@@ -1,0 +1,1 @@
+import { AdminShell, RuleCoverageMatrix, SectionHeader } from "@/components/ui";export default function Coverage(){return <AdminShell title="Rule coverage"><SectionHeader eyebrow="Launch readiness" title="Rule coverage matrix">Missing coverage blocks owner launch for restricted categories.</SectionHeader><RuleCoverageMatrix/></AdminShell>}
