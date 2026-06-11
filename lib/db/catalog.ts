@@ -3,7 +3,7 @@ import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
 import type { Prisma } from "@prisma/client";
 
 type CatalogProductRow = Prisma.ProductGetPayload<{ include: { variants: { include: { inventory: true } }; features: true } }>;
-type StateRestrictionRuleRow = Prisma.StateRestrictionRuleGetPayload<Record<string, never>>;
+type StateRestrictionRuleRow = Prisma.StateRestrictionRuleGetPayload<true>;
 
 export type CatalogProduct = {
   id: string;
