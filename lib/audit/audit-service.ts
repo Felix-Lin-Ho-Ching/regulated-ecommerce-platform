@@ -1,4 +1,11 @@
-import { prisma } from "@/lib/db/prisma";
+﻿import { prisma } from "@/lib/db/prisma";
+
+type JsonPrimitive = string | number | boolean;
+
+export type JsonInput =
+  | JsonPrimitive
+  | { [key: string]: JsonInput | null }
+  | Array<JsonInput | null>;
 
 export type AuditEvent = {
   actorAdminId?: string;
@@ -16,7 +23,7 @@ export type AuditEvent = {
   entityType: string;
   entityId: string;
   note: string;
-  metadata?: Record<string, unknown>;
+  metadata?: JsonInput;
 };
 
 export async function recordAuditEvent(event: AuditEvent) {

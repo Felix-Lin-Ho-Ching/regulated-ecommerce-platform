@@ -2,6 +2,38 @@ import { brand } from "@/lib/config/brand";
 import { products as mockProducts, complianceRules } from "@/lib/mock-data";
 import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
 
+type CatalogProductRow = {
+  id: string;
+  slug: string;
+  brand: string;
+  name: string;
+  category: string;
+  description: string;
+  status: string;
+  restricted: boolean;
+  variants: Array<{
+    sku: string;
+    priceCents: number;
+    inventory: {
+      onHand: number;
+      reserved: number;
+    } | null;
+  }>;
+  features: Array<{
+    code: string;
+    label: string;
+    value: string;
+    restrictedRelevant: boolean;
+  }>;
+};
+
+type StateRestrictionRuleRow = {
+  stateCode: string;
+  productCategory: string;
+  outcome: string;
+  reviewStatus: string;
+  reason: string;
+};
 
 type ProductRow = {
   id: string;
@@ -48,8 +80,8 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
     where: { archivedAt: null },
     include: { variants: { include: { inventory: true } }, features: true },
     orderBy: { createdAt: "asc" },
-  })) as ProductRow[];
-  return rows.map((product) => {
+  }));
+  return rows.map((product: CatalogProductRow) => {
     const variant = product.variants[0];
     return {
       id: product.id,
@@ -64,7 +96,7 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
       price: (variant?.priceCents ?? 0) / 100,
       stock: variant?.inventory?.onHand ?? 0,
       reserved: variant?.inventory?.reserved ?? 0,
-      features: product.features.map((feature) => ({ code: feature.code, label: feature.label, value: feature.value, restrictedRelevant: feature.restrictedRelevant })),
+      features: product.features.map((feature: CatalogProductRow["features"][number]) => ({ code: feature.code, label: feature.label, value: feature.value, restrictedRelevant: feature.restrictedRelevant })),
     };
   });
 }
@@ -78,8 +110,8 @@ export type RuleCoverageRow = { state: string; category: string; outcome: string
 
 export async function getRuleCoverageRows(): Promise<RuleCoverageRow[]> {
   if (!isDatabaseConfigured) return complianceRules.map((rule) => ({ state: rule.state, category: rule.category, outcome: rule.outcome, coverage: rule.coverage, note: rule.note }));
-  const rows = (await prisma.stateRestrictionRule.findMany({ where: { archivedAt: null }, orderBy: [{ productCategory: "asc" }, { stateCode: "asc" }] })) as RestrictionRuleRow[];
-  return rows.map((rule) => ({
+  const rows = await prisma.stateRestrictionRule.findMany({ where: { archivedAt: null }, orderBy: [{ productCategory: "asc" }, { stateCode: "asc" }] });
+  return rows.map((rule: StateRestrictionRuleRow) => ({
     state: rule.stateCode,
     category: rule.productCategory,
     outcome: rule.outcome,
