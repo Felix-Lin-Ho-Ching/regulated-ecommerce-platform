@@ -1,13 +1,17 @@
 import { AppShell } from "@/components/ui";
 import { StorefrontHome } from "@/components/store/storefront";
 import { getCatalogProducts } from "@/lib/db/catalog";
+import { getStorefrontContent } from "@/lib/storefront-content/service";
 
 export default async function Home() {
-  const products = await getCatalogProducts();
+  const [products, storefrontContent] = await Promise.all([
+    getCatalogProducts(),
+    getStorefrontContent(),
+  ]);
 
   return (
     <AppShell>
-      <StorefrontHome products={products} />
+      <StorefrontHome content={storefrontContent} products={products} />
     </AppShell>
   );
 }

@@ -212,6 +212,28 @@ model MembershipTier {
   updatedAt   DateTime     @updatedAt
 }
 
+model StorefrontSettings {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  heroEyebrow String
+  heroTitle String
+  heroSubtitle String
+  primaryCtaLabel String
+  primaryCtaLink String
+  secondaryCtaLabel String
+  secondaryCtaLink String
+  heroImageUrl String @default("")
+  heroPlaceholderKey String @default("stun-fry-gradient-devices")
+  announcementBarText String
+  featuredSectionEyebrow String
+  featuredSectionTitle String
+  trustComplianceTitle String
+  trustComplianceBody String
+  trustBadgeLabels Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Product {
   id          String          @id @default(cuid())
   slug        String          @unique

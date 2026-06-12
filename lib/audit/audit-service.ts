@@ -1,40 +1,33 @@
-﻿import { prisma } from "@/lib/db/prisma";
+import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
 
-type JsonPrimitive = string | number | boolean;
+export type AuditActionName = "CREATE" | "UPDATE" | "ARCHIVE" | "DEACTIVATE" | "REVIEW" | "APPROVE" | "REJECT" | "PAYMENT" | "MOCK_EVENT" | "SEED";
 
-export type JsonInput =
-  | JsonPrimitive
-  | { [key: string]: JsonInput | null }
-  | Array<JsonInput | null>;
-
-export type AuditEvent = {
-  actorAdminId?: string;
-  action:
-    | "CREATE"
-    | "UPDATE"
-    | "ARCHIVE"
-    | "DEACTIVATE"
-    | "REVIEW"
-    | "APPROVE"
-    | "REJECT"
-    | "PAYMENT"
-    | "MOCK_EVENT"
-    | "SEED";
+type AuditInput = {
+  action: AuditActionName;
   entityType: string;
   entityId: string;
   note: string;
-  metadata?: JsonInput;
+  metadata?: Record<string, unknown>;
 };
 
-export async function recordAuditEvent(event: AuditEvent) {
-  return prisma.auditLog.create({
+export function requireAuditNote(note: string, label = "This change"): string {
+  const trimmed = note.trim();
+  if (trimmed.length < 8) {
+    throw new Error(`${label} requires a written reason of at least 8 characters.`);
+  }
+  return trimmed;
+}
+
+export async function createAuditLog(input: AuditInput) {
+  if (!isDatabaseConfigured) return;
+
+  await prisma.auditLog.create({
     data: {
-      actorAdminId: event.actorAdminId,
-      action: event.action,
-      entityType: event.entityType,
-      entityId: event.entityId,
-      note: event.note,
-      metadata: event.metadata,
+      action: input.action,
+      entityType: input.entityType,
+      entityId: input.entityId,
+      note: input.note,
+      metadata: input.metadata ?? {},
     },
   });
 }

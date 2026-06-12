@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/common/badge";
 export function AdminSidebar() {
   const links = [
     "/admin",
+    "/admin/storefront",
     "/admin/products",
     "/admin/inventory",
     "/admin/orders",

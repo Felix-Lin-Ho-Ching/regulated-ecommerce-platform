@@ -1,2 +1,32 @@
-import { AdminShell, FormField, SectionHeader, AlertPanel } from "@/components/ui";import { products } from "@/lib/mock-data";
-export default async function ProductEdit({params}:{params:Promise<{id:string}>}){const {id}=await params;const p=products.find(x=>x.id===id)||products[2];return <AdminShell title="Edit product"><SectionHeader eyebrow="Product admin" title={p.name}>Restricted status and compliance category are visible before activation.</SectionHeader><section className="card grid gap-4 p-5 md:grid-cols-2"><FormField label="Name" value={p.name}/><FormField label="Category" value={p.category}/><FormField label="SKU" value={p.sku}/><FormField label="Stock" value={String(p.stock)} type="number"/><AlertPanel title="Change note required" tone="warning">Activation, archive, and restricted-category edits require notes and audit entries.</AlertPanel></section></AdminShell>}
+import { notFound } from "next/navigation";
+import { ArchiveProductForm } from "@/components/admin/products/archive-product-form";
+import { ProductForm } from "@/components/admin/products/product-form";
+import { AdminShell, SectionHeader, StatusBadge } from "@/components/ui";
+import { getAdminProductById } from "@/lib/products/service";
+
+export default async function ProductEditPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const product = await getAdminProductById(id);
+
+  if (!product) notFound();
+
+  return (
+    <AdminShell title="Edit product">
+      <SectionHeader eyebrow="Product admin" title={product.name}>
+        Restricted status, inventory attachment, and feature rows are visible before activation.
+      </SectionHeader>
+      <div className="mb-4 flex flex-wrap gap-2">
+        <StatusBadge tone={product.restricted ? "warning" : "success"}>
+          {product.restricted ? "Restricted" : "Unrestricted"}
+        </StatusBadge>
+        <StatusBadge tone={product.hasInventory ? "success" : "danger"}>
+          {product.hasInventory ? "Inventory attached" : "Inventory missing"}
+        </StatusBadge>
+      </div>
+      <ProductForm product={product} />
+      <div className="mt-6">
+        <ArchiveProductForm productId={product.id} />
+      </div>
+    </AdminShell>
+  );
+}
