@@ -1,2 +1,35 @@
-import Link from "next/link";import { AdminShell, AdminDataTable, RestrictedProductBadge, StatusBadge, ConfirmDialog } from "@/components/ui";import { money } from "@/lib/utils";import { getCatalogProducts } from "@/lib/db/catalog";
-export default async function ProductsAdmin(){const products=await getCatalogProducts();return <AdminShell title="Products"><div className="mb-4 flex justify-end"><Link className="btn btn-primary" href="/admin/products/new">New product</Link></div><AdminDataTable columns={["Product","Category","Status","Stock","Price","Action"]} rows={products.map(p=>[<span key={p.id}>{p.name} {p.restricted&&<RestrictedProductBadge/>}</span>,p.category,<StatusBadge key={p.status} tone={p.restricted?"warning":"success"}>{p.status}</StatusBadge>,p.stock,money(p.price),<Link key={p.id} href={`/admin/products/${p.id}`}>Edit</Link>])}/><div className="mt-4"><ConfirmDialog/></div></AdminShell>}
+import Link from "next/link";
+import { AdminDataTable, AdminShell, RestrictedProductBadge, StatusBadge } from "@/components/ui";
+import { getAdminProducts } from "@/lib/products/service";
+import { money } from "@/lib/utils";
+
+export default async function ProductsAdminPage() {
+  const products = await getAdminProducts();
+
+  return (
+    <AdminShell title="Products">
+      <div className="mb-4 flex justify-end">
+        <Link className="btn btn-primary" href="/admin/products/new">
+          New product
+        </Link>
+      </div>
+      <AdminDataTable
+        columns={["Product", "Category", "Status", "Restricted", "Inventory", "SKU", "Price", "Action"]}
+        rows={products.map((product) => [
+          product.name,
+          product.category,
+          <StatusBadge key={`${product.id}-status`} tone={product.status === "ACTIVE" ? "success" : "warning"}>
+            {product.status}
+          </StatusBadge>,
+          product.restricted ? <RestrictedProductBadge key={`${product.id}-restricted`} /> : "Unrestricted",
+          product.hasInventory ? "Attached" : "Missing",
+          product.sku,
+          money(product.price),
+          <Link key={product.id} href={`/admin/products/${product.id}`}>
+            Edit
+          </Link>,
+        ])}
+      />
+    </AdminShell>
+  );
+}

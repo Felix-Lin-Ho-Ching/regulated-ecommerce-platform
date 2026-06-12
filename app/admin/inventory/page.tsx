@@ -1,2 +1,27 @@
-import { AdminShell, AdminDataTable, StatusBadge, FormField } from "@/components/ui";import { getCatalogProducts } from "@/lib/db/catalog";
-export default async function Inventory(){const products=await getCatalogProducts();return <AdminShell title="Inventory"><AdminDataTable columns={["SKU","Product","Available","Reserved","Restricted","Last adjustment"]} rows={products.map(p=>[p.sku,p.name,Math.max(0,p.stock-p.reserved),p.reserved,<StatusBadge key={p.id} tone={p.restricted?"warning":"success"}>{p.restricted?"restricted":"standard"}</StatusBadge>,"Reason required"])} /><section className="card mt-4 p-5"><h2 className="font-black">Stock adjustment</h2><FormField label="Reason" value="Cycle count correction"/><p className="mt-2 text-sm text-slate-600">Phase 1 records inventory transactions with required reasons; no fulfillment is live.</p></section></AdminShell>}
+import { InventoryAdjustmentForm } from "@/components/admin/inventory/inventory-adjustment-form";
+import { AdminDataTable, AdminShell, StatusBadge } from "@/components/ui";
+import { getInventoryRows } from "@/lib/inventory/service";
+
+export default async function InventoryPage() {
+  const rows = await getInventoryRows();
+
+  return (
+    <AdminShell title="Inventory">
+      <AdminDataTable
+        columns={["SKU", "Product", "On hand", "Reserved", "Available", "Restricted", "Audit requirement"]}
+        rows={rows.map((row) => [
+          row.sku,
+          row.productName,
+          row.onHand,
+          row.reserved,
+          row.available,
+          <StatusBadge key={`${row.inventoryId}-restricted`} tone={row.restricted ? "warning" : "success"}>
+            {row.restricted ? "restricted" : "unrestricted"}
+          </StatusBadge>,
+          "Reason required for every adjustment",
+        ])}
+      />
+      <InventoryAdjustmentForm rows={rows} />
+    </AdminShell>
+  );
+}

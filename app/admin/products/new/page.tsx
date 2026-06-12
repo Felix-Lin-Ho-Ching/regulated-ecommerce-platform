@@ -1,1 +1,13 @@
-import { AdminShell, FormField, SectionHeader } from "@/components/ui";export default function NewProduct(){return <AdminShell title="New product"><SectionHeader eyebrow="Product admin" title="Create product shell"/><section className="card grid gap-4 p-5 md:grid-cols-2"><FormField label="Name"/><FormField label="Category" value="knuckle_stun_device"/><FormField label="SKU"/><FormField label="Price" type="number"/><label className="font-bold"><input type="checkbox"/> Restricted product</label><button className="btn btn-primary">Save mock product</button></section></AdminShell>}
+import { ProductForm } from "@/components/admin/products/product-form";
+import { AdminShell, SectionHeader } from "@/components/ui";
+
+export default function NewProductPage() {
+  return (
+    <AdminShell title="New product">
+      <SectionHeader eyebrow="Product admin" title="Create owner-managed product">
+        Add product details, a default SKU, price, restricted status, and compliance-relevant feature rows.
+      </SectionHeader>
+      <ProductForm />
+    </AdminShell>
+  );
+}

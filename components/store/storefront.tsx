@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { brand } from "@/lib/config/brand";
 import type { CatalogProduct } from "@/lib/db/catalog";
+import type { StorefrontContent } from "@/lib/storefront-content/defaults";
 import { money } from "@/lib/utils";
 import { RestrictedProductBadge, StatusBadge } from "@/components/common/badge";
 import { AlertPanel } from "@/components/common/panels";
@@ -25,37 +25,61 @@ const complianceSteps = [
   },
 ];
 
-export function StorefrontHome({ products }: { products: CatalogProduct[] }) {
+function HeroPlaceholder({ placeholderKey }: { placeholderKey: string }) {
+  return (
+    <div className="flex min-h-[22rem] items-center justify-center rounded-[1.35rem] bg-gradient-to-br from-amber-100 via-stone-100 to-teal-100 p-6 text-slate-950">
+      <div className="relative flex h-64 w-full max-w-sm items-center justify-center rounded-[2rem] bg-white/75 shadow-inner">
+        <div className="absolute inset-x-10 bottom-8 h-10 rounded-full bg-slate-900/10 blur-xl" />
+        <div className="relative h-44 w-32 rotate-6 rounded-[2rem] border border-white/80 bg-gradient-to-br from-slate-900 via-teal-950 to-slate-800 shadow-2xl" />
+        <div className="relative -ml-10 h-36 w-24 -rotate-12 rounded-[1.5rem] border border-white/80 bg-gradient-to-br from-amber-300 via-amber-200 to-white shadow-xl" />
+        <span className="sr-only">{placeholderKey}</span>
+      </div>
+    </div>
+  );
+}
+
+export function StorefrontHome({
+  content,
+  products,
+}: {
+  content: StorefrontContent;
+  products: CatalogProduct[];
+}) {
   const featuredProducts = products.slice(0, 3);
   const heroProduct = featuredProducts[0];
   const categories = Array.from(new Set(products.map((product) => product.category))).slice(0, 3);
 
   return (
     <div className="space-y-10">
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-bold text-slate-800">
+        {content.announcementBarText}
+      </div>
+
       <section className="grid gap-8 overflow-hidden rounded-[2rem] border border-stone-200 bg-gradient-to-br from-white via-stone-50 to-amber-50 p-6 shadow-sm md:grid-cols-[minmax(0,1fr)_460px] md:p-8 lg:p-10">
         <div className="flex flex-col justify-center py-4">
           <p className="text-sm font-black uppercase tracking-[.22em] text-teal-900">
-            {brand.name} safety essentials
+            {content.heroEyebrow}
           </p>
           <h1 className="mt-4 max-w-3xl text-4xl font-black tracking-tight text-slate-950 md:text-6xl">
-            Shop Stun Fry personal safety gear built for everyday confidence.
+            {content.heroTitle}
           </h1>
           <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
-            Browse self-defense devices, alarms, visibility gear, and training essentials in a
-            product-first storefront with clear restricted-product guidance before checkout.
+            {content.heroSubtitle}
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
-            <Link className="btn btn-primary" href="/products">
-              Shop products
+            <Link className="btn btn-primary" href={content.primaryCtaLink}>
+              {content.primaryCtaLabel}
             </Link>
-            <Link className="btn btn-secondary" href="/restricted-products-policy">
-              Restricted-product policy
+            <Link className="btn btn-secondary" href={content.secondaryCtaLink}>
+              {content.secondaryCtaLabel}
             </Link>
           </div>
           <div className="mt-8 grid gap-3 text-sm font-bold text-slate-700 sm:grid-cols-3">
-            <div className="rounded-2xl border border-stone-200 bg-white/80 p-4">In-stock picks</div>
-            <div className="rounded-2xl border border-stone-200 bg-white/80 p-4">Clear product labels</div>
-            <div className="rounded-2xl border border-stone-200 bg-white/80 p-4">Responsible checkout</div>
+            {content.trustBadgeLabels.map((badge) => (
+              <div className="rounded-2xl border border-stone-200 bg-white/80 p-4" key={badge}>
+                {badge}
+              </div>
+            ))}
           </div>
         </div>
 
@@ -64,13 +88,15 @@ export function StorefrontHome({ products }: { products: CatalogProduct[] }) {
             <div className="absolute right-6 top-6 z-10 rounded-full bg-amber-300 px-3 py-1 text-xs font-black uppercase tracking-[.16em] text-slate-950">
               Featured
             </div>
-            <div className="flex min-h-[22rem] items-center justify-center rounded-[1.35rem] bg-gradient-to-br from-amber-100 via-stone-100 to-teal-100 p-6 text-slate-950">
-              <div className="relative flex h-64 w-full max-w-sm items-center justify-center rounded-[2rem] bg-white/75 shadow-inner">
-                <div className="absolute inset-x-10 bottom-8 h-10 rounded-full bg-slate-900/10 blur-xl" />
-                <div className="relative h-44 w-32 rotate-6 rounded-[2rem] border border-white/80 bg-gradient-to-br from-slate-900 via-teal-950 to-slate-800 shadow-2xl" />
-                <div className="relative -ml-10 h-36 w-24 -rotate-12 rounded-[1.5rem] border border-white/80 bg-gradient-to-br from-amber-300 via-amber-200 to-white shadow-xl" />
-              </div>
-            </div>
+            {content.heroImageUrl ? (
+              <div
+                aria-label="Storefront hero image"
+                className="min-h-[22rem] rounded-[1.35rem] bg-cover bg-center"
+                style={{ backgroundImage: `url(${content.heroImageUrl})` }}
+              />
+            ) : (
+              <HeroPlaceholder placeholderKey={content.heroPlaceholderKey} />
+            )}
             <div className="mt-5 flex flex-wrap gap-2">
               {heroProduct.restricted ? <RestrictedProductBadge /> : null}
               <StatusBadge tone={heroProduct.stock > 0 ? "success" : "danger"}>
@@ -104,11 +130,8 @@ export function StorefrontHome({ products }: { products: CatalogProduct[] }) {
           <p className="text-sm font-black uppercase tracking-[.2em] text-teal-900">
             Responsible shopping safeguards
           </p>
-          <h2 className="mt-2 text-3xl font-black">Compliance stays clear after you start shopping.</h2>
-          <p className="mt-3 text-slate-600">
-            Stun Fry keeps restricted-product warnings visible without turning the storefront into a
-            workflow demo. These checks happen before payment for items that require them.
-          </p>
+          <h2 className="mt-2 text-3xl font-black">{content.trustComplianceTitle}</h2>
+          <p className="mt-3 text-slate-600">{content.trustComplianceBody}</p>
         </div>
         <div className="grid gap-4 md:grid-cols-4">
           {complianceSteps.map((step, index) => (
@@ -137,9 +160,9 @@ export function StorefrontHome({ products }: { products: CatalogProduct[] }) {
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-sm font-black uppercase tracking-[.2em] text-teal-900">
-              Featured products
+              {content.featuredSectionEyebrow}
             </p>
-            <h2 className="text-3xl font-black">Shop Stun Fry picks</h2>
+            <h2 className="text-3xl font-black">{content.featuredSectionTitle}</h2>
           </div>
           <Link className="btn btn-secondary" href="/products">
             View all products
@@ -172,8 +195,7 @@ export function StorefrontHome({ products }: { products: CatalogProduct[] }) {
       </section>
 
       <AlertPanel title="Responsible restricted-product checkout" tone="warning">
-        Restricted-product warnings stay visible during shopping. Eligibility, document review, and
-        admin review remain local MVP checkpoints; live payment remains disabled.
+        Restricted-product warnings stay visible during shopping. Eligibility, document review, and admin review remain local MVP checkpoints; live payment remains disabled.
       </AlertPanel>
     </div>
   );

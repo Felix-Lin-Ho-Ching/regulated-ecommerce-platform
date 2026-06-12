@@ -28,6 +28,30 @@ async function main() {
     update: { roleId: ownerRole.id, status: "ACTIVE" },
     create: { id: "admin_owner", email: "owner@stunfry.example", name: "Olivia Owner", roleId: ownerRole.id, status: "ACTIVE" },
   });
+
+  await prisma.storefrontSettings.upsert({
+    where: { key: "default" },
+    update: {},
+    create: {
+      key: "default",
+      heroEyebrow: "Stun Fry safety essentials",
+      heroTitle: "Shop Stun Fry personal safety gear built for everyday confidence.",
+      heroSubtitle: "Browse self-defense devices, alarms, visibility gear, and training essentials with clear restricted-product guidance before checkout.",
+      primaryCtaLabel: "Shop products",
+      primaryCtaLink: "/products",
+      secondaryCtaLabel: "Restricted-product policy",
+      secondaryCtaLink: "/restricted-products-policy",
+      heroImageUrl: "",
+      heroPlaceholderKey: "stun-fry-gradient-devices",
+      announcementBarText: "Restricted-product eligibility is reviewed before payment; live checkout remains disabled in this phase.",
+      featuredSectionEyebrow: "Featured products",
+      featuredSectionTitle: "Shop Stun Fry picks",
+      trustComplianceTitle: "Compliance stays clear after you start shopping.",
+      trustComplianceBody: "Stun Fry keeps restricted-product warnings visible. Eligibility, document review, and admin review remain checkpoints before any payment can happen.",
+      trustBadgeLabels: ["In-stock picks", "Clear product labels", "Responsible checkout"],
+    },
+  });
+
   for (const tier of [
     ["BASIC", "Basic", 0],
     ["PLUS", "Plus", 500],
@@ -72,13 +96,35 @@ async function main() {
     }
   }
 
+  const ageIdTemplate = await prisma.verificationTemplate.findUniqueOrThrow({ where: { code: "AGE_18_ID_VERIFICATION" } });
+  const blockedTemplate = await prisma.verificationTemplate.findUniqueOrThrow({ where: { code: "BLOCKED" } });
+  const permitTemplate = await prisma.verificationTemplate.findUniqueOrThrow({ where: { code: "FOID_OR_PERMIT_REQUIRED" } });
+  const reviewedExamples = [
+    { stateCode: "CA", outcome: "MANUAL_REVIEW", templateId: ageIdTemplate.id, reason: "Example: CA requires ID verification workflow review; not final legal advice." },
+    { stateCode: "HI", outcome: "BLOCK", templateId: blockedTemplate.id, reason: "Example: HI blocked until counsel-approved rules say otherwise; not final legal advice." },
+    { stateCode: "IL", outcome: "MANUAL_REVIEW", templateId: permitTemplate.id, reason: "Example: IL requires permit/FOID-style manual review; not final legal advice." },
+  ] as const;
+  for (const example of reviewedExamples) {
+    await prisma.stateRestrictionRule.upsert({
+      where: { stateCode_productCategory_productId: { stateCode: example.stateCode, productCategory: "knuckle_stun_device", productId: "prod_knuckle" } },
+      update: { outcome: example.outcome, reviewStatus: "COUNSEL_REVIEW_REQUIRED", reason: example.reason },
+      create: { stateCode: example.stateCode, productCategory: "knuckle_stun_device", productId: "prod_knuckle", outcome: example.outcome, reviewStatus: "COUNSEL_REVIEW_REQUIRED", reason: example.reason },
+    });
+    await prisma.stateVerificationRule.upsert({
+      where: { stateCode_productCategory: { stateCode: example.stateCode, productCategory: "knuckle_stun_device" } },
+      update: { templateId: example.templateId, reviewStatus: "COUNSEL_REVIEW_REQUIRED", reason: example.reason },
+      create: { stateCode: example.stateCode, productCategory: "knuckle_stun_device", templateId: example.templateId, reviewStatus: "COUNSEL_REVIEW_REQUIRED", reason: example.reason },
+    });
+  }
+
+
   await prisma.coupon.upsert({ where: { code: "WELCOME10" }, update: {}, create: { id: "coupon_welcome10", code: "WELCOME10", description: "10% launch welcome coupon for development/testing.", percentOff: 10, status: "ACTIVE" } });
   for (const gate of ["LIVE_CHECKOUT", "LIVE_PAYMENT", "LIVE_FULFILLMENT", "RULE_COVERAGE", "LEGAL_APPROVAL"] as const) {
     await prisma.launchGate.upsert({ where: { code: gate }, update: { status: "DISABLED", liveCheckoutEnabled: false, livePaymentEnabled: false, liveFulfillmentEnabled: false }, create: { id: `gate_${gate.toLowerCase()}`, code: gate, name: gate.replaceAll("_", " ").toLowerCase(), status: "DISABLED", ownerOnly: true, reason: "Disabled by default for safe local development.", liveCheckoutEnabled: false, livePaymentEnabled: false, liveFulfillmentEnabled: false } });
   }
   await prisma.paymentAttempt.create({ data: { id: "pay_mock_dev_seed", order: { create: { id: "order_seed_payment", orderNumber: "DEV-PAYMENT-SEED", status: "READY_FOR_PAYMENT", totalCents: 0, liveCheckoutEnabled: false, liveFulfillmentEnabled: false } }, provider: "MOCK", providerStatus: "DEVELOPMENT_APPROVED", status: "APPROVED", amountCents: 0, livePaymentEnabled: false, providerReference: "mock-approved-development-only" } }).catch(() => undefined);
   await prisma.paymentAttempt.create({ data: { id: "pay_nmi_manual_review_seed", order: { connect: { id: "order_seed_payment" } }, provider: "NMI", providerStatus: "MANUAL_REVIEW", status: "MANUAL_REVIEW", amountCents: 0, livePaymentEnabled: false, providerReference: "nmi-manual-review-until-approved" } }).catch(() => undefined);
-  await prisma.auditLog.create({ data: { actorAdminId: owner.id, action: "SEED", entityType: "database", entityId: "phase_1", note: "Seeded Phase 1 foundation with manual-review legal defaults and disabled launch gates." } });
+  await prisma.auditLog.create({ data: { actorAdminId: owner.id, action: "SEED", entityType: "database", entityId: "phase_2b", note: "Seeded Phase 2B storefront content and owner-admin examples on top of Phase 1 foundation with manual-review legal defaults and disabled launch gates." } });
 }
 
 main().finally(async () => prisma.$disconnect());
