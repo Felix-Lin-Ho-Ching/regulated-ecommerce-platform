@@ -1,2 +1,13 @@
-import Link from "next/link";import { AppShell, SectionHeader, AlertPanel } from "@/components/ui";
-export default function Home(){return <AppShell><SectionHeader eyebrow="Compliance-first commerce" title="Restricted-product shopping without pressure tactics.">A static UX prototype for proving customer checkout, verification, admin review, and owner launch gates before backend work.</SectionHeader><div className="grid gap-6 md:grid-cols-3"><section className="card p-6"><h2 className="text-xl font-black">Shop responsibly</h2><p className="mt-2 text-slate-600">Restricted notices are visible before cart and payment.</p><Link className="btn btn-primary mt-4" href="/products">Browse products</Link></section><section className="card p-6"><h2 className="text-xl font-black">No payment until approved</h2><p className="mt-2 text-slate-600">Checkout blocks, document requirements, and manual review all occur before payment collection.</p><Link className="btn btn-secondary mt-4" href="/checkout">Review checkout</Link></section><section className="card p-6"><h2 className="text-xl font-black">Admin launch control</h2><p className="mt-2 text-slate-600">Table-first tools for products, rules, verification, documents, audit logs, and gates.</p><Link className="btn btn-secondary mt-4" href="/admin">Open admin</Link></section></div><div className="mt-6"><AlertPanel title="Restricted category in prototype" tone="warning">knuckle_stun_device is represented with mock compliance rules across several states.</AlertPanel></div></AppShell>}
+import { AppShell } from "@/components/ui";
+import { StorefrontHome } from "@/components/store/storefront";
+import { getCatalogProducts } from "@/lib/db/catalog";
+
+export default async function Home() {
+  const products = await getCatalogProducts();
+
+  return (
+    <AppShell>
+      <StorefrontHome products={products} />
+    </AppShell>
+  );
+}

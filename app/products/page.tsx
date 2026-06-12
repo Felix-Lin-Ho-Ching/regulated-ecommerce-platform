@@ -1,2 +1,53 @@
-import Link from "next/link";import { AppShell, ProductCard, SectionHeader } from "@/components/store-products";import { getCatalogProducts } from "@/lib/db/catalog";
-export default async function Products(){const products=await getCatalogProducts();return <AppShell><SectionHeader eyebrow="Catalog" title="Products"><span>Browse database-seeded self-defense and safety products with clear restricted-product labels.</span></SectionHeader><div className="grid gap-4 md:grid-cols-4"><aside className="card p-4"><h2 className="font-black">Filters</h2><label className="mt-3 block text-sm"><input type="checkbox"/> Show restricted products</label><label className="mt-3 block text-sm">State preview<select className="input mt-1"><option>TX</option><option>CA</option><option>NY</option></select></label><Link className="btn btn-secondary mt-4" href="/restricted-products-policy">Policy</Link></aside><ProductCard.Grid products={products}/></div></AppShell>}
+import Link from "next/link";
+import { AppShell, ProductCard, SectionHeader } from "@/components/store-products";
+import { StatusBadge } from "@/components/ui";
+import { getCatalogProducts } from "@/lib/db/catalog";
+
+export default async function Products() {
+  const products = await getCatalogProducts();
+
+  return (
+    <AppShell>
+      <SectionHeader eyebrow="Shop" title="Self-defense products">
+        Browse inventory-backed products with price, stock, and restricted-product eligibility
+        labels before checkout.
+      </SectionHeader>
+      <div className="grid gap-4 md:grid-cols-4">
+        <aside className="card p-4">
+          <h2 className="font-black">Filters</h2>
+          <div className="mt-4 grid gap-3 text-sm">
+            <label className="flex items-center gap-2 font-bold">
+              <input type="checkbox" defaultChecked />
+              Show restricted products
+            </label>
+            <label className="block font-bold">
+              State preview
+              <select className="input mt-1">
+                <option>TX</option>
+                <option>CA</option>
+                <option>NY</option>
+                <option>IL</option>
+              </select>
+            </label>
+            <label className="block font-bold">
+              Category
+              <select className="input mt-1">
+                <option>All products</option>
+                <option>knuckle_stun_device</option>
+                <option>personal_safety</option>
+              </select>
+            </label>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <StatusBadge tone="warning">Compliance visible</StatusBadge>
+            <StatusBadge tone="info">Mock eligibility</StatusBadge>
+          </div>
+          <Link className="btn btn-secondary mt-4 w-full" href="/restricted-products-policy">
+            Restricted-product policy
+          </Link>
+        </aside>
+        <ProductCard.Grid products={products} />
+      </div>
+    </AppShell>
+  );
+}

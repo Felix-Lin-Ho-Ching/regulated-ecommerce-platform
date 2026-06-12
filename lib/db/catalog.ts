@@ -1,5 +1,28 @@
+import { brand } from "@/lib/config/brand";
 import { products as mockProducts, complianceRules } from "@/lib/mock-data";
 import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
+
+
+type ProductRow = {
+  id: string;
+  slug: string;
+  brand: string;
+  name: string;
+  category: string;
+  description: string;
+  status: string;
+  restricted: boolean;
+  variants: Array<{ sku: string; priceCents: number; inventory: { onHand: number; reserved: number } | null }>;
+  features: Array<{ code: string; label: string; value: string; restrictedRelevant: boolean }>;
+};
+
+type RestrictionRuleRow = {
+  stateCode: string;
+  productCategory: string;
+  outcome: string;
+  reviewStatus: string;
+  reason: string;
+};
 
 export type CatalogProduct = {
   id: string;
@@ -17,15 +40,15 @@ export type CatalogProduct = {
   features: Array<{ code: string; label: string; value: string; restrictedRelevant: boolean }>;
 };
 
-const fallbackProducts: CatalogProduct[] = mockProducts.map((p) => ({ ...p, brand: "Stun Fry", reserved: Math.min(4, p.stock), features: [] }));
+const fallbackProducts: CatalogProduct[] = mockProducts.map((p) => ({ ...p, brand: brand.name, reserved: Math.min(4, p.stock), features: [] }));
 
 export async function getCatalogProducts(): Promise<CatalogProduct[]> {
   if (!isDatabaseConfigured) return fallbackProducts;
-  const rows = await prisma.product.findMany({
+  const rows = (await prisma.product.findMany({
     where: { archivedAt: null },
     include: { variants: { include: { inventory: true } }, features: true },
     orderBy: { createdAt: "asc" },
-  });
+  })) as ProductRow[];
   return rows.map((product) => {
     const variant = product.variants[0];
     return {
@@ -55,7 +78,7 @@ export type RuleCoverageRow = { state: string; category: string; outcome: string
 
 export async function getRuleCoverageRows(): Promise<RuleCoverageRow[]> {
   if (!isDatabaseConfigured) return complianceRules.map((rule) => ({ state: rule.state, category: rule.category, outcome: rule.outcome, coverage: rule.coverage, note: rule.note }));
-  const rows = await prisma.stateRestrictionRule.findMany({ where: { archivedAt: null }, orderBy: [{ productCategory: "asc" }, { stateCode: "asc" }] });
+  const rows = (await prisma.stateRestrictionRule.findMany({ where: { archivedAt: null }, orderBy: [{ productCategory: "asc" }, { stateCode: "asc" }] })) as RestrictionRuleRow[];
   return rows.map((rule) => ({
     state: rule.stateCode,
     category: rule.productCategory,
