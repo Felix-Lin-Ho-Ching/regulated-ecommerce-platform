@@ -12,6 +12,7 @@ type CatalogProductRow = {
   status: string;
   restricted: boolean;
   variants: Array<{
+    id: string;
     sku: string;
     priceCents: number;
     inventory: {
@@ -44,7 +45,7 @@ type ProductRow = {
   description: string;
   status: string;
   restricted: boolean;
-  variants: Array<{ sku: string; priceCents: number; inventory: { onHand: number; reserved: number } | null }>;
+  variants: Array<{ id: string; sku: string; priceCents: number; inventory: { onHand: number; reserved: number } | null }>;
   features: Array<{ code: string; label: string; value: string; restrictedRelevant: boolean }>;
 };
 
@@ -65,6 +66,7 @@ export type CatalogProduct = {
   description: string;
   status: string;
   restricted: boolean;
+  variantId: string;
   sku: string;
   price: number;
   stock: number;
@@ -72,7 +74,13 @@ export type CatalogProduct = {
   features: Array<{ code: string; label: string; value: string; restrictedRelevant: boolean }>;
 };
 
-const fallbackProducts: CatalogProduct[] = mockProducts.map((p) => ({ ...p, brand: brand.name, reserved: Math.min(4, p.stock), features: [] }));
+const fallbackProducts: CatalogProduct[] = mockProducts.map((p) => ({
+  ...p,
+  variantId: p.id,
+  brand: brand.name,
+  reserved: Math.min(4, p.stock),
+  features: [],
+}));
 
 export async function getCatalogProducts(): Promise<CatalogProduct[]> {
   if (!isDatabaseConfigured) return fallbackProducts;
@@ -92,6 +100,7 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
       description: product.description,
       status: product.status,
       restricted: product.restricted,
+      variantId: variant?.id ?? product.id,
       sku: variant?.sku ?? "UNASSIGNED",
       price: (variant?.priceCents ?? 0) / 100,
       stock: variant?.inventory?.onHand ?? 0,

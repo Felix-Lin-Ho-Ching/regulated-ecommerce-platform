@@ -1,5 +1,6 @@
 import { checkoutCases, type StatusTone } from "@/lib/mock-data";
-import { cn } from "@/lib/utils";
+import { cn, money } from "@/lib/utils";
+import type { CartSnapshot } from "@/lib/cart/cart-service";
 import { AlertPanel } from "@/components/common/panels";
 import { StatusBadge } from "@/components/common/badge";
 
@@ -31,30 +32,35 @@ export function CheckoutStepper({ active = 1 }: { active?: number }) {
   );
 }
 
-export function CheckoutSummary() {
+export function CheckoutSummary({ cart }: { cart?: CartSnapshot }) {
+  const subtotal = cart?.subtotal ?? 148;
+  const shipping = cart?.shipping ?? 12;
+  const tax = cart?.tax ?? 11.84;
+  const total = cart?.total ?? 171.84;
+
   return (
     <aside className="card p-5">
       <h2 className="text-lg font-black">Order summary</h2>
       <dl className="mt-4 space-y-2 text-sm">
         <div className="flex justify-between">
           <dt>Subtotal</dt>
-          <dd>$148.00</dd>
+          <dd>{money(subtotal)}</dd>
         </div>
         <div className="flex justify-between">
           <dt>Shipping</dt>
-          <dd>$12.00</dd>
+          <dd>{money(shipping)}</dd>
         </div>
         <div className="flex justify-between">
           <dt>Estimated tax</dt>
-          <dd>$11.84</dd>
+          <dd>{money(tax)}</dd>
         </div>
         <div className="flex justify-between border-t pt-3 text-lg font-black">
           <dt>Total</dt>
-          <dd>$171.84</dd>
+          <dd>{money(total)}</dd>
         </div>
       </dl>
       <p className="mt-4 text-xs text-slate-500">
-        No payment is collected until compliance and verification are approved.
+        Payment is mock only. No card data is collected and no live checkout is enabled.
       </p>
     </aside>
   );

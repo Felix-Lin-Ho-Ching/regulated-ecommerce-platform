@@ -162,6 +162,7 @@ enum LaunchGateStatus {
 model User {
   id             String       @id @default(cuid())
   email          String       @unique
+  passwordHash   String       @default("")
   name           String?
   status         RecordStatus @default(ACTIVE)
   membershipTierId String?

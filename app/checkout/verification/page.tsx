@@ -7,6 +7,8 @@ import {
   SectionHeader,
   VerificationRequirementList,
 } from "@/components/ui";
+import { AlertPanel } from "@/components/common/panels";
+import { getCartSnapshot } from "@/lib/cart/cart-service";
 import type { CheckoutOutcome } from "@/lib/mock-data";
 
 export default async function Verification({
@@ -14,30 +16,37 @@ export default async function Verification({
 }: {
   searchParams: Promise<{ case?: CheckoutOutcome }>;
 }) {
-  const sp = await searchParams;
-  const outcome = sp.case || "pending_admin_review";
+  const [sp, cart] = await Promise.all([searchParams, getCartSnapshot()]);
+  const outcome = sp.case || "ready_for_payment";
 
   return (
     <AppShell>
       <SectionHeader eyebrow="Eligibility" title="Eligibility and verification">
-        Mock decisioning shows whether checkout can proceed before payment.
+        Age attestation, destination review, restricted-product warnings, and document/admin review
+        placeholders are grouped before mock payment.
       </SectionHeader>
       <CheckoutStepper active={3} />
       <div className="mt-6 grid gap-6 md:grid-cols-[1fr_320px]">
         <section className="space-y-5">
           <ComplianceResultPanel outcome={outcome} />
           <section className="card p-5">
-            <h2 className="text-xl font-black">Buyer verification requirements</h2>
+            <h2 className="text-xl font-black">Buyer eligibility requirements</h2>
             <VerificationRequirementList />
+            <div className="mt-5">
+              <AlertPanel title="Document/admin review placeholder" tone="warning">
+                If destination rules require documents or staff review, payment remains hidden until
+                approval. This MVP shows the control points without collecting documents.
+              </AlertPanel>
+            </div>
             <div className="mt-5 flex flex-wrap gap-3">
               {outcome === "pending_document_upload" ? (
                 <Link className="btn btn-primary" href="/checkout/document-upload">
-                  Upload documents
+                  View mock document upload
                 </Link>
               ) : null}
               {outcome === "ready_for_payment" ? (
                 <Link className="btn btn-primary" href="/checkout/payment">
-                  Continue to payment
+                  Continue to mock payment
                 </Link>
               ) : null}
               {outcome === "blocked" ? (
@@ -46,14 +55,14 @@ export default async function Verification({
                 </Link>
               ) : null}
               {outcome === "pending_admin_review" ? (
-                <Link className="btn btn-secondary" href="/account/orders/SF-1003">
+                <Link className="btn btn-secondary" href="/account/orders">
                   View review status
                 </Link>
               ) : null}
             </div>
           </section>
         </section>
-        <CheckoutSummary />
+        <CheckoutSummary cart={cart} />
       </div>
     </AppShell>
   );
