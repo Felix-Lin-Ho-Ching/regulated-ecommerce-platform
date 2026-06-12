@@ -1,9 +1,32 @@
+import { brand } from "@/lib/config/brand";
 import { products as mockProducts, complianceRules } from "@/lib/mock-data";
 import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
 import type { Prisma } from "@prisma/client";
 
 type CatalogProductRow = Prisma.ProductGetPayload<{ include: { variants: { include: { inventory: true } }; features: true } }>;
 type StateRestrictionRuleRow = Prisma.StateRestrictionRuleGetPayload<true>;
+
+
+type ProductRow = {
+  id: string;
+  slug: string;
+  brand: string;
+  name: string;
+  category: string;
+  description: string;
+  status: string;
+  restricted: boolean;
+  variants: Array<{ sku: string; priceCents: number; inventory: { onHand: number; reserved: number } | null }>;
+  features: Array<{ code: string; label: string; value: string; restrictedRelevant: boolean }>;
+};
+
+type RestrictionRuleRow = {
+  stateCode: string;
+  productCategory: string;
+  outcome: string;
+  reviewStatus: string;
+  reason: string;
+};
 
 export type CatalogProduct = {
   id: string;
@@ -21,15 +44,15 @@ export type CatalogProduct = {
   features: Array<{ code: string; label: string; value: string; restrictedRelevant: boolean }>;
 };
 
-const fallbackProducts: CatalogProduct[] = mockProducts.map((p) => ({ ...p, brand: "Stun Fry", reserved: Math.min(4, p.stock), features: [] }));
+const fallbackProducts: CatalogProduct[] = mockProducts.map((p) => ({ ...p, brand: brand.name, reserved: Math.min(4, p.stock), features: [] }));
 
 export async function getCatalogProducts(): Promise<CatalogProduct[]> {
   if (!isDatabaseConfigured) return fallbackProducts;
-  const rows = await prisma.product.findMany({
+  const rows = (await prisma.product.findMany({
     where: { archivedAt: null },
     include: { variants: { include: { inventory: true } }, features: true },
     orderBy: { createdAt: "asc" },
-  });
+  }));
   return rows.map((product: CatalogProductRow) => {
     const variant = product.variants[0];
     return {
