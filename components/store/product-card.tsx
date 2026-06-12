@@ -2,6 +2,7 @@ import Link from "next/link";
 import { money } from "@/lib/utils";
 import type { CatalogProduct } from "@/lib/db/catalog";
 import { RestrictedProductBadge, StatusBadge } from "@/components/common/badge";
+import { AddToCartForm } from "@/components/cart/add-to-cart-form";
 
 function ProductImagePlaceholder({ name }: { name: string }) {
   return (
@@ -35,9 +36,7 @@ export function ProductCard({ product }: { product: CatalogProduct }) {
         <Link className="btn btn-secondary" href={`/products/${product.slug}`}>
           View
         </Link>
-        <Link className="btn btn-primary" href="/cart">
-          Add to cart
-        </Link>
+        <AddToCartForm returnTo="/cart" slug={product.slug} />
       </div>
     </article>
   );

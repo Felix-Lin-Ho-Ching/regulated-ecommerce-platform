@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { RestrictedProductBadge, StatusBadge } from "@/components/common/badge";
 import { AlertPanel } from "@/components/common/panels";
 import type { CatalogProduct } from "@/lib/db/catalog";
 import { money } from "@/lib/utils";
+import { AddToCartForm } from "@/components/cart/add-to-cart-form";
 
 export function ProductDetail({ product }: { product: CatalogProduct }) {
   return (
@@ -28,14 +28,7 @@ export function ProductDetail({ product }: { product: CatalogProduct }) {
         <p className="mt-3 text-slate-600">{product.description}</p>
         <p className="mt-5 text-3xl font-black">{money(product.price)}</p>
 
-        <label className="mt-5 block max-w-32 text-sm font-bold">
-          Quantity
-          <select className="input mt-2" defaultValue="1">
-            <option>1</option>
-            <option>2</option>
-            <option>3</option>
-          </select>
-        </label>
+
 
         <section className="mt-5 rounded-2xl border border-stone-200 bg-white p-4">
           <h2 className="font-black">Product features</h2>
@@ -67,12 +60,8 @@ export function ProductDetail({ product }: { product: CatalogProduct }) {
         ) : null}
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <Link className="btn btn-primary" href="/cart">
-            Add to cart
-          </Link>
-          <Link className="btn btn-secondary" href="/checkout">
-            Start checkout
-          </Link>
+          <AddToCartForm returnTo="/cart" showQuantity slug={product.slug} />
+          <AddToCartForm checkout returnTo="/checkout" showQuantity slug={product.slug} />
         </div>
       </section>
     </div>

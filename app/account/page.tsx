@@ -1,2 +1,16 @@
-import Link from "next/link";import { AppShell, SectionHeader, StatusBadge } from "@/components/ui";
-export default function Account(){return <AppShell><SectionHeader eyebrow="Account" title="Customer dashboard">Track orders, verification status, and saved addresses.</SectionHeader><div className="grid gap-4 md:grid-cols-3"><Link className="card p-5" href="/account/orders"><h2 className="font-black">Orders</h2><p>Review compliance and payment states.</p></Link><Link className="card p-5" href="/account/addresses"><h2 className="font-black">Addresses</h2><p>Manage validated shipping addresses.</p></Link><section className="card p-5"><StatusBadge tone="warning">Verification reusable mock</StatusBadge><p className="mt-2">Future backend can store approved verification artifacts.</p></section></div></AppShell>}
+import { AppShell, SectionHeader } from "@/components/ui";
+import { AccountDashboard } from "@/components/account/account-dashboard";
+import { requireCustomerSession } from "@/lib/auth/session";
+
+export default async function Account() {
+  const session = await requireCustomerSession("/account");
+
+  return (
+    <AppShell>
+      <SectionHeader eyebrow="Account" title="Customer dashboard">
+        Track account details, saved addresses, verification placeholders, and mock order history.
+      </SectionHeader>
+      <AccountDashboard session={session} />
+    </AppShell>
+  );
+}

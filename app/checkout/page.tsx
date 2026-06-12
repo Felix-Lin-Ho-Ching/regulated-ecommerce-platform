@@ -1,18 +1,22 @@
 import Link from "next/link";
 import {
+  AlertPanel,
   AppShell,
   CheckoutStepper,
   CheckoutSummary,
   EligibilityChecklist,
   SectionHeader,
-  AlertPanel,
 } from "@/components/ui";
+import { getCartSnapshot } from "@/lib/cart/cart-service";
+import { getCartLineCount } from "@/lib/orders/order-service";
 
-export default function Checkout() {
+export default async function Checkout() {
+  const cart = await getCartSnapshot();
+
   return (
     <AppShell>
-      <SectionHeader eyebrow="Checkout" title="Secure checkout">
-        Complete cart, shipping, eligibility, payment, and confirmation in a shopper-friendly flow.
+      <SectionHeader eyebrow="Checkout" title="Local checkout">
+        Follow the customer-facing flow: cart, shipping, eligibility, mock payment, and confirmation.
       </SectionHeader>
       <CheckoutStepper active={1} />
       <div className="mt-6 grid gap-6 md:grid-cols-[1fr_320px]">
@@ -20,7 +24,8 @@ export default function Checkout() {
           <section className="card p-5">
             <h2 className="text-xl font-black">Cart</h2>
             <p className="mt-2 text-sm text-slate-600">
-              Review selected products and restricted-product notices before entering shipping.
+              {getCartLineCount(cart)} item(s) are ready for restricted-product review before mock
+              checkout.
             </p>
             <Link className="btn btn-primary mt-4" href="/cart">
               Review cart
@@ -29,19 +34,19 @@ export default function Checkout() {
           <section className="card p-5">
             <h2 className="text-xl font-black">Shipping</h2>
             <p className="mt-2 text-sm text-slate-600">
-              Shipping details are used for address validation and destination eligibility checks.
+              Shipping details are used for local destination review. No external address API is
+              called.
             </p>
             <Link className="btn btn-secondary mt-4" href="/checkout/address">
               Enter shipping address
             </Link>
           </section>
           <EligibilityChecklist />
-          <AlertPanel title="Payment remains unavailable until approval" tone="warning">
-            Payment is mocked and live checkout is disabled. Shoppers only see payment actions after
-            eligibility approval.
+          <AlertPanel title="Mock checkout only" tone="warning">
+            Payment stays mock only. Stun Fry does not collect live payment data in this phase.
           </AlertPanel>
         </section>
-        <CheckoutSummary />
+        <CheckoutSummary cart={cart} />
       </div>
     </AppShell>
   );

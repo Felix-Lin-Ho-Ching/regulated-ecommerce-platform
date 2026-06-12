@@ -6,24 +6,36 @@ import {
   SectionHeader,
   StatusBadge,
 } from "@/components/ui";
+import { getOrderByNumber } from "@/lib/orders/order-service";
+import { money } from "@/lib/utils";
 
-export default function Success() {
+export default async function Success({
+  searchParams,
+}: {
+  searchParams: Promise<{ order?: string }>;
+}) {
+  const { order: orderNumberParam } = await searchParams;
+  const order = orderNumberParam ? await getOrderByNumber(orderNumberParam) : null;
+  const orderNumber = order?.orderNumber || orderNumberParam || "SF-MOCK";
+
   return (
     <AppShell>
       <SectionHeader eyebrow="Confirmation" title="Order confirmed">
-        Mock payment succeeded after compliance approval.
+        Mock payment succeeded after eligibility approval. No live payment was collected.
       </SectionHeader>
       <CheckoutStepper active={5} />
       <section className="card mt-6 p-6">
-        <StatusBadge tone="success">Paid</StatusBadge>
-        <h2 className="mt-3 text-2xl font-black">Order SF-1007</h2>
+        <StatusBadge tone="success">Mock paid</StatusBadge>
+        <h2 className="mt-3 text-2xl font-black">Order {orderNumber}</h2>
         <p className="text-slate-600">
-          Payment status: paid · Verification status: approved · Fulfillment: processing
+          Payment status: mock approved · Verification status: approved · Fulfillment: local MVP
+          hold
         </p>
+        {order ? <p className="mt-2 font-black">Total {money(order.total)}</p> : null}
         <div className="mt-5">
           <OrderStatusTimeline paid />
         </div>
-        <Link className="btn btn-primary mt-5" href="/account/orders/SF-1007">
+        <Link className="btn btn-primary mt-5" href={`/account/orders/${orderNumber}`}>
           View order
         </Link>
       </section>
