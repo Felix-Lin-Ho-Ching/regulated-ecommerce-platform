@@ -1,11 +1,39 @@
 import { brand } from "@/lib/config/brand";
 import { products as mockProducts, complianceRules } from "@/lib/mock-data";
 import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
-import type { Prisma } from "@prisma/client";
 
-type CatalogProductRow = Prisma.ProductGetPayload<{ include: { variants: { include: { inventory: true } }; features: true } }>;
-type StateRestrictionRuleRow = Prisma.StateRestrictionRuleGetPayload<true>;
+type CatalogProductRow = {
+  id: string;
+  slug: string;
+  brand: string;
+  name: string;
+  category: string;
+  description: string;
+  status: string;
+  restricted: boolean;
+  variants: Array<{
+    sku: string;
+    priceCents: number;
+    inventory: {
+      onHand: number;
+      reserved: number;
+    } | null;
+  }>;
+  features: Array<{
+    code: string;
+    label: string;
+    value: string;
+    restrictedRelevant: boolean;
+  }>;
+};
 
+type StateRestrictionRuleRow = {
+  stateCode: string;
+  productCategory: string;
+  outcome: string;
+  reviewStatus: string;
+  reason: string;
+};
 
 type ProductRow = {
   id: string;
