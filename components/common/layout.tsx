@@ -2,6 +2,8 @@ import Link from "next/link";
 import { brand } from "@/lib/config/brand";
 import { getCustomerSession } from "@/lib/auth/session";
 import { LogoutButton } from "@/components/account/logout-button";
+import { EligibilityModal } from "@/components/eligibility/eligibility-modal";
+import { getStorefrontContent } from "@/lib/storefront-content/service";
 
 export async function StoreHeader() {
   const session = await getCustomerSession();
@@ -16,9 +18,17 @@ export async function StoreHeader() {
           <Link href="/products">Shop</Link>
           <Link href="/cart">Cart</Link>
           <Link href="/checkout">Checkout</Link>
-          <Link href="/account">Account</Link>
-          <Link href="/restricted-products-policy">Restricted policy</Link>
-          {session ? <LogoutButton /> : <Link href="/account/login">Log in</Link>}
+          {session ? (
+            <>
+              <Link href="/account">Account</Link>
+              <LogoutButton />
+            </>
+          ) : (
+            <>
+              <Link href="/restricted-products-policy">Restricted policy</Link>
+              <Link href="/account/login">Sign in</Link>
+            </>
+          )}
         </nav>
       </div>
     </header>
@@ -38,11 +48,16 @@ export function StoreFooter() {
   );
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export async function AppShell({ children }: { children: React.ReactNode }) {
+  const storefrontContent = await getStorefrontContent();
+
   return (
     <>
       <StoreHeader />
-      <main className="mx-auto max-w-7xl px-4 py-8">{children}</main>
+      <main className="mx-auto max-w-7xl px-4 py-8">
+        <EligibilityModal content={storefrontContent} />
+        {children}
+      </main>
       <StoreFooter />
     </>
   );

@@ -9,15 +9,12 @@ import {
 } from "@/components/ui";
 import { getCartSnapshot } from "@/lib/cart/cart-service";
 import { getCartLineCount } from "@/lib/orders/order-service";
-import { EligibilityModal } from "@/components/eligibility/eligibility-modal";
-import { getStorefrontContent } from "@/lib/storefront-content/service";
 
 export default async function Checkout() {
-  const [cart, content] = await Promise.all([getCartSnapshot(), getStorefrontContent()]);
+  const cart = await getCartSnapshot();
 
   return (
     <AppShell>
-      <EligibilityModal content={content} trigger="checkout" />
       <SectionHeader eyebrow="Checkout" title="Checkout review">
         Review your cart, shipping details, and restricted-product eligibility before payment is available.
       </SectionHeader>
