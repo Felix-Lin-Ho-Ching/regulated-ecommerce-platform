@@ -132,7 +132,7 @@ export async function createMockOrderFromCart(): Promise<CustomerOrderSummary> {
       data: {
         orderNumber,
         userId: session?.demo ? undefined : session?.userId,
-        status: "PAID",
+        status: "FULFILLMENT_HOLD",
         subtotalCents: toCents(cart.subtotal),
         shippingCents: toCents(cart.shipping),
         taxCents: toCents(cart.tax),
@@ -181,7 +181,7 @@ export async function createMockOrderFromCart(): Promise<CustomerOrderSummary> {
       orderNumber: order.orderNumber,
       status: order.status,
       total: order.totalCents / 100,
-      payment: "mock approved",
+      payment: "test confirmation",
       verification: "approved",
       createdAt: order.createdAt.toISOString(),
     };
@@ -189,9 +189,9 @@ export async function createMockOrderFromCart(): Promise<CustomerOrderSummary> {
 
   const order = {
     orderNumber,
-    status: "PAID",
+    status: "FULFILLMENT_HOLD",
     total: cart.total,
-    payment: "mock approved",
+    payment: "test confirmation",
     verification: "approved",
     createdAt: new Date().toISOString(),
   };
@@ -243,4 +243,46 @@ export async function getOrderByNumber(orderNumber: string) {
 
 export function getCartLineCount(cart: CartSnapshot) {
   return cart.lines.reduce((sum, line) => sum + line.quantity, 0);
+}
+
+export type CheckoutEligibilitySnapshot = {
+  result: import("@/lib/eligibility/rules").EligibilityResult;
+  hasRestrictedItems: boolean;
+  checkedProducts: Array<{ name: string; category: string; restricted: boolean }>;
+};
+
+export async function getCheckoutEligibilitySnapshot(
+  isAtLeast18 = true,
+): Promise<CheckoutEligibilitySnapshot> {
+  const { evaluateEligibilityFromConfiguredRules } = await import("@/lib/eligibility/rules");
+  const [cart, shipping] = await Promise.all([getCartSnapshot(), getShippingDraft()]);
+  const restrictedLine = cart.lines.find((line) => line.product.restricted);
+
+  if (!restrictedLine) {
+    return {
+      result: await evaluateEligibilityFromConfiguredRules({ restricted: false }),
+      hasRestrictedItems: false,
+      checkedProducts: cart.lines.map((line) => ({
+        name: line.product.name,
+        category: line.product.category,
+        restricted: line.product.restricted,
+      })),
+    };
+  }
+
+  return {
+    result: await evaluateEligibilityFromConfiguredRules({
+      state: shipping.state,
+      zip: shipping.postalCode,
+      isAtLeast18,
+      productCategory: restrictedLine.product.category,
+      restricted: true,
+    }),
+    hasRestrictedItems: true,
+    checkedProducts: cart.lines.map((line) => ({
+      name: line.product.name,
+      category: line.product.category,
+      restricted: line.product.restricted,
+    })),
+  };
 }

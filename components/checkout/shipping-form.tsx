@@ -1,6 +1,7 @@
 import { saveShippingAction } from "@/lib/orders/actions";
 import type { ShippingDraft } from "@/lib/orders/order-service";
 import { AlertPanel } from "@/components/common/panels";
+import { US_STATE_OPTIONS } from "@/lib/eligibility/states";
 
 export function ShippingForm({ shipping }: { shipping: ShippingDraft }) {
   return (
@@ -8,11 +9,11 @@ export function ShippingForm({ shipping }: { shipping: ShippingDraft }) {
       <div className="grid gap-4 md:grid-cols-2">
         <label className="block text-sm font-bold">
           Full name
-          <input className="input mt-2 focus-ring" defaultValue={shipping.name} name="name" />
+          <input className="input mt-2 focus-ring" defaultValue={shipping.name} name="name" required />
         </label>
         <label className="block text-sm font-bold">
           Street address
-          <input className="input mt-2 focus-ring" defaultValue={shipping.line1} name="line1" />
+          <input className="input mt-2 focus-ring" defaultValue={shipping.line1} name="line1" required />
         </label>
         <label className="block text-sm font-bold">
           Apt, suite, or unit
@@ -20,21 +21,22 @@ export function ShippingForm({ shipping }: { shipping: ShippingDraft }) {
         </label>
         <label className="block text-sm font-bold">
           City
-          <input className="input mt-2 focus-ring" defaultValue={shipping.city} name="city" />
+          <input className="input mt-2 focus-ring" defaultValue={shipping.city} name="city" required />
         </label>
         <label className="block text-sm font-bold">
           State
-          <select className="input mt-2 focus-ring" defaultValue={shipping.state} name="state">
-            <option value="TX">TX</option>
-            <option value="CA">CA</option>
-            <option value="IL">IL</option>
-            <option value="NY">NY</option>
-            <option value="OR">OR</option>
+          <select className="input mt-2 focus-ring" defaultValue={shipping.state} name="state" required>
+            <option value="">Select state</option>
+            {US_STATE_OPTIONS.map((state) => (
+              <option key={state.code} value={state.code}>
+                {state.name}
+              </option>
+            ))}
           </select>
         </label>
         <label className="block text-sm font-bold">
           ZIP
-          <input className="input mt-2 focus-ring" defaultValue={shipping.postalCode} name="postalCode" />
+          <input className="input mt-2 focus-ring" defaultValue={shipping.postalCode} name="postalCode" required />
         </label>
         <label className="block text-sm font-bold">
           Phone
@@ -42,9 +44,8 @@ export function ShippingForm({ shipping }: { shipping: ShippingDraft }) {
         </label>
       </div>
       <div className="mt-5">
-        <AlertPanel title="Local validation only" tone="success">
-          This form normalizes the visible address for checkout review. No address
-          validation provider or external API is called.
+        <AlertPanel title="Shipping review" tone="success">
+          This address is used to review destination availability before payment can be offered.
         </AlertPanel>
       </div>
       <button className="btn btn-primary mt-5" type="submit">

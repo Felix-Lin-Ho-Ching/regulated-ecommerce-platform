@@ -22,18 +22,18 @@ export default async function Products() {
             <label className="block font-bold">
               State preview
               <select className="input mt-1">
-                <option>TX</option>
-                <option>CA</option>
-                <option>NY</option>
-                <option>IL</option>
+                <option>Texas</option>
+                <option>California</option>
+                <option>New York</option>
+                <option>Illinois</option>
               </select>
             </label>
             <label className="block font-bold">
               Category
               <select className="input mt-1">
                 <option>All products</option>
-                <option>knuckle_stun_device</option>
-                <option>personal_safety</option>
+                <option>Restricted devices</option>
+                <option>Personal safety</option>
               </select>
             </label>
           </div>

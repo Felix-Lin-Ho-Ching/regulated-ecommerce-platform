@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import type { StorefrontContent } from "@/lib/storefront-content/defaults";
 import { evaluateEligibility, type EligibilityResult } from "@/lib/eligibility/rules";
+import { US_STATE_OPTIONS } from "@/lib/eligibility/states";
 
 const STORAGE_KEY = "stunfry.restrictedEligibilityPrecheck.v1";
-const states = ["AZ", "CA", "IL", "NY", "OR", "TX"];
 
 type StoredEligibilityPrecheck = {
   isAtLeast18: boolean;
@@ -66,11 +66,11 @@ export function EligibilityModal({ content, trigger = "entry", productCategory }
         <p className="mt-3 text-sm leading-6 text-slate-600">{content.eligibilityPopupBody}</p>
         <div className="mt-5 grid gap-4">
           <label className="flex items-start gap-3 text-sm font-bold"><input checked={isAtLeast18} className="mt-1" onChange={(event) => setIsAtLeast18(event.target.checked)} type="checkbox" />{content.eligibilityAgeConfirmationText}</label>
-          <label className="grid gap-2 text-sm font-bold">{content.eligibilityStateLabel}<select className="input" value={state} onChange={(event) => setState(event.target.value)}><option value="">Select state</option>{states.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+          <label className="grid gap-2 text-sm font-bold">{content.eligibilityStateLabel}<select className="input" value={state} onChange={(event) => setState(event.target.value)}><option value="">Select state</option>{US_STATE_OPTIONS.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
           <label className="grid gap-2 text-sm font-bold">{content.eligibilityZipLabel}<input className="input" inputMode="numeric" maxLength={10} placeholder="Optional" value={zip} onChange={(event) => setZip(event.target.value)} /></label>
           <label className="flex items-start gap-3 text-sm font-bold"><input checked={acknowledged} className="mt-1" onChange={(event) => setAcknowledged(event.target.checked)} type="checkbox" />{content.eligibilityAcknowledgementText}</label>
         </div>
-        <button className="btn btn-primary mt-5 w-full" disabled={!acknowledged} onClick={submit} type="button">Check availability</button>
+        <button className="btn btn-primary mt-5 w-full" disabled={!isAtLeast18 || !state || !acknowledged} onClick={submit} type="button">Check availability</button>
         {shownResult ? <div className="mt-4 rounded-2xl border border-stone-200 bg-stone-50 p-4"><p className="font-black">{shownResult.label}</p><p className="mt-1 text-sm text-slate-600">{shownResult.message}</p><p className="mt-2 text-xs text-slate-500">This pre-check is not final approval. Checkout re-checks the full shipping address before payment.</p></div> : null}
       </div>
     </div>

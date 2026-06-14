@@ -3,82 +3,115 @@ import {
   AppShell,
   CheckoutStepper,
   CheckoutSummary,
-  ComplianceResultPanel,
   SectionHeader,
   VerificationRequirementList,
 } from "@/components/ui";
 import { AlertPanel } from "@/components/common/panels";
+import { StatusBadge } from "@/components/common/badge";
 import { getCartSnapshot } from "@/lib/cart/cart-service";
-import { getShippingDraft } from "@/lib/orders/order-service";
-import { evaluateEligibility } from "@/lib/eligibility/rules";
-import type { CheckoutOutcome } from "@/lib/mock-data";
+import { getCheckoutEligibilitySnapshot, getShippingDraft } from "@/lib/orders/order-service";
+import { continueFromEligibilityAction } from "@/lib/orders/actions";
+
+function resultTone(status: string) {
+  if (status === "available") return "success";
+  if (status === "blocked") return "danger";
+  return "warning";
+}
 
 export default async function Verification({
   searchParams,
 }: {
-  searchParams: Promise<{ case?: CheckoutOutcome }>;
+  searchParams: Promise<{ attestation?: string }>;
 }) {
-  const [sp, cart, shipping] = await Promise.all([searchParams, getCartSnapshot(), getShippingDraft()]);
-  const restrictedLine = cart.lines.find((line) => line.product.restricted);
-  const eligibility = restrictedLine
-    ? evaluateEligibility({
-        state: shipping.state,
-        zip: shipping.postalCode,
-        isAtLeast18: true,
-        productCategory: restrictedLine.product.category,
-        restricted: true,
-      })
-    : evaluateEligibility({ restricted: false });
-  const calculatedOutcome: CheckoutOutcome =
-    eligibility.status === "blocked"
-      ? "blocked"
-      : eligibility.status === "documents_required"
-        ? "pending_document_upload"
-        : eligibility.status === "manual_review"
-          ? "pending_admin_review"
-          : "ready_for_payment";
-  const outcome = sp.case || calculatedOutcome;
+  const [sp, cart, shipping, eligibility] = await Promise.all([
+    searchParams,
+    getCartSnapshot(),
+    getShippingDraft(),
+    getCheckoutEligibilitySnapshot(true),
+  ]);
+  const blocked = eligibility.result.status === "blocked";
+  const reviewRequired = ["manual_review", "documents_required"].includes(eligibility.result.status);
 
   return (
     <AppShell>
-      <SectionHeader eyebrow="Eligibility" title="Eligibility and verification">
-        Age attestation, destination review, restricted-product category, rule outcome, and verification requirements are checked before payment.
+      <SectionHeader eyebrow="Eligibility" title="Eligibility review">
+        We review age confirmation, shipping state, ZIP code when provided, restricted-product status, and destination rules before payment is available.
       </SectionHeader>
       <CheckoutStepper active={3} />
       <div className="mt-6 grid gap-6 md:grid-cols-[1fr_320px]">
         <section className="space-y-5">
-          <ComplianceResultPanel outcome={outcome} />
           <section className="card p-5">
-            <h2 className="text-xl font-black">Buyer eligibility requirements</h2>
-            <VerificationRequirementList />
-            <div className="mt-5">
-              <AlertPanel title="Document review" tone="warning">
-                If destination rules require documents or staff review, payment remains hidden until
-                approval. This flow shows the control points without collecting documents.
-              </AlertPanel>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-xl font-black">Destination result</h2>
+              <StatusBadge tone={resultTone(eligibility.result.status)}>
+                {eligibility.result.label}
+              </StatusBadge>
             </div>
-            <div className="mt-5 flex flex-wrap gap-3">
-              {outcome === "pending_document_upload" ? (
-                <Link className="btn btn-primary" href="/checkout/document-upload">
-                  Upload documents
+            <p className="mt-2 text-sm text-slate-600">{eligibility.result.message}</p>
+            <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+              <div className="rounded-2xl border border-stone-200 bg-stone-50 p-3">
+                <dt className="font-black">State</dt>
+                <dd>{shipping.state || "Not entered"}</dd>
+              </div>
+              <div className="rounded-2xl border border-stone-200 bg-stone-50 p-3">
+                <dt className="font-black">ZIP</dt>
+                <dd>{shipping.postalCode || "Not entered"}</dd>
+              </div>
+              <div className="rounded-2xl border border-stone-200 bg-stone-50 p-3">
+                <dt className="font-black">Restricted items</dt>
+                <dd>{eligibility.hasRestrictedItems ? "Included" : "None"}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section className="card p-5">
+            <h2 className="text-xl font-black">Buyer confirmations</h2>
+            <VerificationRequirementList />
+            {sp.attestation === "missing" ? (
+              <div className="mt-4">
+                <AlertPanel title="Confirmation needed" tone="danger">
+                  Confirm the required eligibility statements before continuing.
+                </AlertPanel>
+              </div>
+            ) : null}
+            {blocked ? (
+              <div className="mt-5">
+                <AlertPanel title="Checkout stopped" tone="danger">
+                  Payment is unavailable because this destination is not eligible for the restricted item in your cart.
+                </AlertPanel>
+              </div>
+            ) : null}
+            {reviewRequired ? (
+              <div className="mt-5">
+                <AlertPanel title="Review required" tone="warning">
+                  Payment remains unavailable while additional verification or staff review is pending.
+                </AlertPanel>
+              </div>
+            ) : null}
+            {eligibility.result.status === "available" ? (
+              <form action={continueFromEligibilityAction} className="mt-5 grid gap-3">
+                <label className="flex items-start gap-3 text-sm font-bold">
+                  <input className="mt-1" name="isAtLeast18" type="checkbox" required />
+                  I confirm I am at least 18 years old.
+                </label>
+                <label className="flex items-start gap-3 text-sm font-bold">
+                  <input className="mt-1" name="acknowledged" type="checkbox" required />
+                  I understand restricted products may require additional review before fulfillment.
+                </label>
+                <button className="btn btn-primary w-fit" type="submit">
+                  Continue to payment
+                </button>
+              </form>
+            ) : (
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Link className="btn btn-secondary" href="/checkout/address">
+                  Edit shipping
                 </Link>
-              ) : null}
-              {outcome === "ready_for_payment" ? (
-                <Link className="btn btn-primary" href="/checkout/payment">
-                  Continue to payment review
-                </Link>
-              ) : null}
-              {outcome === "blocked" ? (
                 <Link className="btn btn-secondary" href="/products">
                   Return to products
                 </Link>
-              ) : null}
-              {outcome === "pending_admin_review" ? (
-                <Link className="btn btn-secondary" href="/account/orders">
-                  View review status
-                </Link>
-              ) : null}
-            </div>
+              </div>
+            )}
           </section>
         </section>
         <CheckoutSummary cart={cart} />

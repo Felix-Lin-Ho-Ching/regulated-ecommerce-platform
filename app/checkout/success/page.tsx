@@ -20,23 +20,22 @@ export default async function Success({
 
   return (
     <AppShell>
-      <SectionHeader eyebrow="Confirmation" title="Order confirmed">
-        Payment review succeeded after eligibility approval. No card data was collected.
+      <SectionHeader eyebrow="Confirmation" title="Order confirmation">
+        Your order was created for review. Fulfillment remains pending until all required reviews are complete.
       </SectionHeader>
       <CheckoutStepper active={5} />
       <section className="card mt-6 p-6">
-        <StatusBadge tone="success">Payment approved</StatusBadge>
+        <StatusBadge tone="success">Test confirmation</StatusBadge>
         <h2 className="mt-3 text-2xl font-black">Order {orderNumber}</h2>
         <p className="text-slate-600">
-          Payment status: review approved · Verification status: approved · Fulfillment: pending
-          hold
+          Order status: {order?.status || "Fulfillment hold"} · Eligibility result: approved · Fulfillment: pending review
         </p>
         {order ? <p className="mt-2 font-black">Total {money(order.total)}</p> : null}
         <div className="mt-5">
-          <OrderStatusTimeline paid />
+          <OrderStatusTimeline paid={false} />
         </div>
-        <Link className="btn btn-primary mt-5" href={`/account/orders/${orderNumber}`}>
-          View order
+        <Link className="btn btn-primary mt-5" href="/products">
+          Continue shopping
         </Link>
       </section>
     </AppShell>
