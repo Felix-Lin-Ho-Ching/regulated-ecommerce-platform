@@ -21,14 +21,14 @@ export default async function Success({
   return (
     <AppShell>
       <SectionHeader eyebrow="Confirmation" title="Order confirmed">
-        Mock payment succeeded after eligibility approval. No live payment was collected.
+        Payment review succeeded after eligibility approval. No card data was collected.
       </SectionHeader>
       <CheckoutStepper active={5} />
       <section className="card mt-6 p-6">
         <StatusBadge tone="success">Mock paid</StatusBadge>
         <h2 className="mt-3 text-2xl font-black">Order {orderNumber}</h2>
         <p className="text-slate-600">
-          Payment status: mock approved · Verification status: approved · Fulfillment: local MVP
+          Payment status: review approved · Verification status: approved · Fulfillment: pending
           hold
         </p>
         {order ? <p className="mt-2 font-black">Total {money(order.total)}</p> : null}

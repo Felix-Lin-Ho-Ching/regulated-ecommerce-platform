@@ -18,7 +18,7 @@ function normalize(row: StorefrontSettingsRow | null | undefined): StorefrontCon
     secondaryCtaLink: row.secondaryCtaLink || defaultStorefrontContent.secondaryCtaLink,
     heroImageUrl: row.heroImageUrl || defaultStorefrontContent.heroImageUrl,
     heroPlaceholderKey: row.heroPlaceholderKey || defaultStorefrontContent.heroPlaceholderKey,
-    announcementBarText: row.announcementBarText || defaultStorefrontContent.announcementBarText,
+    announcementBarText: typeof row.announcementBarText === "string" ? row.announcementBarText : defaultStorefrontContent.announcementBarText,
     featuredSectionEyebrow: row.featuredSectionEyebrow || defaultStorefrontContent.featuredSectionEyebrow,
     featuredSectionTitle: row.featuredSectionTitle || defaultStorefrontContent.featuredSectionTitle,
     trustComplianceTitle: row.trustComplianceTitle || defaultStorefrontContent.trustComplianceTitle,
@@ -26,6 +26,12 @@ function normalize(row: StorefrontSettingsRow | null | undefined): StorefrontCon
     trustBadgeLabels: Array.isArray(row.trustBadgeLabels)
       ? row.trustBadgeLabels.filter((item): item is string => typeof item === "string")
       : defaultStorefrontContent.trustBadgeLabels,
+    eligibilityPopupTitle: row.eligibilityPopupTitle || defaultStorefrontContent.eligibilityPopupTitle,
+    eligibilityPopupBody: row.eligibilityPopupBody || defaultStorefrontContent.eligibilityPopupBody,
+    eligibilityAgeConfirmationText: row.eligibilityAgeConfirmationText || defaultStorefrontContent.eligibilityAgeConfirmationText,
+    eligibilityStateLabel: row.eligibilityStateLabel || defaultStorefrontContent.eligibilityStateLabel,
+    eligibilityZipLabel: row.eligibilityZipLabel || defaultStorefrontContent.eligibilityZipLabel,
+    eligibilityAcknowledgementText: row.eligibilityAcknowledgementText || defaultStorefrontContent.eligibilityAcknowledgementText,
   };
 }
 

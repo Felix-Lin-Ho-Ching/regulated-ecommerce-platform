@@ -14,6 +14,12 @@ export type StorefrontContent = {
   trustComplianceTitle: string;
   trustComplianceBody: string;
   trustBadgeLabels: string[];
+  eligibilityPopupTitle: string;
+  eligibilityPopupBody: string;
+  eligibilityAgeConfirmationText: string;
+  eligibilityStateLabel: string;
+  eligibilityZipLabel: string;
+  eligibilityAcknowledgementText: string;
 };
 
 export const STOREFRONT_SETTINGS_KEY = "default";
@@ -29,12 +35,19 @@ export const defaultStorefrontContent: StorefrontContent = {
   secondaryCtaLink: "/restricted-products-policy",
   heroImageUrl: "",
   heroPlaceholderKey: "stun-fry-gradient-devices",
-  announcementBarText:
-    "Restricted-product eligibility is reviewed before payment; live checkout remains disabled in this phase.",
+  announcementBarText: "",
   featuredSectionEyebrow: "Featured products",
   featuredSectionTitle: "Shop Stun Fry picks",
-  trustComplianceTitle: "Compliance stays clear after you start shopping.",
+  trustComplianceTitle: "Shop confidently with clear availability guidance.",
   trustComplianceBody:
-    "Stun Fry keeps restricted-product warnings visible. Eligibility, document review, and admin review remain checkpoints before any payment can happen.",
-  trustBadgeLabels: ["In-stock picks", "Clear product labels", "Responsible checkout"],
+    "Restricted-product availability is previewed before browsing and reviewed again with the shipping address before payment.",
+  trustBadgeLabels: ["Fast shipping", "Clear availability", "Secure packaging"],
+  eligibilityPopupTitle: "Check restricted-product availability",
+  eligibilityPopupBody:
+    "Tell us your age confirmation and shipping destination to preview whether restricted products may be available. This is not final legal approval.",
+  eligibilityAgeConfirmationText: "I confirm I am at least 18 years old.",
+  eligibilityStateLabel: "Shipping state",
+  eligibilityZipLabel: "ZIP code",
+  eligibilityAcknowledgementText:
+    "I understand restricted products may be unavailable or require additional verification before payment.",
 };

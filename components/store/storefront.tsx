@@ -3,27 +3,9 @@ import type { CatalogProduct } from "@/lib/db/catalog";
 import type { StorefrontContent } from "@/lib/storefront-content/defaults";
 import { money } from "@/lib/utils";
 import { RestrictedProductBadge, StatusBadge } from "@/components/common/badge";
-import { AlertPanel } from "@/components/common/panels";
 import { AddToCartForm } from "@/components/cart/add-to-cart-form";
-
-const complianceSteps = [
-  {
-    title: "Eligibility checked before payment",
-    copy: "Restricted-product eligibility is reviewed before payment is available.",
-  },
-  {
-    title: "Destination review",
-    copy: "Shipping destination rules are checked against the items in your cart.",
-  },
-  {
-    title: "Age/ID verification when required",
-    copy: "Some products may require age attestation or ID verification before checkout continues.",
-  },
-  {
-    title: "Document/admin review when required",
-    copy: "If a rule requires documents or manual approval, payment stays unavailable until review is complete.",
-  },
-];
+import { EligibilityModal } from "@/components/eligibility/eligibility-modal";
+import { HowEligibilityWorksButton } from "@/components/eligibility/how-eligibility-works";
 
 function HeroPlaceholder({ placeholderKey }: { placeholderKey: string }) {
   return (
@@ -51,9 +33,12 @@ export function StorefrontHome({
 
   return (
     <div className="space-y-10">
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-bold text-slate-800">
-        {content.announcementBarText}
-      </div>
+      <EligibilityModal content={content} />
+      {content.announcementBarText ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-bold text-slate-800">
+          {content.announcementBarText}
+        </div>
+      ) : null}
 
       <section className="grid gap-8 overflow-hidden rounded-[2rem] border border-stone-200 bg-gradient-to-br from-white via-stone-50 to-amber-50 p-6 shadow-sm md:grid-cols-[minmax(0,1fr)_460px] md:p-8 lg:p-10">
         <div className="flex flex-col justify-center py-4">
@@ -125,27 +110,6 @@ export function StorefrontHome({
         )}
       </section>
 
-      <section className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm md:p-8">
-        <div className="mb-6 max-w-3xl">
-          <p className="text-sm font-black uppercase tracking-[.2em] text-teal-900">
-            Responsible shopping safeguards
-          </p>
-          <h2 className="mt-2 text-3xl font-black">{content.trustComplianceTitle}</h2>
-          <p className="mt-3 text-slate-600">{content.trustComplianceBody}</p>
-        </div>
-        <div className="grid gap-4 md:grid-cols-4">
-          {complianceSteps.map((step, index) => (
-            <div className="rounded-2xl border border-stone-200 bg-stone-50 p-5" key={step.title}>
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-950 text-sm font-black text-white">
-                {index + 1}
-              </div>
-              <h3 className="mt-4 font-black">{step.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">{step.copy}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
       <section className="grid gap-4 md:grid-cols-3">
         {categories.map((category) => (
           <Link className="card p-5" href={`/products?category=${category}`} key={category}>
@@ -194,9 +158,18 @@ export function StorefrontHome({
         </div>
       </section>
 
-      <AlertPanel title="Responsible restricted-product checkout" tone="warning">
-        Restricted-product warnings stay visible during shopping. Eligibility, document review, and admin review remain local MVP checkpoints; live payment remains disabled.
-      </AlertPanel>
+      <section className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-black">{content.trustComplianceTitle}</h2>
+            <p className="mt-1 text-sm text-slate-600">{content.trustComplianceBody}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link className="btn btn-secondary" href="/restricted-products-policy">Restricted-product policy</Link>
+            <HowEligibilityWorksButton />
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

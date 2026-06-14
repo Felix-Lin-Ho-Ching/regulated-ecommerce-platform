@@ -9,8 +9,7 @@ export default async function Products() {
   return (
     <AppShell>
       <SectionHeader eyebrow="Shop" title="Self-defense products">
-        Browse inventory-backed products with price, stock, and restricted-product eligibility
-        labels before checkout.
+        Browse products with price, stock, and clear restricted-product availability guidance before checkout.
       </SectionHeader>
       <div className="grid gap-4 md:grid-cols-4">
         <aside className="card p-4">
@@ -40,7 +39,7 @@ export default async function Products() {
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <StatusBadge tone="warning">Compliance visible</StatusBadge>
-            <StatusBadge tone="info">Mock eligibility</StatusBadge>
+            <StatusBadge tone="info">Availability preview</StatusBadge>
           </div>
           <Link className="btn btn-secondary mt-4 w-full" href="/restricted-products-policy">
             Restricted-product policy

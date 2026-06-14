@@ -32,11 +32,17 @@ export function parseStorefrontContentForm(formData: FormData): StorefrontConten
     secondaryCtaLink: safePathOrUrl(readText(formData, "secondaryCtaLink"), defaultStorefrontContent.secondaryCtaLink),
     heroImageUrl: safePathOrUrl(readText(formData, "heroImageUrl"), ""),
     heroPlaceholderKey: readText(formData, "heroPlaceholderKey") || defaultStorefrontContent.heroPlaceholderKey,
-    announcementBarText: readText(formData, "announcementBarText") || defaultStorefrontContent.announcementBarText,
+    announcementBarText: readText(formData, "announcementBarText"),
     featuredSectionEyebrow: readText(formData, "featuredSectionEyebrow") || defaultStorefrontContent.featuredSectionEyebrow,
     featuredSectionTitle: readText(formData, "featuredSectionTitle") || defaultStorefrontContent.featuredSectionTitle,
     trustComplianceTitle: readText(formData, "trustComplianceTitle") || defaultStorefrontContent.trustComplianceTitle,
     trustComplianceBody: readText(formData, "trustComplianceBody") || defaultStorefrontContent.trustComplianceBody,
+    eligibilityPopupTitle: readText(formData, "eligibilityPopupTitle") || defaultStorefrontContent.eligibilityPopupTitle,
+    eligibilityPopupBody: readText(formData, "eligibilityPopupBody") || defaultStorefrontContent.eligibilityPopupBody,
+    eligibilityAgeConfirmationText: readText(formData, "eligibilityAgeConfirmationText") || defaultStorefrontContent.eligibilityAgeConfirmationText,
+    eligibilityStateLabel: readText(formData, "eligibilityStateLabel") || defaultStorefrontContent.eligibilityStateLabel,
+    eligibilityZipLabel: readText(formData, "eligibilityZipLabel") || defaultStorefrontContent.eligibilityZipLabel,
+    eligibilityAcknowledgementText: readText(formData, "eligibilityAcknowledgementText") || defaultStorefrontContent.eligibilityAcknowledgementText,
     trustBadgeLabels: parseTrustBadges(readText(formData, "trustBadgeLabels")),
   };
 }

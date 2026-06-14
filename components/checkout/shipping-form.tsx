@@ -43,7 +43,7 @@ export function ShippingForm({ shipping }: { shipping: ShippingDraft }) {
       </div>
       <div className="mt-5">
         <AlertPanel title="Local validation only" tone="success">
-          This MVP normalizes the visible address locally for checkout flow testing. No address
+          This form normalizes the visible address locally for checkout review. No address
           validation provider or external API is called.
         </AlertPanel>
       </div>

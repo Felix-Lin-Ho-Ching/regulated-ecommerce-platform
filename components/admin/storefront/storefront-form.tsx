@@ -58,6 +58,26 @@ export function StorefrontSettingsForm({ content }: { content: StorefrontContent
         </div>
       </section>
 
+
+      <section className="card grid gap-4 p-5 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <h2 className="text-lg font-black">Eligibility pop-up copy</h2>
+          <p className="mt-1 text-sm text-slate-600">Shown before restricted browsing and checkout pre-checks. This text must not promise final legal approval.</p>
+        </div>
+        <TextInput label="Popup title" name="eligibilityPopupTitle" value={content.eligibilityPopupTitle} />
+        <TextInput label="State label" name="eligibilityStateLabel" value={content.eligibilityStateLabel} />
+        <TextInput label="ZIP label" name="eligibilityZipLabel" value={content.eligibilityZipLabel} />
+        <div className="md:col-span-2">
+          <TextArea label="Popup body" name="eligibilityPopupBody" value={content.eligibilityPopupBody} />
+        </div>
+        <div className="md:col-span-2">
+          <TextArea label="Age confirmation text" name="eligibilityAgeConfirmationText" value={content.eligibilityAgeConfirmationText} rows={2} />
+        </div>
+        <div className="md:col-span-2">
+          <TextArea label="Acknowledgement text" name="eligibilityAcknowledgementText" value={content.eligibilityAcknowledgementText} rows={2} />
+        </div>
+      </section>
+
       <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
         <TextArea label="Required audit note" name="auditNote" rows={3} />
         <button className="btn btn-primary mt-4" type="submit">

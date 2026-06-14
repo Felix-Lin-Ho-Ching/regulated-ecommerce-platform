@@ -11,7 +11,7 @@ export default async function Order({ params }: { params: Promise<{ id: string }
   return (
     <AppShell>
       <SectionHeader eyebrow="Order detail" title={`Order ${id}`}>
-        Status detail uses local MVP labels and timeline milestones.
+        Status detail uses order review labels and timeline milestones.
       </SectionHeader>
       <div className="grid gap-6 md:grid-cols-2">
         <section className="card p-5">
@@ -27,7 +27,7 @@ export default async function Order({ params }: { params: Promise<{ id: string }
         </section>
         <AlertPanel title="Compliance and fulfillment shell" tone="warning">
           Restricted-product warnings, eligibility status, and fulfillment holds remain visible.
-          Fulfillment and live payment are not enabled in this MVP.
+          Fulfillment and payment collection are not enabled in this environment.
         </AlertPanel>
       </div>
     </AppShell>

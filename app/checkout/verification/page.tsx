@@ -23,7 +23,7 @@ export default async function Verification({
     <AppShell>
       <SectionHeader eyebrow="Eligibility" title="Eligibility and verification">
         Age attestation, destination review, restricted-product warnings, and document/admin review
-        placeholders are grouped before mock payment.
+        placeholders are grouped before any payment step.
       </SectionHeader>
       <CheckoutStepper active={3} />
       <div className="mt-6 grid gap-6 md:grid-cols-[1fr_320px]">
@@ -35,7 +35,7 @@ export default async function Verification({
             <div className="mt-5">
               <AlertPanel title="Document/admin review placeholder" tone="warning">
                 If destination rules require documents or staff review, payment remains hidden until
-                approval. This MVP shows the control points without collecting documents.
+                approval. This flow shows the control points without collecting documents.
               </AlertPanel>
             </div>
             <div className="mt-5 flex flex-wrap gap-3">
@@ -46,7 +46,7 @@ export default async function Verification({
               ) : null}
               {outcome === "ready_for_payment" ? (
                 <Link className="btn btn-primary" href="/checkout/payment">
-                  Continue to mock payment
+                  Continue to payment review
                 </Link>
               ) : null}
               {outcome === "blocked" ? (

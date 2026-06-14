@@ -1,0 +1,82 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import type { StorefrontContent } from "@/lib/storefront-content/defaults";
+import { evaluateEligibility, type EligibilityResult } from "@/lib/eligibility/rules";
+
+const STORAGE_KEY = "stunfry.restrictedEligibilityPrecheck.v1";
+const states = ["AZ", "CA", "IL", "NY", "OR", "TX"];
+
+type StoredEligibilityPrecheck = {
+  isAtLeast18: boolean;
+  state: string;
+  zip: string;
+  acknowledged: boolean;
+  result: EligibilityResult;
+  checkedAt: string;
+};
+
+function readStoredPrecheck(): StoredEligibilityPrecheck | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(STORAGE_KEY) ?? window.sessionStorage.getItem(STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as StoredEligibilityPrecheck;
+  } catch {
+    return null;
+  }
+}
+
+export function EligibilityModal({ content, trigger = "entry", productCategory }: { content: StorefrontContent; trigger?: "entry" | "restricted" | "checkout"; productCategory?: string }) {
+  const [open, setOpen] = useState(false);
+  const [isAtLeast18, setIsAtLeast18] = useState(false);
+  const [state, setState] = useState("");
+  const [zip, setZip] = useState("");
+  const [acknowledged, setAcknowledged] = useState(false);
+  const [result, setResult] = useState<EligibilityResult | null>(null);
+
+  useEffect(() => {
+    if (!readStoredPrecheck()) setOpen(true);
+  }, []);
+
+  const preview = useMemo(() => evaluateEligibility({ state, zip, isAtLeast18, productCategory, restricted: true }), [state, zip, isAtLeast18, productCategory]);
+
+  function submit() {
+    const next = evaluateEligibility({ state, zip, isAtLeast18, productCategory, restricted: true });
+    setResult(next);
+    const payload: StoredEligibilityPrecheck = { isAtLeast18, state: state.trim().toUpperCase(), zip: zip.trim(), acknowledged, result: next, checkedAt: new Date().toISOString() };
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  }
+
+  if (!open) return null;
+
+  const shownResult = result ?? (state ? preview : null);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4" role="dialog" aria-modal="true" aria-labelledby={`${trigger}-eligibility-title`}>
+      <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[.2em] text-teal-900">Restricted-product pre-check</p>
+            <h2 className="mt-2 text-2xl font-black" id={`${trigger}-eligibility-title`}>{content.eligibilityPopupTitle}</h2>
+          </div>
+          <button className="rounded-full border px-3 py-1 text-sm font-bold" onClick={() => setOpen(false)} type="button">Close</button>
+        </div>
+        <p className="mt-3 text-sm leading-6 text-slate-600">{content.eligibilityPopupBody}</p>
+        <div className="mt-5 grid gap-4">
+          <label className="flex items-start gap-3 text-sm font-bold"><input checked={isAtLeast18} className="mt-1" onChange={(event) => setIsAtLeast18(event.target.checked)} type="checkbox" />{content.eligibilityAgeConfirmationText}</label>
+          <label className="grid gap-2 text-sm font-bold">{content.eligibilityStateLabel}<select className="input" value={state} onChange={(event) => setState(event.target.value)}><option value="">Select state</option>{states.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+          <label className="grid gap-2 text-sm font-bold">{content.eligibilityZipLabel}<input className="input" inputMode="numeric" maxLength={10} placeholder="Optional" value={zip} onChange={(event) => setZip(event.target.value)} /></label>
+          <label className="flex items-start gap-3 text-sm font-bold"><input checked={acknowledged} className="mt-1" onChange={(event) => setAcknowledged(event.target.checked)} type="checkbox" />{content.eligibilityAcknowledgementText}</label>
+        </div>
+        <button className="btn btn-primary mt-5 w-full" disabled={!acknowledged} onClick={submit} type="button">Check availability</button>
+        {shownResult ? <div className="mt-4 rounded-2xl border border-stone-200 bg-stone-50 p-4"><p className="font-black">{shownResult.label}</p><p className="mt-1 text-sm text-slate-600">{shownResult.message}</p><p className="mt-2 text-xs text-slate-500">This pre-check is not final approval. Checkout re-checks the full shipping address before payment.</p></div> : null}
+      </div>
+    </div>
+  );
+}
+
+export function getEligibilityStorageKey() {
+  return STORAGE_KEY;
+}

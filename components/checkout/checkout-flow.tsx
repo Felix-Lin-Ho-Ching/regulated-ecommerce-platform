@@ -60,7 +60,7 @@ export function CheckoutSummary({ cart }: { cart?: CartSnapshot }) {
         </div>
       </dl>
       <p className="mt-4 text-xs text-slate-500">
-        Payment is mock only. No card data is collected and no live checkout is enabled.
+        No card data is collected. Payment is unavailable until checkout eligibility review is complete.
       </p>
     </aside>
   );

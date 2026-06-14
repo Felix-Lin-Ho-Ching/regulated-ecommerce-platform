@@ -9,14 +9,17 @@ import {
 } from "@/components/ui";
 import { getCartSnapshot } from "@/lib/cart/cart-service";
 import { getCartLineCount } from "@/lib/orders/order-service";
+import { EligibilityModal } from "@/components/eligibility/eligibility-modal";
+import { getStorefrontContent } from "@/lib/storefront-content/service";
 
 export default async function Checkout() {
-  const cart = await getCartSnapshot();
+  const [cart, content] = await Promise.all([getCartSnapshot(), getStorefrontContent()]);
 
   return (
     <AppShell>
-      <SectionHeader eyebrow="Checkout" title="Local checkout">
-        Follow the customer-facing flow: cart, shipping, eligibility, mock payment, and confirmation.
+      <EligibilityModal content={content} trigger="checkout" />
+      <SectionHeader eyebrow="Checkout" title="Checkout review">
+        Review your cart, shipping details, and restricted-product eligibility before payment is available.
       </SectionHeader>
       <CheckoutStepper active={1} />
       <div className="mt-6 grid gap-6 md:grid-cols-[1fr_320px]">
@@ -24,8 +27,8 @@ export default async function Checkout() {
           <section className="card p-5">
             <h2 className="text-xl font-black">Cart</h2>
             <p className="mt-2 text-sm text-slate-600">
-              {getCartLineCount(cart)} item(s) are ready for restricted-product review before mock
-              checkout.
+              {getCartLineCount(cart)} item(s) are ready for restricted-product review before
+              checkout continues.
             </p>
             <Link className="btn btn-primary mt-4" href="/cart">
               Review cart
@@ -42,8 +45,8 @@ export default async function Checkout() {
             </Link>
           </section>
           <EligibilityChecklist />
-          <AlertPanel title="Mock checkout only" tone="warning">
-            Payment stays mock only. Stun Fry does not collect live payment data in this phase.
+          <AlertPanel title="Payment unavailable in this environment" tone="warning">
+            This storefront does not collect card data. Restricted items must pass shipping-address and eligibility review before any payment step can be offered.
           </AlertPanel>
         </section>
         <CheckoutSummary cart={cart} />
