@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createMockOrderFromCart, saveShippingDraft } from "@/lib/orders/order-service";
+import { createMockOrderFromCart, getCheckoutEligibilitySnapshot, saveShippingDraft } from "@/lib/orders/order-service";
 
 export async function saveShippingAction(formData: FormData) {
   const state = String(formData.get("state") || "TX").trim().toUpperCase();
@@ -16,10 +16,33 @@ export async function saveShippingAction(formData: FormData) {
     phone: String(formData.get("phone") || "").trim(),
   });
 
-  redirect("/checkout/verification?case=ready_for_payment");
+  redirect("/checkout/verification");
 }
 
 export async function createMockOrderAction() {
+  const eligibility = await getCheckoutEligibilitySnapshot(true);
+
+  if (eligibility.result.status !== "available") {
+    redirect("/checkout/verification");
+  }
+
   const order = await createMockOrderFromCart();
   redirect(`/checkout/success?order=${encodeURIComponent(order.orderNumber)}`);
+}
+
+export async function continueFromEligibilityAction(formData: FormData) {
+  const isAtLeast18 = formData.get("isAtLeast18") === "on";
+  const acknowledged = formData.get("acknowledged") === "on";
+
+  if (!isAtLeast18 || !acknowledged) {
+    redirect("/checkout/verification?attestation=missing");
+  }
+
+  const eligibility = await getCheckoutEligibilitySnapshot(isAtLeast18);
+
+  if (eligibility.result.status === "available") {
+    redirect("/checkout/payment");
+  }
+
+  redirect("/checkout/verification?status=" + eligibility.result.status);
 }
