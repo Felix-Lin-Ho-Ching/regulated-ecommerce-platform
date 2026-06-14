@@ -11,7 +11,7 @@ export default async function Login({
   return (
     <AppShell>
       <SectionHeader eyebrow="Account" title="Log in to Stun Fry">
-        Access protected account pages and continue local checkout with your customer session.
+        Access protected account pages and continue checkout with your customer session.
       </SectionHeader>
       <LoginForm error={sp.error} message={sp.message} next={sp.next} />
     </AppShell>

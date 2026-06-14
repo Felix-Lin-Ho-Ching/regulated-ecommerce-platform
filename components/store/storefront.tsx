@@ -103,7 +103,7 @@ export function StorefrontHome({
           <div className="rounded-[1.75rem] bg-gradient-to-br from-amber-100 via-stone-100 to-teal-100 p-5 shadow-2xl">
             <div className="flex min-h-[22rem] items-center justify-center rounded-[1.35rem] bg-white/70 text-center">
               <p className="text-sm font-black uppercase tracking-[.2em] text-teal-900">
-                Product photo placeholder
+                Product image
               </p>
             </div>
           </div>

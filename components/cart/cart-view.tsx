@@ -10,7 +10,7 @@ export function CartView({ cart }: { cart: CartSnapshot }) {
   if (cart.lines.length === 0) {
     return (
       <EmptyState title="Your cart is empty">
-        Add products to your cart to begin checkout review. No card data is collected.
+        Add products to your cart to begin checkout review.
         <Link className="btn btn-primary mt-5" href="/products">
           Shop products
         </Link>
@@ -40,7 +40,7 @@ export function CartView({ cart }: { cart: CartSnapshot }) {
               </p>
               {line.product.restricted ? (
                 <p className="mt-2 text-sm font-bold text-amber-900">
-                  Requires age attestation, destination review, and possible document/admin review.
+                  Requires age attestation, destination review, and possible verification.
                 </p>
               ) : null}
             </div>
@@ -73,8 +73,7 @@ export function CartView({ cart }: { cart: CartSnapshot }) {
         {cart.hasRestrictedItems ? (
           <div className="mt-4">
             <AlertPanel title="Restricted-product warning" tone="warning">
-              Checkout includes restricted merchandise. Eligibility must be approved before the mock
-              payment step appears.
+              Checkout includes restricted merchandise. Payment is available after eligibility is approved.
             </AlertPanel>
           </div>
         ) : null}

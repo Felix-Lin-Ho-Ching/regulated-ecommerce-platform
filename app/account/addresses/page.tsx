@@ -9,7 +9,7 @@ export default async function Addresses() {
   return (
     <AppShell>
       <SectionHeader eyebrow="Addresses" title="Saved addresses">
-        Address storage is local to checkout review and uses no external validation provider.
+        Address storage is saved for checkout review and uses no external validation provider.
       </SectionHeader>
       <section className="card p-5">
         <FormField

@@ -9,8 +9,7 @@ export default async function Address() {
   return (
     <AppShell>
       <SectionHeader eyebrow="Shipping" title="Shipping address">
-        Enter the destination used for age attestation, restricted-product review, and local mock
-        checkout.
+        Enter the destination used for age attestation, restricted-product review, and checkout review.
       </SectionHeader>
       <CheckoutStepper active={2} />
       <div className="mt-6 grid gap-6 md:grid-cols-[1fr_320px]">

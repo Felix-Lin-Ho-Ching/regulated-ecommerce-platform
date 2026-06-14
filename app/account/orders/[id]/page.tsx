@@ -16,10 +16,10 @@ export default async function Order({ params }: { params: Promise<{ id: string }
       <div className="grid gap-6 md:grid-cols-2">
         <section className="card p-5">
           <StatusBadge tone={order ? "success" : "warning"}>
-            {order?.status || "Mock shell"}
+            {order?.status || "Order review"}
           </StatusBadge>
-          <p className="mt-3">Payment: {order?.payment || "mock only"}</p>
-          <p>Verification: {order?.verification || "pending local review"}</p>
+          <p className="mt-3">Payment: {order?.payment || "not collected"}</p>
+          <p>Verification: {order?.verification || "pending review"}</p>
           {order ? <p className="font-black">Total: {money(order.total)}</p> : null}
           <div className="mt-5">
             <OrderStatusTimeline paid={order?.payment.includes("approved") ?? false} />

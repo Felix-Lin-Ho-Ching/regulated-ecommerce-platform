@@ -37,7 +37,7 @@ export default async function Checkout() {
           <section className="card p-5">
             <h2 className="text-xl font-black">Shipping</h2>
             <p className="mt-2 text-sm text-slate-600">
-              Shipping details are used for local destination review. No external address API is
+              Shipping details are used for destination review. No external address API is
               called.
             </p>
             <Link className="btn btn-secondary mt-4" href="/checkout/address">

@@ -40,7 +40,7 @@ export async function getCheckoutReadiness(
   return {
     canCollectPayment: false,
     canFulfill: false,
-    reasons: ["Live checkout and fulfillment are disabled in Phase 2 Fast MVP.", ...decision.reasons],
+    reasons: ["Payment is available after eligibility is approved.", ...decision.reasons],
   };
 }
 
@@ -64,7 +64,7 @@ export async function getShippingDraft(): Promise<ShippingDraft> {
     try {
       return JSON.parse(Buffer.from(raw, "base64url").toString("utf8")) as ShippingDraft;
     } catch {
-      // Fall back to the local MVP default below.
+      // Fall back to the default shipping draft below.
     }
   }
 

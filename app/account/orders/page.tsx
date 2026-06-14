@@ -11,11 +11,11 @@ export default async function Orders() {
   return (
     <AppShell>
       <SectionHeader eyebrow="Orders" title="Order history">
-        Local mock orders appear here with payment, verification, and fulfillment shell states.
+        Orders appear here with payment, verification, and fulfillment status.
       </SectionHeader>
       {orders.length === 0 ? (
         <EmptyState title="No orders yet">
-          Complete mock checkout to create a local order.
+          Complete checkout review to create an order.
           <Link className="btn btn-primary mt-5" href="/products">
             Shop products
           </Link>
