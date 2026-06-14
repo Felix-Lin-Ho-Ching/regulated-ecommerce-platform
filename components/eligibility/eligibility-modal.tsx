@@ -16,12 +16,23 @@ type StoredEligibilityPrecheck = {
   checkedAt: string;
 };
 
+function isCompletedPrecheck(value: StoredEligibilityPrecheck | null) {
+  return Boolean(
+    value?.isAtLeast18 !== undefined &&
+      value.state &&
+      value.acknowledged &&
+      value.result?.status &&
+      value.checkedAt,
+  );
+}
+
 function readStoredPrecheck(): StoredEligibilityPrecheck | null {
   if (typeof window === "undefined") return null;
   const raw = window.localStorage.getItem(STORAGE_KEY) ?? window.sessionStorage.getItem(STORAGE_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as StoredEligibilityPrecheck;
+    const stored = JSON.parse(raw) as StoredEligibilityPrecheck;
+    return isCompletedPrecheck(stored) ? stored : null;
   } catch {
     return null;
   }
@@ -173,9 +184,14 @@ export function EligibilityModal({
               address before payment.
             </p>
             {result && result.status !== "available" ? (
-              <button className="btn btn-secondary mt-3 w-full" onClick={() => setOpen(false)} type="button">
-                Browse unrestricted products only
-              </button>
+              <>
+                <p className="mt-2 text-sm font-bold text-slate-700">
+                  Restricted-product checkout remains unavailable for this pre-check.
+                </p>
+                <button className="btn btn-secondary mt-3 w-full" onClick={() => setOpen(false)} type="button">
+                  Continue browsing non-restricted content
+                </button>
+              </>
             ) : null}
           </div>
         ) : null}
