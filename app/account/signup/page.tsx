@@ -11,7 +11,7 @@ export default async function Signup({
   return (
     <AppShell>
       <SectionHeader eyebrow="Account" title="Create your Stun Fry account">
-        Register to view protected account pages, saved addresses, and local mock order history.
+        Register to view protected account pages, saved addresses, and order history.
       </SectionHeader>
       <SignupForm error={sp.error} next={sp.next} />
     </AppShell>

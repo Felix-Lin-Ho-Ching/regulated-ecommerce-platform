@@ -60,7 +60,7 @@ export function CheckoutSummary({ cart }: { cart?: CartSnapshot }) {
         </div>
       </dl>
       <p className="mt-4 text-xs text-slate-500">
-        No card data is collected. Payment is unavailable until checkout eligibility review is complete.
+        Payment is available after eligibility is approved.
       </p>
     </aside>
   );
@@ -107,9 +107,9 @@ export function VerificationRequirementList() {
 export function EligibilityChecklist() {
   const checks = [
     "Address validation",
-    "State and local compliance rules",
+    "State and destination eligibility rules",
     "Document requirements",
-    "Mock provider readiness",
+    "Payment readiness",
     "Risk rules and admin exceptions",
   ];
 
@@ -144,7 +144,7 @@ export function DocumentUploadCard() {
       </p>
       <div className="mt-4 rounded-2xl border-2 border-dashed border-stone-300 bg-stone-50 p-8 text-center">
         <button className="btn btn-secondary focus-ring">Choose files</button>
-        <p className="mt-2 text-xs text-slate-500">PDF, PNG, or JPG · mock upload only</p>
+        <p className="mt-2 text-xs text-slate-500">PDF, PNG, or JPG</p>
       </div>
       <div className="mt-4">
         <StatusBadge tone="warning">Document review pending</StatusBadge>

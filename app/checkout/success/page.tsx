@@ -16,7 +16,7 @@ export default async function Success({
 }) {
   const { order: orderNumberParam } = await searchParams;
   const order = orderNumberParam ? await getOrderByNumber(orderNumberParam) : null;
-  const orderNumber = order?.orderNumber || orderNumberParam || "SF-MOCK";
+  const orderNumber = order?.orderNumber || orderNumberParam || "SF-ORDER";
 
   return (
     <AppShell>
@@ -25,7 +25,7 @@ export default async function Success({
       </SectionHeader>
       <CheckoutStepper active={5} />
       <section className="card mt-6 p-6">
-        <StatusBadge tone="success">Mock paid</StatusBadge>
+        <StatusBadge tone="success">Payment approved</StatusBadge>
         <h2 className="mt-3 text-2xl font-black">Order {orderNumber}</h2>
         <p className="text-slate-600">
           Payment status: review approved · Verification status: approved · Fulfillment: pending

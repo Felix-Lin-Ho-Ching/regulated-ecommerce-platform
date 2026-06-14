@@ -7,9 +7,8 @@ export default async function Payment() {
 
   return (
     <AppShell>
-      <SectionHeader eyebrow="Payment" title="Mock payment">
-        This step creates a local mock order only. No real payment provider, card collection, or live
-        checkout is present.
+      <SectionHeader eyebrow="Payment" title="Payment">
+        Payment is available after eligibility is approved. Card collection is not enabled in this storefront.
       </SectionHeader>
       <CheckoutStepper active={4} />
       <div className="mt-6 grid gap-6 md:grid-cols-[1fr_320px]">
