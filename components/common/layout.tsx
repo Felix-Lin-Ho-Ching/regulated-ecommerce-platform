@@ -2,8 +2,7 @@ import Link from "next/link";
 import { brand } from "@/lib/config/brand";
 import { getCustomerSession } from "@/lib/auth/session";
 import { LogoutButton } from "@/components/account/logout-button";
-import { EligibilityModal } from "@/components/eligibility/eligibility-modal";
-import { getStorefrontContent } from "@/lib/storefront-content/service";
+import { GlobalEligibilityGate } from "@/components/eligibility/global-eligibility-gate";
 
 export async function StoreHeader() {
   const session = await getCustomerSession();
@@ -49,15 +48,11 @@ export function StoreFooter() {
 }
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
-  const storefrontContent = await getStorefrontContent();
-
   return (
     <>
       <StoreHeader />
-      <main className="mx-auto max-w-7xl px-4 py-8">
-        <EligibilityModal content={storefrontContent} />
-        {children}
-      </main>
+      <GlobalEligibilityGate />
+      <main className="mx-auto max-w-7xl px-4 py-8">{children}</main>
       <StoreFooter />
     </>
   );
