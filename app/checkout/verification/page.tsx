@@ -10,6 +10,7 @@ import { AlertPanel } from "@/components/common/panels";
 import { StatusBadge } from "@/components/common/badge";
 import { getCartSnapshot } from "@/lib/cart/cart-service";
 import { getCheckoutEligibilitySnapshot, getShippingDraft } from "@/lib/orders/order-service";
+import { removeRestrictedItemsAction } from "@/lib/cart/actions";
 import { continueFromEligibilityAction } from "@/lib/orders/actions";
 
 function resultTone(status: string) {
@@ -31,23 +32,28 @@ export default async function Verification({
   ]);
   const blocked = eligibility.result.status === "blocked";
   const reviewRequired = ["manual_review", "documents_required"].includes(eligibility.result.status);
+  const canContinue = eligibility.result.status === "available";
 
   return (
     <AppShell>
-      <SectionHeader eyebrow="Eligibility" title="Eligibility review">
-        We review age confirmation, shipping state, ZIP code when provided, restricted-product status, and destination rules before payment is available.
+      <SectionHeader eyebrow="Eligibility" title="Eligibility">
+        We check restricted items after shipping so browsing and cart building stay simple.
       </SectionHeader>
       <CheckoutStepper active={3} />
       <div className="mt-6 grid gap-6 md:grid-cols-[1fr_320px]">
         <section className="space-y-5">
           <section className="card p-5">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-xl font-black">Destination result</h2>
+              <h2 className="text-xl font-black">Shipping destination</h2>
               <StatusBadge tone={resultTone(eligibility.result.status)}>
-                {eligibility.result.label}
+                {eligibility.hasRestrictedItems ? eligibility.result.label : "Ready"}
               </StatusBadge>
             </div>
-            <p className="mt-2 text-sm text-slate-600">{eligibility.result.message}</p>
+            <p className="mt-2 text-sm text-slate-600">
+              {eligibility.hasRestrictedItems
+                ? eligibility.result.message
+                : "Your cart does not include restricted items. You can continue to payment."}
+            </p>
             <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
               <div className="rounded-2xl border border-stone-200 bg-stone-50 p-3">
                 <dt className="font-black">State</dt>
@@ -65,39 +71,43 @@ export default async function Verification({
           </section>
 
           <section className="card p-5">
-            <h2 className="text-xl font-black">Buyer confirmations</h2>
-            <VerificationRequirementList />
+            <h2 className="text-xl font-black">Next step</h2>
+            {eligibility.hasRestrictedItems ? <VerificationRequirementList /> : null}
             {sp.attestation === "missing" ? (
               <div className="mt-4">
                 <AlertPanel title="Confirmation needed" tone="danger">
-                  Confirm the required eligibility statements before continuing.
+                  Confirm the required statements before continuing.
                 </AlertPanel>
               </div>
             ) : null}
             {blocked ? (
               <div className="mt-5">
-                <AlertPanel title="Checkout stopped" tone="danger">
-                  Payment is unavailable because this destination is not eligible for the restricted item in your cart.
+                <AlertPanel title="Item unavailable" tone="danger">
+                  This item is not available for your shipping destination.
                 </AlertPanel>
               </div>
             ) : null}
             {reviewRequired ? (
               <div className="mt-5">
-                <AlertPanel title="Review required" tone="warning">
-                  Payment remains unavailable while additional verification or staff review is pending.
+                <AlertPanel title="Verification required" tone="warning">
+                  Verification is required before payment.
                 </AlertPanel>
               </div>
             ) : null}
-            {eligibility.result.status === "available" ? (
+            {canContinue ? (
               <form action={continueFromEligibilityAction} className="mt-5 grid gap-3">
-                <label className="flex items-start gap-3 text-sm font-bold">
-                  <input className="mt-1" name="isAtLeast18" type="checkbox" required />
-                  I confirm I am at least 18 years old.
-                </label>
-                <label className="flex items-start gap-3 text-sm font-bold">
-                  <input className="mt-1" name="acknowledged" type="checkbox" required />
-                  I understand restricted products may require additional review before fulfillment.
-                </label>
+                {eligibility.hasRestrictedItems ? (
+                  <>
+                    <label className="flex items-start gap-3 text-sm font-bold">
+                      <input className="mt-1" name="isAtLeast18" type="checkbox" required />
+                      I confirm I am at least 18 years old.
+                    </label>
+                    <label className="flex items-start gap-3 text-sm font-bold">
+                      <input className="mt-1" name="acknowledged" type="checkbox" required />
+                      I understand shipping restrictions may apply to restricted items.
+                    </label>
+                  </>
+                ) : null}
                 <button className="btn btn-primary w-fit" type="submit">
                   Continue to payment
                 </button>
@@ -105,11 +115,23 @@ export default async function Verification({
             ) : (
               <div className="mt-5 flex flex-wrap gap-3">
                 <Link className="btn btn-secondary" href="/checkout/address">
-                  Edit shipping
+                  Change shipping address
                 </Link>
-                <Link className="btn btn-secondary" href="/products">
-                  Return to products
-                </Link>
+                {reviewRequired ? (
+                  <>
+                    <Link className="btn btn-secondary" href="/restricted-products-policy">
+                      Submit required information
+                    </Link>
+                    <a className="btn btn-secondary" href="mailto:support@stunfry.example">
+                      Contact support
+                    </a>
+                  </>
+                ) : null}
+                <form action={removeRestrictedItemsAction}>
+                  <button className="btn btn-secondary" type="submit">
+                    Remove restricted item from cart
+                  </button>
+                </form>
               </div>
             )}
           </section>

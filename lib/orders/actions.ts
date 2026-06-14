@@ -34,11 +34,11 @@ export async function continueFromEligibilityAction(formData: FormData) {
   const isAtLeast18 = formData.get("isAtLeast18") === "on";
   const acknowledged = formData.get("acknowledged") === "on";
 
-  if (!isAtLeast18 || !acknowledged) {
+  const eligibility = await getCheckoutEligibilitySnapshot(isAtLeast18);
+
+  if (eligibility.hasRestrictedItems && (!isAtLeast18 || !acknowledged)) {
     redirect("/checkout/verification?attestation=missing");
   }
-
-  const eligibility = await getCheckoutEligibilitySnapshot(isAtLeast18);
 
   if (eligibility.result.status === "available") {
     redirect("/checkout/payment");

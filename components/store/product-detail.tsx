@@ -3,7 +3,6 @@ import { AlertPanel } from "@/components/common/panels";
 import type { CatalogProduct } from "@/lib/db/catalog";
 import { money } from "@/lib/utils";
 import { AddToCartForm } from "@/components/cart/add-to-cart-form";
-import { AvailabilityWidget } from "@/components/eligibility/availability-widget";
 
 export function ProductDetail({ product }: { product: CatalogProduct }) {
   return (
@@ -43,29 +42,24 @@ export function ProductDetail({ product }: { product: CatalogProduct }) {
             </ul>
           ) : (
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">
-              <li>Clear product labeling for checkout eligibility review.</li>
               <li>Inventory-backed catalog item with shopper-facing stock status.</li>
-              <li>Compliance warnings shown before cart and before payment.</li>
+              <li>Product details available before checkout.</li>
+              <li>Shipping restrictions may apply for restricted items.</li>
             </ul>
           )}
         </section>
 
         {product.restricted ? (
-          <>
-            <AvailabilityWidget productCategory={product.category} />
           <div className="mt-5">
-            <AlertPanel title="Restricted-product compliance notice" tone="warning">
-              Eligibility depends on destination law, verified address, buyer attestations, and
-              possible document or manual review. Payment stays unavailable until eligibility is
-              approved.
+            <AlertPanel title="Restricted item" tone="warning">
+              This item is verified during checkout based on age and shipping destination.
             </AlertPanel>
           </div>
-          </>
         ) : null}
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <AddToCartForm returnTo="/cart" showQuantity slug={product.slug} />
-          <AddToCartForm checkout returnTo="/checkout" showQuantity slug={product.slug} />
+          <AddToCartForm returnTo={`/products/${product.slug}`} showQuantity slug={product.slug} />
+          <a className="btn btn-secondary text-center" href="/cart">View cart</a>
         </div>
       </section>
     </div>

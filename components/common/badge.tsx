@@ -20,5 +20,5 @@ export function StatusBadge({
 }
 
 export function RestrictedProductBadge() {
-  return <StatusBadge tone="warning">Restricted product · verification required</StatusBadge>;
+  return <StatusBadge tone="warning">Restricted item · Verified at checkout</StatusBadge>;
 }
