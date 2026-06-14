@@ -10,7 +10,7 @@ export function CartView({ cart }: { cart: CartSnapshot }) {
   if (cart.lines.length === 0) {
     return (
       <EmptyState title="Your cart is empty">
-        Add products to your cart to begin the local checkout flow. No live payment is collected.
+        Add products to your cart to begin checkout review. No card data is collected.
         <Link className="btn btn-primary mt-5" href="/products">
           Shop products
         </Link>

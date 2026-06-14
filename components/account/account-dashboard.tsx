@@ -33,7 +33,7 @@ export function AccountDashboard({ session }: { session: CustomerSession }) {
           <h2 className="mt-3 font-black">Compliance profile</h2>
           <p className="mt-2 text-sm text-slate-600">
             Age attestation, destination review, and document/admin-review status can be wired to
-            durable records after the MVP.
+            durable records in a production environment.
           </p>
         </section>
       </div>

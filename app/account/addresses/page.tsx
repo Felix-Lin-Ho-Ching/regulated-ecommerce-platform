@@ -9,7 +9,7 @@ export default async function Addresses() {
   return (
     <AppShell>
       <SectionHeader eyebrow="Addresses" title="Saved addresses">
-        Address storage is local to the MVP checkout flow and uses no external validation provider.
+        Address storage is local to checkout review and uses no external validation provider.
       </SectionHeader>
       <section className="card p-5">
         <FormField
@@ -18,7 +18,7 @@ export default async function Addresses() {
         />
         <div className="mt-4">
           <AlertPanel title="Validation status" tone="success">
-            Local MVP destination review is available for checkout testing. Live address validation
+            Destination review is available for checkout testing. Address validation
             remains out of scope.
           </AlertPanel>
         </div>

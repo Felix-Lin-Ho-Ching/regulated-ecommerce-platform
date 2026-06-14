@@ -3,10 +3,14 @@ import { AlertPanel } from "@/components/common/panels";
 import type { CatalogProduct } from "@/lib/db/catalog";
 import { money } from "@/lib/utils";
 import { AddToCartForm } from "@/components/cart/add-to-cart-form";
+import { AvailabilityWidget } from "@/components/eligibility/availability-widget";
+import { EligibilityModal } from "@/components/eligibility/eligibility-modal";
+import type { StorefrontContent } from "@/lib/storefront-content/defaults";
 
-export function ProductDetail({ product }: { product: CatalogProduct }) {
+export function ProductDetail({ product, content }: { product: CatalogProduct; content?: StorefrontContent }) {
   return (
     <div className="grid gap-8 md:grid-cols-[minmax(0,1.05fr)_minmax(0,.95fr)]">
+      {product.restricted && content ? <EligibilityModal content={content} productCategory={product.category} trigger="restricted" /> : null}
       <div className="card flex min-h-96 items-center justify-center bg-gradient-to-br from-amber-100 via-stone-100 to-teal-100 p-8 text-center">
         <div>
           <p className="text-sm font-black uppercase tracking-[.2em] text-teal-900">
@@ -50,6 +54,8 @@ export function ProductDetail({ product }: { product: CatalogProduct }) {
         </section>
 
         {product.restricted ? (
+          <>
+            <AvailabilityWidget productCategory={product.category} />
           <div className="mt-5">
             <AlertPanel title="Restricted-product compliance notice" tone="warning">
               Eligibility depends on destination law, verified address, buyer attestations, and
@@ -57,6 +63,7 @@ export function ProductDetail({ product }: { product: CatalogProduct }) {
               approved.
             </AlertPanel>
           </div>
+          </>
         ) : null}
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">

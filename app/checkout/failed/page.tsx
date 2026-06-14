@@ -8,7 +8,7 @@ export default function Failed() {
         Eligibility remains approved; payment can be retried.
       </SectionHeader>
       <AlertPanel title="Mock processor failure" tone="danger">
-        No order funds were captured. Retry mock payment or contact support.
+        No order funds were captured. Retry payment review or contact support.
       </AlertPanel>
       <Link className="btn btn-primary mt-5" href="/checkout/payment">
         Retry payment
