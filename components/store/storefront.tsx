@@ -4,7 +4,6 @@ import type { StorefrontContent } from "@/lib/storefront-content/defaults";
 import { money } from "@/lib/utils";
 import { RestrictedProductBadge, StatusBadge } from "@/components/common/badge";
 import { AddToCartForm } from "@/components/cart/add-to-cart-form";
-import { EligibilityModal } from "@/components/eligibility/eligibility-modal";
 import { HowEligibilityWorksButton } from "@/components/eligibility/how-eligibility-works";
 
 function HeroPlaceholder({ placeholderKey }: { placeholderKey: string }) {
@@ -33,7 +32,6 @@ export function StorefrontHome({
 
   return (
     <div className="space-y-10">
-      <EligibilityModal content={content} />
       {content.announcementBarText ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-bold text-slate-800">
           {content.announcementBarText}

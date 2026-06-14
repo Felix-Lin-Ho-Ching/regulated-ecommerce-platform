@@ -181,7 +181,7 @@ export async function createMockOrderFromCart(): Promise<CustomerOrderSummary> {
       orderNumber: order.orderNumber,
       status: order.status,
       total: order.totalCents / 100,
-      payment: "test confirmation",
+      payment: "order request",
       verification: "approved",
       createdAt: order.createdAt.toISOString(),
     };
@@ -191,7 +191,7 @@ export async function createMockOrderFromCart(): Promise<CustomerOrderSummary> {
     orderNumber,
     status: "FULFILLMENT_HOLD",
     total: cart.total,
-    payment: "test confirmation",
+    payment: "order request",
     verification: "approved",
     createdAt: new Date().toISOString(),
   };
