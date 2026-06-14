@@ -2,10 +2,12 @@ import Link from "next/link";
 import { brand } from "@/lib/config/brand";
 import { getCustomerSession } from "@/lib/auth/session";
 import { LogoutButton } from "@/components/account/logout-button";
-import { GlobalEligibilityGate } from "@/components/eligibility/global-eligibility-gate";
+import { getCartSnapshot } from "@/lib/cart/cart-service";
+import { getCartLineCount } from "@/lib/orders/order-service";
 
 export async function StoreHeader() {
-  const session = await getCustomerSession();
+  const [session, cart] = await Promise.all([getCustomerSession(), getCartSnapshot()]);
+  const cartCount = getCartLineCount(cart);
 
   return (
     <header className="border-b border-stone-200 bg-white/90">
@@ -15,8 +17,14 @@ export async function StoreHeader() {
         </Link>
         <nav className="flex flex-wrap items-center gap-4 text-sm font-bold text-slate-700">
           <Link href="/products">Shop</Link>
-          <Link href="/cart">Cart</Link>
-          <Link href="/checkout">Checkout</Link>
+          <Link className="relative rounded-full border border-stone-200 px-3 py-2" href="/cart" aria-label={`Cart with ${cartCount} item${cartCount === 1 ? "" : "s"}`}>
+            🛒
+            {cartCount > 0 ? (
+              <span className="absolute -right-2 -top-2 rounded-full bg-teal-800 px-2 py-0.5 text-xs text-white">
+                {cartCount}
+              </span>
+            ) : null}
+          </Link>
           {session ? (
             <>
               <Link href="/account">Account</Link>
@@ -51,7 +59,6 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <StoreHeader />
-      <GlobalEligibilityGate />
       <main className="mx-auto max-w-7xl px-4 py-8">{children}</main>
       <StoreFooter />
     </>

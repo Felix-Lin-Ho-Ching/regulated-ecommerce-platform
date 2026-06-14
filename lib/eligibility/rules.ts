@@ -36,8 +36,8 @@ export type EligibilityResult = {
 const labels: Record<EligibilityStatus, string> = {
   available: "Available",
   blocked: "Not available in your area",
-  documents_required: "Additional verification required",
-  manual_review: "Manual review required",
+  documents_required: "Verification required",
+  manual_review: "Verification required",
 };
 
 function normalizeState(state?: string) {
@@ -71,7 +71,7 @@ export function evaluateEligibilityWithRules(
     return {
       status: "blocked",
       label: labels.blocked,
-      message: "Restricted products are available only after confirming the purchaser is at least 18.",
+      message: "Restricted items require age confirmation during checkout."
     };
   }
 
@@ -81,7 +81,7 @@ export function evaluateEligibilityWithRules(
     return {
       status: "manual_review",
       label: labels.manual_review,
-      message: "Enter a shipping state so availability can be reviewed before payment.",
+      message: "Enter a shipping state to continue checkout."
     };
   }
 
@@ -93,7 +93,7 @@ export function evaluateEligibilityWithRules(
     return {
       status: "manual_review",
       label: labels.manual_review,
-      message: "This destination needs review before payment can be offered.",
+      message: "Verification is required before payment."
     };
   }
 
@@ -104,7 +104,7 @@ export function evaluateEligibilityWithRules(
     return {
       status: "blocked",
       label: labels.blocked,
-      message: "This restricted product is not available for the selected destination.",
+      message: "This item is not available for your shipping destination."
     };
   }
 
@@ -112,7 +112,7 @@ export function evaluateEligibilityWithRules(
     return {
       status: "documents_required",
       label: labels.documents_required,
-      message: "Additional verification is required before payment can be offered.",
+      message: "Verification is required before payment."
     };
   }
 
@@ -120,7 +120,7 @@ export function evaluateEligibilityWithRules(
     return {
       status: "manual_review",
       label: labels.manual_review,
-      message: "This destination requires manual review before payment can be offered.",
+      message: "Verification is required before payment."
     };
   }
 
@@ -128,14 +128,14 @@ export function evaluateEligibilityWithRules(
     return {
       status: "available",
       label: labels.available,
-      message: "Availability looks good for this destination. Checkout will review the shipping details again before payment.",
+      message: "Your shipping destination is eligible for checkout."
     };
   }
 
   return {
     status: "manual_review",
     label: labels.manual_review,
-    message: "This destination needs review before payment can be offered.",
+    message: "Verification is required before payment."
   };
 }
 

@@ -15,7 +15,7 @@ export default async function Payment() {
   return (
     <AppShell>
       <SectionHeader eyebrow="Payment" title="Payment review">
-        Payment will be completed after eligibility approval.
+        Review and submit your order request. No card information is collected.
       </SectionHeader>
       <CheckoutStepper active={4} />
       <div className="mt-6 grid gap-6 md:grid-cols-[1fr_320px]">
@@ -24,10 +24,10 @@ export default async function Payment() {
         ) : (
           <section className="card p-5">
             <AlertPanel title={eligibility.result.label} tone="warning">
-              {eligibility.result.message} Payment remains unavailable.
+              {eligibility.result.message} Payment is unavailable.
             </AlertPanel>
             <Link className="btn btn-secondary mt-5" href="/checkout/verification">
-              Return to eligibility review
+              Return to eligibility
             </Link>
           </section>
         )}

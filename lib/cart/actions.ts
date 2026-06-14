@@ -2,11 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getCartCookieItems, setCartCookieItems } from "@/lib/cart/cart-service";
+import { getCartCookieItems, getCartSnapshot, setCartCookieItems } from "@/lib/cart/cart-service";
 
 function getReturnTo(formData: FormData) {
-  const returnTo = String(formData.get("returnTo") || "/cart");
-  return returnTo.startsWith("/") ? returnTo : "/cart";
+  const returnTo = String(formData.get("returnTo") || "/products");
+  return returnTo.startsWith("/") ? returnTo : "/products";
+}
+
+function withAddedToCart(returnTo: string) {
+  const separator = returnTo.includes("?") ? "&" : "?";
+  return `${returnTo}${separator}added=1`;
 }
 
 export async function addToCartAction(formData: FormData) {
@@ -29,7 +34,8 @@ export async function addToCartAction(formData: FormData) {
 
   await setCartCookieItems(items);
   revalidatePath("/cart");
-  redirect(returnTo);
+  revalidatePath(returnTo.split("?")[0] || "/");
+  redirect(withAddedToCart(returnTo));
 }
 
 export async function updateCartItemAction(formData: FormData) {
@@ -42,5 +48,18 @@ export async function updateCartItemAction(formData: FormData) {
 
   await setCartCookieItems(nextItems);
   revalidatePath("/cart");
+  redirect("/cart");
+}
+
+export async function removeRestrictedItemsAction() {
+  const [items, cart] = await Promise.all([getCartCookieItems(), getCartSnapshot()]);
+  const restrictedSlugs = new Set(
+    cart.lines.filter((line) => line.product.restricted).map((line) => line.product.slug),
+  );
+  const nextItems = items.filter((item) => !restrictedSlugs.has(item.slug));
+
+  await setCartCookieItems(nextItems);
+  revalidatePath("/cart");
+  revalidatePath("/checkout/verification");
   redirect("/cart");
 }

@@ -18,7 +18,7 @@ export default function Page() {
           <p>Stun Fry may hold or decline orders when destination, age, verification, inventory, or policy requirements are not satisfied.</p>
         </section>
         <AlertPanel title="Customer reminder" tone="warning">
-          Availability previews are not final approval. Payment is available after checkout eligibility is approved.
+          Eligibility is reviewed during checkout after you enter a shipping address. Payment is available after checkout eligibility is approved.
         </AlertPanel>
       </div>
     </AppShell>

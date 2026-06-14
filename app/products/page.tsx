@@ -1,45 +1,47 @@
 import Link from "next/link";
 import { AppShell, ProductCard, SectionHeader } from "@/components/store-products";
-import { StatusBadge } from "@/components/ui";
+import { AlertPanel } from "@/components/common/panels";
 import { getCatalogProducts } from "@/lib/db/catalog";
 
-export default async function Products() {
-  const products = await getCatalogProducts();
+export default async function Products({
+  searchParams,
+}: {
+  searchParams: Promise<{ added?: string }>;
+}) {
+  const [products, sp] = await Promise.all([getCatalogProducts(), searchParams]);
 
   return (
     <AppShell>
       <SectionHeader eyebrow="Shop" title="Self-defense products">
-        Browse products with price, stock, and clear restricted-product availability guidance before checkout.
+        Browse our products, compare stock and pricing, and add items to your cart.
       </SectionHeader>
+      {sp.added ? (
+        <div className="mb-5">
+          <AlertPanel title="Added to cart" tone="success">
+            Your item was added. <Link className="font-black underline" href="/cart">View cart</Link>
+          </AlertPanel>
+        </div>
+      ) : null}
       <div className="grid gap-4 md:grid-cols-4">
         <aside className="card p-4">
           <h2 className="font-black">Filters</h2>
           <div className="mt-4 grid gap-3 text-sm">
-            <label className="flex items-center gap-2 font-bold">
-              <input type="checkbox" defaultChecked />
-              Show restricted products
-            </label>
-            <label className="block font-bold">
-              State preview
-              <select className="input mt-1">
-                <option>Texas</option>
-                <option>California</option>
-                <option>New York</option>
-                <option>Illinois</option>
-              </select>
-            </label>
             <label className="block font-bold">
               Category
               <select className="input mt-1">
                 <option>All products</option>
-                <option>Restricted devices</option>
+                <option>Self-defense devices</option>
                 <option>Personal safety</option>
               </select>
             </label>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <StatusBadge tone="warning">Compliance visible</StatusBadge>
-            <StatusBadge tone="info">Availability preview</StatusBadge>
+            <label className="block font-bold">
+              Stock
+              <select className="input mt-1">
+                <option>All stock statuses</option>
+                <option>In stock</option>
+                <option>Out of stock</option>
+              </select>
+            </label>
           </div>
           <Link className="btn btn-secondary mt-4 w-full" href="/restricted-products-policy">
             Restricted-product policy

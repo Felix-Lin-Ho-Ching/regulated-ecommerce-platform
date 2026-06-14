@@ -60,7 +60,7 @@ export function CheckoutSummary({ cart }: { cart?: CartSnapshot }) {
         </div>
       </dl>
       <p className="mt-4 text-xs text-slate-500">
-        Payment is available after eligibility is approved.
+        Payment is available after checkout eligibility is complete.
       </p>
     </aside>
   );
@@ -96,10 +96,10 @@ export function ComplianceResultPanel({ outcome }: { outcome: keyof typeof check
 export function VerificationRequirementList() {
   return (
     <ul className="list-disc space-y-2 pl-5 text-sm">
-      <li>Confirm purchaser is at least 18 years old.</li>
-      <li>Acknowledge restricted-product policy and destination-law review.</li>
+      <li>Confirm purchaser is at least 18 years old when restricted items are in the cart.</li>
+      <li>Acknowledge that shipping restrictions may apply.</li>
       <li>Use verified shipping address; freight forwarding is not allowed.</li>
-      <li>Submit documents if the state rule requires manual document review.</li>
+      <li>Submit required information if verification is needed.</li>
     </ul>
   );
 }

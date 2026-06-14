@@ -36,7 +36,7 @@ export function ProductCard({ product }: { product: CatalogProduct }) {
         <Link className="btn btn-secondary" href={`/products/${product.slug}`}>
           View
         </Link>
-        <AddToCartForm returnTo="/cart" slug={product.slug} />
+        <AddToCartForm returnTo="/products" slug={product.slug} />
       </div>
     </article>
   );
