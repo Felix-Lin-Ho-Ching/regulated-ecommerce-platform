@@ -149,7 +149,7 @@ export function StorefrontHome({
                 </Link>
               </div>
               <div className="mt-3">
-                <AddToCartForm returnTo="/cart" slug={product.slug} />
+                <AddToCartForm returnTo="/" slug={product.slug} />
               </div>
             </article>
           ))}

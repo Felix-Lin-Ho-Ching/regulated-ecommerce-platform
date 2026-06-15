@@ -27,6 +27,7 @@ export type CustomerOrderSummary = {
   payment: string;
   verification: string;
   createdAt: string;
+  items?: Array<{ name: string; quantity: number; total: number }>;
 };
 
 const shippingCookieName = "stun_fry_shipping";
@@ -184,6 +185,7 @@ export async function createMockOrderFromCart(): Promise<CustomerOrderSummary> {
       payment: "order request",
       verification: "approved",
       createdAt: order.createdAt.toISOString(),
+      items: cart.lines.map((line) => ({ name: line.product.name, quantity: line.quantity, total: line.lineTotal })),
     };
   }
 
@@ -194,6 +196,7 @@ export async function createMockOrderFromCart(): Promise<CustomerOrderSummary> {
     payment: "order request",
     verification: "approved",
     createdAt: new Date().toISOString(),
+    items: cart.lines.map((line) => ({ name: line.product.name, quantity: line.quantity, total: line.lineTotal })),
   };
 
   await saveCookieOrder(order);
