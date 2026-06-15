@@ -6,8 +6,11 @@ import { AddToCartForm } from "@/components/cart/add-to-cart-form";
 
 function ProductImagePlaceholder({ name }: { name: string }) {
   return (
-    <div className="mb-4 flex h-40 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-100 via-stone-100 to-teal-100 text-center text-sm font-black text-slate-500">
-      {name}
+    <div className="relative mb-4 h-44 overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-teal-950 to-amber-200">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(255,255,255,.22),transparent_28%)]" />
+      <div className="absolute bottom-7 left-1/2 h-7 w-32 -translate-x-1/2 rounded-full bg-black/30 blur-xl" />
+      <div className="absolute bottom-10 left-1/2 h-24 w-16 -translate-x-1/2 rotate-6 rounded-2xl border border-white/25 bg-gradient-to-br from-stone-100 to-slate-400 shadow-2xl" />
+      <span className="sr-only">Stun Fry styled product visual for {name}</span>
     </div>
   );
 }
@@ -44,7 +47,7 @@ export function ProductCard({ product }: { product: CatalogProduct }) {
 
 export function ProductGrid({ products }: { products: CatalogProduct[] }) {
   return (
-    <section className="grid gap-4 md:col-span-3 md:grid-cols-2 xl:grid-cols-3">
+    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {products.map((product) => (
         <ProductCard product={product} key={product.id} />
       ))}

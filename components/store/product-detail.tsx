@@ -7,12 +7,18 @@ import { AddToCartForm } from "@/components/cart/add-to-cart-form";
 export function ProductDetail({ product }: { product: CatalogProduct }) {
   return (
     <div className="grid gap-8 md:grid-cols-[minmax(0,1.05fr)_minmax(0,.95fr)]">
-      <div className="card flex min-h-96 items-center justify-center bg-gradient-to-br from-amber-100 via-stone-100 to-teal-100 p-8 text-center">
-        <div>
-          <p className="text-sm font-black uppercase tracking-[.2em] text-teal-900">
-            Product image
-          </p>
-          <h2 className="mt-3 text-3xl font-black text-slate-700">{product.name}</h2>
+      <div className="card overflow-hidden p-5">
+        <div className="relative min-h-96 overflow-hidden rounded-[1.5rem] bg-gradient-to-br from-slate-950 via-teal-950 to-amber-200">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_18%,rgba(255,255,255,.24),transparent_28%),radial-gradient(circle_at_78%_26%,rgba(251,191,36,.32),transparent_24%)]" />
+          <div className="absolute bottom-12 left-1/2 h-10 w-56 -translate-x-1/2 rounded-full bg-black/30 blur-xl" />
+          <div className="absolute bottom-20 left-1/2 h-48 w-32 -translate-x-1/2 rotate-6 rounded-[2rem] border border-white/25 bg-gradient-to-br from-stone-100 to-slate-500 shadow-2xl" />
+          <div className="absolute bottom-24 left-[58%] h-32 w-20 -rotate-12 rounded-[1.5rem] border border-white/25 bg-gradient-to-br from-amber-200 to-white shadow-xl" />
+          <span className="sr-only">Stun Fry styled product visual for {product.name}</span>
+        </div>
+        <div className="mt-4 grid grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((thumb) => (
+            <div className="h-20 rounded-2xl border border-stone-200 bg-gradient-to-br from-stone-100 to-teal-100" key={thumb} />
+          ))}
         </div>
       </div>
       <section>

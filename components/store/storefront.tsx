@@ -4,168 +4,108 @@ import type { StorefrontContent } from "@/lib/storefront-content/defaults";
 import { money } from "@/lib/utils";
 import { RestrictedProductBadge, StatusBadge } from "@/components/common/badge";
 import { AddToCartForm } from "@/components/cart/add-to-cart-form";
-import { HowEligibilityWorksButton } from "@/components/eligibility/how-eligibility-works";
 
-function HeroPlaceholder({ placeholderKey }: { placeholderKey: string }) {
+function ProductVisual({ name, large = false }: { name: string; large?: boolean }) {
   return (
-    <div className="flex min-h-[22rem] items-center justify-center rounded-[1.35rem] bg-gradient-to-br from-amber-100 via-stone-100 to-teal-100 p-6 text-slate-950">
-      <div className="relative flex h-64 w-full max-w-sm items-center justify-center rounded-[2rem] bg-white/75 shadow-inner">
-        <div className="absolute inset-x-10 bottom-8 h-10 rounded-full bg-slate-900/10 blur-xl" />
-        <div className="relative h-44 w-32 rotate-6 rounded-[2rem] border border-white/80 bg-gradient-to-br from-slate-900 via-teal-950 to-slate-800 shadow-2xl" />
-        <div className="relative -ml-10 h-36 w-24 -rotate-12 rounded-[1.5rem] border border-white/80 bg-gradient-to-br from-amber-300 via-amber-200 to-white shadow-xl" />
-        <span className="sr-only">{placeholderKey}</span>
-      </div>
+    <div className={`relative overflow-hidden rounded-[1.5rem] bg-gradient-to-br from-slate-950 via-teal-950 to-amber-200 ${large ? "min-h-80" : "h-48"}`}>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,.22),transparent_28%),radial-gradient(circle_at_80%_15%,rgba(251,191,36,.3),transparent_24%)]" />
+      <div className="absolute bottom-8 left-1/2 h-8 w-48 -translate-x-1/2 rounded-full bg-black/30 blur-xl" />
+      <div className="absolute bottom-12 left-1/2 h-36 w-24 -translate-x-1/2 rotate-6 rounded-[1.5rem] border border-white/25 bg-gradient-to-br from-stone-100 to-slate-400 shadow-2xl" />
+      <div className="absolute bottom-16 left-[58%] h-24 w-16 -rotate-12 rounded-2xl border border-white/25 bg-gradient-to-br from-amber-200 to-white shadow-xl" />
+      <span className="sr-only">Stun Fry styled product visual for {name}</span>
     </div>
   );
 }
 
-export function StorefrontHome({
-  content,
-  products,
-}: {
-  content: StorefrontContent;
-  products: CatalogProduct[];
-}) {
-  const featuredProducts = products.slice(0, 3);
+export function StorefrontHome({ content, products }: { content: StorefrontContent; products: CatalogProduct[] }) {
+  const featuredProducts = products.slice(0, 4);
   const heroProduct = featuredProducts[0];
-  const categories = Array.from(new Set(products.map((product) => product.category))).slice(0, 3);
+  const featureBlocks = featuredProducts.slice(0, 2);
 
   return (
-    <div className="space-y-10">
-      {content.announcementBarText ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-bold text-slate-800">
-          {content.announcementBarText}
-        </div>
-      ) : null}
-
-      <section className="grid gap-8 overflow-hidden rounded-[2rem] border border-stone-200 bg-gradient-to-br from-white via-stone-50 to-amber-50 p-6 shadow-sm md:grid-cols-[minmax(0,1fr)_460px] md:p-8 lg:p-10">
-        <div className="flex flex-col justify-center py-4">
-          <p className="text-sm font-black uppercase tracking-[.22em] text-teal-900">
-            {content.heroEyebrow}
-          </p>
-          <h1 className="mt-4 max-w-3xl text-4xl font-black tracking-tight text-slate-950 md:text-6xl">
-            {content.heroTitle}
-          </h1>
-          <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
-            {content.heroSubtitle}
-          </p>
-          <div className="mt-7 flex flex-wrap gap-3">
-            <Link className="btn btn-primary" href={content.primaryCtaLink}>
-              {content.primaryCtaLabel}
-            </Link>
-            <Link className="btn btn-secondary" href={content.secondaryCtaLink}>
-              {content.secondaryCtaLabel}
-            </Link>
-          </div>
-          <div className="mt-8 grid gap-3 text-sm font-bold text-slate-700 sm:grid-cols-3">
-            {content.trustBadgeLabels.map((badge) => (
-              <div className="rounded-2xl border border-stone-200 bg-white/80 p-4" key={badge}>
-                {badge}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {heroProduct ? (
-          <article className="relative rounded-[1.75rem] bg-slate-950 p-5 text-white shadow-2xl">
-            <div className="absolute right-6 top-6 z-10 rounded-full bg-amber-300 px-3 py-1 text-xs font-black uppercase tracking-[.16em] text-slate-950">
-              Featured
-            </div>
-            {content.heroImageUrl ? (
-              <div
-                aria-label="Storefront hero image"
-                className="min-h-[22rem] rounded-[1.35rem] bg-cover bg-center"
-                style={{ backgroundImage: `url(${content.heroImageUrl})` }}
-              />
-            ) : (
-              <HeroPlaceholder placeholderKey={content.heroPlaceholderKey} />
-            )}
-            <div className="mt-5 flex flex-wrap gap-2">
-              {heroProduct.restricted ? <RestrictedProductBadge /> : null}
-              <StatusBadge tone={heroProduct.stock > 0 ? "success" : "danger"}>
-                {heroProduct.stock > 0 ? "In stock" : "Out of stock"}
-              </StatusBadge>
-            </div>
-            <div className="mt-4 flex items-end justify-between gap-4">
-              <div>
-                <p className="text-sm font-bold text-stone-300">{heroProduct.brand}</p>
-                <h2 className="mt-1 text-2xl font-black">{heroProduct.name}</h2>
-                <strong className="mt-2 block text-3xl">{money(heroProduct.price)}</strong>
-              </div>
-              <Link className="btn bg-white text-slate-950" href={`/products/${heroProduct.slug}`}>
-                View details
-              </Link>
-            </div>
-          </article>
+    <div className="space-y-12">
+      <section className="relative -mx-4 overflow-hidden bg-slate-950 px-4 py-20 text-white md:rounded-[2rem] lg:mx-0">
+        {content.heroImageUrl ? (
+          <div className="absolute inset-0 bg-cover bg-center opacity-45" style={{ backgroundImage: `url(${content.heroImageUrl})` }} />
         ) : (
-          <div className="rounded-[1.75rem] bg-gradient-to-br from-amber-100 via-stone-100 to-teal-100 p-5 shadow-2xl">
-            <div className="flex min-h-[22rem] items-center justify-center rounded-[1.35rem] bg-white/70 text-center">
-              <p className="text-sm font-black uppercase tracking-[.2em] text-teal-900">
-                Product image
-              </p>
-            </div>
-          </div>
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(20,184,166,.35),transparent_26%),radial-gradient(circle_at_80%_30%,rgba(251,191,36,.28),transparent_24%),linear-gradient(135deg,#020617,#123a42_55%,#1f2937)]" />
         )}
+        <div className="absolute inset-0 bg-black/35" />
+        <div className="relative mx-auto max-w-4xl text-center">
+          <p className="text-sm font-black uppercase tracking-[.28em] text-amber-200">{content.heroEyebrow}</p>
+          <h1 className="mt-5 text-4xl font-black tracking-tight md:text-6xl">{content.heroTitle}</h1>
+          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-stone-100">{content.heroSubtitle}</p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link className="btn bg-amber-300 text-slate-950" href={content.primaryCtaLink}>{content.primaryCtaLabel}</Link>
+            <Link className="btn border border-white/40 bg-white/10 text-white backdrop-blur" href={content.secondaryCtaLink}>{content.secondaryCtaLabel}</Link>
+          </div>
+        </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
-        {categories.map((category) => (
-          <Link className="card p-5" href={`/products?category=${category}`} key={category}>
-            <p className="text-xs font-black uppercase tracking-[.2em] text-teal-900">Category</p>
-            <h2 className="mt-2 text-xl font-black capitalize">{category.replaceAll("_", " ")}</h2>
-            <p className="mt-2 text-sm text-slate-600">Browse product-first collections.</p>
-          </Link>
+      <section className="grid gap-3 md:grid-cols-4">
+        {content.trustBadgeLabels.map((badge) => (
+          <div className="rounded-2xl border border-stone-200 bg-white p-4 text-center text-sm font-black text-slate-800 shadow-sm" key={badge}>{badge}</div>
+        ))}
+      </section>
+
+      <section className="grid gap-5 md:grid-cols-2">
+        {(featureBlocks.length ? featureBlocks : products.slice(0, 2)).map((product) => (
+          <article className="card overflow-hidden p-5" key={product.id}>
+            <ProductVisual large name={product.name} />
+            <div className="mt-5 flex flex-wrap gap-2">
+              {product.restricted ? <RestrictedProductBadge /> : null}
+              <StatusBadge tone={product.stock > 0 ? "success" : "danger"}>{product.stock > 0 ? "In stock" : "Out of stock"}</StatusBadge>
+            </div>
+            <h2 className="mt-4 text-2xl font-black">{product.name}</h2>
+            <p className="mt-2 text-slate-600">{product.description}</p>
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+              <strong className="text-2xl">{money(product.price)}</strong>
+              <div className="flex gap-2">
+                <Link className="btn btn-secondary" href={`/products/${product.slug}`}>Learn more</Link>
+                <AddToCartForm returnTo="/" slug={product.slug} />
+              </div>
+            </div>
+          </article>
         ))}
       </section>
 
       <section>
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-sm font-black uppercase tracking-[.2em] text-teal-900">
-              {content.featuredSectionEyebrow}
-            </p>
+            <p className="text-sm font-black uppercase tracking-[.2em] text-teal-900">{content.featuredSectionEyebrow}</p>
             <h2 className="text-3xl font-black">{content.featuredSectionTitle}</h2>
           </div>
-          <Link className="btn btn-secondary" href="/products">
-            View all products
-          </Link>
+          <Link className="btn btn-secondary" href="/products">View all products</Link>
         </div>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           {featuredProducts.map((product) => (
-            <article className="card flex flex-col p-5" key={product.id}>
-              <div className="mb-4 h-36 rounded-2xl bg-gradient-to-br from-stone-100 to-teal-100" />
-              <div className="flex flex-wrap gap-2">
-                {product.restricted ? <RestrictedProductBadge /> : null}
-                <StatusBadge tone={product.stock > 0 ? "success" : "danger"}>
-                  {product.stock > 0 ? "In stock" : "Out of stock"}
-                </StatusBadge>
-              </div>
-              <h3 className="mt-3 font-black">{product.name}</h3>
+            <article className="card flex flex-col p-4" key={product.id}>
+              <ProductVisual name={product.name} />
+              <h3 className="mt-4 font-black">{product.name}</h3>
               <p className="mt-1 text-sm text-slate-600">{product.brand}</p>
               <div className="mt-auto flex items-center justify-between pt-4">
                 <strong>{money(product.price)}</strong>
-                <Link className="btn btn-secondary" href={`/products/${product.slug}`}>
-                  View
-                </Link>
-              </div>
-              <div className="mt-3">
-                <AddToCartForm returnTo="/" slug={product.slug} />
+                <Link className="font-black text-teal-900" href={`/products/${product.slug}`}>Shop now</Link>
               </div>
             </article>
           ))}
         </div>
       </section>
 
-      <section className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-black">{content.trustComplianceTitle}</h2>
-            <p className="mt-1 text-sm text-slate-600">{content.trustComplianceBody}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link className="btn btn-secondary" href="/restricted-products-policy">Restricted-product policy</Link>
-            <HowEligibilityWorksButton />
-          </div>
+      <section className="grid gap-5 rounded-3xl border border-stone-200 bg-white p-6 shadow-sm md:grid-cols-[.8fr_1.2fr]">
+        <div>
+          <p className="text-sm font-black uppercase tracking-[.2em] text-teal-900">Check your state</p>
+          <h2 className="mt-2 text-3xl font-black">{content.trustComplianceTitle}</h2>
+          <p className="mt-3 text-slate-600">{content.trustComplianceBody}</p>
+          <Link className="btn btn-primary mt-5" href="/restricted-products-policy">Review state policy</Link>
+        </div>
+        <div className="space-y-3">
+          {["When is eligibility reviewed?", "How do restricted items ship?", "What support is available after purchase?"].map((question, index) => (
+            <details className="rounded-2xl border border-stone-200 p-4" key={question} open={index === 0}>
+              <summary className="cursor-pointer font-black">{question}</summary>
+              <p className="mt-2 text-sm leading-6 text-slate-600">Address-based eligibility is handled during checkout, with clear next steps before any order is placed.</p>
+            </details>
+          ))}
         </div>
       </section>
     </div>

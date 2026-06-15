@@ -3,17 +3,13 @@ import { AppShell, ProductCard, SectionHeader } from "@/components/store-product
 import { AlertPanel } from "@/components/common/panels";
 import { getCatalogProducts } from "@/lib/db/catalog";
 
-export default async function Products({
-  searchParams,
-}: {
-  searchParams: Promise<{ added?: string }>;
-}) {
+export default async function Products({ searchParams }: { searchParams: Promise<{ added?: string }> }) {
   const [products, sp] = await Promise.all([getCatalogProducts(), searchParams]);
 
   return (
     <AppShell>
       <SectionHeader eyebrow="Shop" title="Self-defense products">
-        Browse our products, compare stock and pricing, and add items to your cart.
+        Browse everyday safety products, compare stock and pricing, and add items to your cart.
       </SectionHeader>
       {sp.added ? (
         <div className="mb-5">
@@ -22,33 +18,21 @@ export default async function Products({
           </AlertPanel>
         </div>
       ) : null}
-      <div className="grid gap-4 md:grid-cols-4">
-        <aside className="card p-4">
-          <h2 className="font-black">Filters</h2>
-          <div className="mt-4 grid gap-3 text-sm">
-            <label className="block font-bold">
-              Category
-              <select className="input mt-1">
-                <option>All products</option>
-                <option>Self-defense devices</option>
-                <option>Personal safety</option>
-              </select>
-            </label>
-            <label className="block font-bold">
-              Stock
-              <select className="input mt-1">
-                <option>All stock statuses</option>
-                <option>In stock</option>
-                <option>Out of stock</option>
-              </select>
-            </label>
-          </div>
-          <Link className="btn btn-secondary mt-4 w-full" href="/restricted-products-policy">
-            Restricted-product policy
-          </Link>
-        </aside>
-        <ProductCard.Grid products={products} />
-      </div>
+      <section className="mb-6 grid gap-3 rounded-3xl border border-stone-200 bg-white p-4 shadow-sm md:grid-cols-[1fr_220px]">
+        <label className="block text-sm font-bold">
+          Search products
+          <input className="input mt-2" placeholder="Search by product or category" type="search" />
+        </label>
+        <label className="block text-sm font-bold">
+          Category
+          <select className="input mt-2">
+            <option>All products</option>
+            <option>Self-defense devices</option>
+            <option>Personal safety</option>
+          </select>
+        </label>
+      </section>
+      <ProductCard.Grid products={products} />
     </AppShell>
   );
 }
