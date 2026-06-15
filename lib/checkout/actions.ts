@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getCartSnapshot } from "@/lib/cart/cart-service";
-import { evaluateEligibilityFromConfiguredRules } from "@/lib/eligibility/rules";
+import { evaluateCheckoutDestination } from "@/lib/checkout/eligibility";
 import { createMockOrderFromCart, saveShippingDraft } from "@/lib/orders/order-service";
 
 function required(formData: FormData, name: string) {
@@ -22,7 +22,9 @@ export async function submitCheckoutAction(formData: FormData) {
   if (cart.lines.length === 0) redirect("/cart");
 
   const email = required(formData, "email");
-  const name = required(formData, "name");
+  const firstName = required(formData, "firstName");
+  const lastName = required(formData, "lastName");
+  const name = `${firstName} ${lastName}`.trim();
   const line1 = required(formData, "line1");
   const line2 = required(formData, "line2") || undefined;
   const city = required(formData, "city");
@@ -30,7 +32,7 @@ export async function submitCheckoutAction(formData: FormData) {
   const postalCode = required(formData, "postalCode");
   const phone = required(formData, "phone") || undefined;
 
-  if (!email || !name || !line1 || !city || !state || !postalCode) {
+  if (!email || !firstName || !lastName || !line1 || !city || !state || !postalCode) {
     redirect("/checkout?error=address");
   }
 
@@ -38,18 +40,17 @@ export async function submitCheckoutAction(formData: FormData) {
 
   const restrictedLine = cart.lines.find((line) => line.product.restricted);
   if (restrictedLine) {
+    const destination = evaluateCheckoutDestination({
+      hasRestrictedItems: true,
+      productCategory: restrictedLine.product.category,
+      state,
+      postalCode,
+    });
+    if (destination.status !== "allowed") redirect("/checkout?error=blocked");
+
     const adult = isAdult(required(formData, "dobYear"), required(formData, "dobMonth"), required(formData, "dobDay"));
     const attested = formData.get("ageAttestation") === "on";
-    const eligibility = await evaluateEligibilityFromConfiguredRules({
-      state,
-      zip: postalCode,
-      isAtLeast18: adult && attested,
-      productCategory: restrictedLine.product.category,
-      restricted: true,
-    });
-
-    if (eligibility.status === "blocked") redirect("/checkout?error=blocked");
-    if (eligibility.status !== "available") redirect("/checkout?error=verification");
+    if (!adult || !attested) redirect("/checkout?error=verification");
   }
 
   const order = await createMockOrderFromCart();

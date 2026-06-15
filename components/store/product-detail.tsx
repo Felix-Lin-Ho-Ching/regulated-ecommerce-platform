@@ -1,5 +1,4 @@
 import { RestrictedProductBadge, StatusBadge } from "@/components/common/badge";
-import { AlertPanel } from "@/components/common/panels";
 import type { CatalogProduct } from "@/lib/db/catalog";
 import { money } from "@/lib/utils";
 import { AddToCartForm } from "@/components/cart/add-to-cart-form";
@@ -55,13 +54,6 @@ export function ProductDetail({ product }: { product: CatalogProduct }) {
           )}
         </section>
 
-        {product.restricted ? (
-          <div className="mt-5">
-            <AlertPanel title="Restricted item" tone="warning">
-              Age and shipping eligibility verified at checkout.
-            </AlertPanel>
-          </div>
-        ) : null}
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           <AddToCartForm returnTo={`/products/${product.slug}`} showQuantity slug={product.slug} />

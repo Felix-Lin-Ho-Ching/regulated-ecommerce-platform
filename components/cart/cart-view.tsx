@@ -40,7 +40,7 @@ export function CartView({ cart }: { cart: CartSnapshot }) {
               </p>
               {line.product.restricted ? (
                 <p className="mt-2 text-sm font-bold text-amber-900">
-                  Age and shipping eligibility verified at checkout.
+                  Restricted items are verified during checkout.
                 </p>
               ) : null}
             </div>
@@ -73,7 +73,7 @@ export function CartView({ cart }: { cart: CartSnapshot }) {
         {cart.hasRestrictedItems ? (
           <div className="mt-4">
             <AlertPanel title="Restricted items" tone="warning">
-              Age and shipping eligibility will be verified during checkout.
+              Restricted items are verified during checkout.
             </AlertPanel>
           </div>
         ) : null}
