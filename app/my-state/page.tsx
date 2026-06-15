@@ -1,13 +1,11 @@
 import { AppShell } from "@/components/ui";
 import { MyStateChecker } from "@/components/my-state/my-state-checker";
-import { getStateGuidance } from "@/lib/eligibility/state-guidance";
+import { PUBLIC_STATE_REQUIREMENTS } from "@/lib/eligibility/public-state-requirements";
 
-export default async function MyStatePage() {
-  const guidance = await getStateGuidance();
-
+export default function MyStatePage() {
   return (
     <AppShell>
-      <MyStateChecker guidance={guidance} />
+      <MyStateChecker requirements={PUBLIC_STATE_REQUIREMENTS} />
     </AppShell>
   );
 }
