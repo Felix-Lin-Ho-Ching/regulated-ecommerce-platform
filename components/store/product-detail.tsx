@@ -52,7 +52,7 @@ export function ProductDetail({ product }: { product: CatalogProduct }) {
         {product.restricted ? (
           <div className="mt-5">
             <AlertPanel title="Restricted item" tone="warning">
-              This item is verified during checkout based on age and shipping destination.
+              Age and shipping eligibility verified at checkout.
             </AlertPanel>
           </div>
         ) : null}
