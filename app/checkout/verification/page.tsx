@@ -31,7 +31,7 @@ export default async function Verification({
     getCheckoutEligibilitySnapshot(true),
   ]);
   const blocked = eligibility.result.status === "blocked";
-  const reviewRequired = ["manual_review", "documents_required"].includes(eligibility.result.status);
+  const reviewRequired = ["needs_verification", "documents_required"].includes(eligibility.result.status);
   const canContinue = eligibility.result.status === "available";
 
   return (

@@ -10,6 +10,25 @@ if(missing.length){ console.error('Missing required files:', missing.join(', '))
 if(mode==='lint'){
   const bad = files.filter(f=>/\.(tsx|ts)$/.test(f)).filter(f=>readFileSync(f,'utf8').includes('TODO_BACKEND'));
   if(bad.length){ console.error('Unexpected backend TODO markers:', bad.join(', ')); process.exit(1); }
+  const customerFacingFiles = files.filter((file) => /\.(tsx|ts)$/.test(file))
+    .filter((file) => (file.includes('/app/') || file.includes('/components/') || file.endsWith('/lib/eligibility/public-state-requirements.ts')))
+    .filter((file) => !file.includes('/admin/'));
+  const forbiddenCustomerPhrases = [
+    'CHECK STATE GUIDANCE',
+    'manual review',
+    'pending_admin_review',
+    'pending_document_upload',
+    'compliance coverage',
+    'rule engine',
+  ];
+  const phraseHits = [];
+  for (const file of customerFacingFiles) {
+    const text = readFileSync(file, 'utf8').toLowerCase();
+    for (const phrase of forbiddenCustomerPhrases) {
+      if (text.includes(phrase.toLowerCase())) phraseHits.push(`${file}: ${phrase}`);
+    }
+  }
+  if(phraseHits.length){ console.error('Forbidden customer-facing phrases found:\n' + phraseHits.join('\n')); process.exit(1); }
   console.log(`Static lint passed for ${files.length} files.`);
 } else if(mode==='typecheck'){
   const text = files.filter(f=>/\.(tsx|ts)$/.test(f)).map(f=>readFileSync(f,'utf8')).join('\n');
