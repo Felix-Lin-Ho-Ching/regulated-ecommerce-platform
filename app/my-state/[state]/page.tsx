@@ -9,27 +9,20 @@ export function generateStaticParams() {
   return PUBLIC_STATE_REQUIREMENTS.map((state) => ({ state: state.slug }));
 }
 
-const valueStyles: Record<PublicStateRequirement["legalForConsumerUsePossession"], string> = {
-  YES: "border-emerald-200 bg-emerald-50 text-emerald-900",
-  NO: "border-red-200 bg-red-50 text-red-900",
-  "CHECK STATE GUIDANCE": "border-amber-200 bg-amber-50 text-amber-950",
-};
+function ChecklistLine({ label, value }: { label: string; value: PublicStateRequirement["legalForConsumerUsePossession"] }) {
+  return (
+    <p className="text-xl font-black tracking-tight text-slate-950 md:text-2xl">
+      {label} <span className={value === "YES" ? "text-emerald-700" : "text-red-700"}>{value}</span>
+    </p>
+  );
+}
 
 function GuideCard({ title, children }: { title: string; children?: string }) {
   return (
     <article className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm">
       <h3 className="text-sm font-black uppercase tracking-[.16em] text-teal-800">{title}</h3>
-      <p className="mt-3 text-slate-700">{children || "Check current state and local guidance before purchase or carry."}</p>
+      <p className="mt-3 text-slate-700">{children || "Review current official state and local resources before purchase or carry."}</p>
     </article>
-  );
-}
-
-function ChecklistRow({ label, value }: { label: string; value: PublicStateRequirement["legalForConsumerUsePossession"] }) {
-  return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-stone-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
-      <span className="font-black text-slate-950">{label}</span>
-      <span className={`inline-flex w-fit rounded-full border px-4 py-2 text-sm font-black ${valueStyles[value]}`}>{value}</span>
-    </div>
   );
 }
 
@@ -68,8 +61,8 @@ export default async function MyStateDetailPage({ params }: { params: Promise<{ 
               {requirement.officialLawUrl ? <a className="mt-4 inline-flex font-black text-teal-800 underline" href={requirement.officialLawUrl}>State/local law source</a> : <p className="mt-4 text-sm text-slate-600">State/local law source: check current official state and local resources.</p>}
             </div>
             <div className="space-y-3">
-              <ChecklistRow label="Legal for Consumer Use/Possession" value={requirement.legalForConsumerUsePossession} />
-              <ChecklistRow label="Other Restrictions" value={requirement.otherRestrictions} />
+              <ChecklistLine label="Legal for Consumer Use/Possession" value={requirement.legalForConsumerUsePossession} />
+              <ChecklistLine label="Other Restrictions*" value={requirement.otherRestrictions} />
             </div>
           </div>
         </section>

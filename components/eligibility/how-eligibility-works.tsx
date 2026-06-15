@@ -18,7 +18,7 @@ export function HowEligibilityWorksButton() {
               <li>Restricted items ask for an age confirmation and shipping state/ZIP pre-check.</li>
               <li>The pre-check is only a shopping preview, not final legal approval.</li>
               <li>Unavailable destinations show “Not available in your area.”</li>
-              <li>Some destinations require additional verification or manual review before payment.</li>
+              <li>Some destinations require additional eligibility verification before payment.</li>
               <li>Checkout re-checks the full shipping address before any payment step.</li>
             </ul>
           </div>

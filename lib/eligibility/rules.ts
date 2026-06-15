@@ -1,7 +1,7 @@
 import { complianceRules } from "@/lib/mock-data";
 import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
 
-export type EligibilityStatus = "available" | "blocked" | "documents_required" | "manual_review";
+export type EligibilityStatus = "available" | "blocked" | "documents_required" | "needs_verification";
 
 export type EligibilityInput = {
   state?: string;
@@ -37,7 +37,7 @@ const labels: Record<EligibilityStatus, string> = {
   available: "Available",
   blocked: "Not available in your area",
   documents_required: "Verification required",
-  manual_review: "Verification required",
+  needs_verification: "Verification required",
 };
 
 function normalizeState(state?: string) {
@@ -79,8 +79,8 @@ export function evaluateEligibilityWithRules(
 
   if (!stateCode) {
     return {
-      status: "manual_review",
-      label: labels.manual_review,
+      status: "needs_verification",
+      label: labels.needs_verification,
       message: "Enter a shipping state to continue checkout."
     };
   }
@@ -91,8 +91,8 @@ export function evaluateEligibilityWithRules(
 
   if (!rule || normalizeOutcome(rule.coverage) === "missing" || normalizeOutcome(rule.outcome) === "missing") {
     return {
-      status: "manual_review",
-      label: labels.manual_review,
+      status: "needs_verification",
+      label: labels.needs_verification,
       message: "Verification is required before payment."
     };
   }
@@ -118,8 +118,8 @@ export function evaluateEligibilityWithRules(
 
   if (outcome === "pending_admin_review" || outcome === "manual_review" || coverage === "review_needed") {
     return {
-      status: "manual_review",
-      label: labels.manual_review,
+      status: "needs_verification",
+      label: labels.needs_verification,
       message: "Verification is required before payment."
     };
   }
@@ -133,8 +133,8 @@ export function evaluateEligibilityWithRules(
   }
 
   return {
-    status: "manual_review",
-    label: labels.manual_review,
+    status: "needs_verification",
+    label: labels.needs_verification,
     message: "Verification is required before payment."
   };
 }
