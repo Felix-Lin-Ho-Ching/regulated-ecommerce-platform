@@ -43,10 +43,6 @@
     "prisma": "^6.19.0",
     "tsx": "^4.20.6"
   },
-  "prototypeNotes": {
-    "requestedUiStack": "shadcn/ui patterns, Radix-style accessible primitives, Tailwind CSS, TypeScript, Next.js",
-    "dependencyInstallNote": "Registry returned 403 in this environment; prototype code uses shadcn-style local components without importing unavailable Radix packages."
-  },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   }

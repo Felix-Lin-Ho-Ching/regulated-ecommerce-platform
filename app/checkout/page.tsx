@@ -9,8 +9,8 @@ export default async function Checkout({ searchParams }: { searchParams: Promise
 
   return (
     <AppShell>
-      <SectionHeader eyebrow="Checkout" title="Secure checkout">
-        Enter shipping details, review your order, and submit when checkout requirements are complete.
+      <SectionHeader eyebrow="Checkout" title="Checkout">
+        Enter your contact, delivery, shipping, and payment details on one page.
       </SectionHeader>
       {cart.lines.length === 0 ? (
         <EmptyState title="Your cart is empty">

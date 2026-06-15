@@ -4,7 +4,7 @@ const mode = process.argv[2] || 'smoke';
 const files = [];
 function walk(dir){ for (const name of readdirSync(dir)){ const p=join(dir,name); const st=statSync(p); if(st.isDirectory() && !['.git','node_modules','.next'].includes(name)) walk(p); else if(st.isFile() && /\.(tsx|ts|css|md|json)$/.test(name)) files.push(p.replaceAll("\\", "/")); }}
 walk(process.cwd());
-const required = ['app/page.tsx','app/products/page.tsx','app/checkout/page.tsx','app/admin/page.tsx','docs/ux-plan.md'];
+const required = ['app/page.tsx','app/products/page.tsx','app/checkout/page.tsx','app/admin/page.tsx','docs/current-ux.md'];
 const missing = required.filter(p=>!files.some(f=>f.endsWith(p)));
 if(missing.length){ console.error('Missing required files:', missing.join(', ')); process.exit(1); }
 if(mode==='lint'){
