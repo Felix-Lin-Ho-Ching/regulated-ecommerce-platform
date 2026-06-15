@@ -1,7 +1,13 @@
 import { complianceRules } from "@/lib/mock-data";
 import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
 import { US_STATE_OPTIONS } from "@/lib/eligibility/states";
-import type { StateGuidance } from "@/components/my-state/my-state-checker";
+
+export type StateGuidance = {
+  stateCode: string;
+  status: "Available" | "Restricted" | "Manual review required" | "Not available for online purchase";
+  checkoutNote: string;
+  warning: string;
+};
 
 type RuleRow = {
   stateCode: string;
