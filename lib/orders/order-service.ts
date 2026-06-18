@@ -3,6 +3,9 @@ import { evaluateCompliance } from "@/lib/compliance/compliance-service";
 import { clearCart, getCartSnapshot, type CartSnapshot } from "@/lib/cart/cart-service";
 import { getCustomerSession } from "@/lib/auth/session";
 import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
+import { logDebugEmail } from "@/lib/email/email-log-service";
+import { buildOrderConfirmationEmail } from "@/lib/email/templates/order-confirmation";
+import { buildAdminNewOrderEmail } from "@/lib/email/templates/admin-new-order";
 
 export type CheckoutReadiness = {
   canCollectPayment: boolean;
@@ -138,6 +141,9 @@ export async function createMockOrderFromCart(): Promise<CustomerOrderSummary> {
         shippingCents: toCents(cart.shipping),
         taxCents: toCents(cart.tax),
         totalCents: toCents(cart.total),
+        customerEmail: session?.email,
+        customerName: shipping.name || session?.name,
+        customerPhone: shipping.phone,
         liveCheckoutEnabled: false,
         liveFulfillmentEnabled: false,
         shippingAddress: {
@@ -150,6 +156,7 @@ export async function createMockOrderFromCart(): Promise<CustomerOrderSummary> {
             postalCode: shipping.postalCode,
             normalized: true,
             deliverable: true,
+            phone: shipping.phone,
           },
         },
         items: {
@@ -173,8 +180,20 @@ export async function createMockOrderFromCart(): Promise<CustomerOrderSummary> {
           },
         },
       },
-      select: { orderNumber: true, status: true, totalCents: true, createdAt: true },
+      include: { items: { include: { product: { select: { restricted: true } } } }, shippingAddress: true },
     });
+
+    for (const item of order.items) {
+      const inventory = await prisma.inventory.findUnique({ where: { variantId: item.variantId }, select: { id: true } });
+      if (inventory) {
+        await prisma.inventory.update({ where: { id: inventory.id }, data: { reserved: { increment: item.quantity }, transactions: { create: { type: "RESERVATION", quantity: item.quantity, reason: `Order ${order.orderNumber} reservation` } }, reservations: { create: { orderItemId: item.id, quantity: item.quantity } } } });
+      }
+    }
+
+    const confirmation = buildOrderConfirmationEmail({ orderNumber: order.orderNumber, createdAt: order.createdAt, items: order.items, totalCents: order.totalCents, shippingAddress: order.shippingAddress!, hasRestrictedItems: order.items.some((item: { product: { restricted: boolean } }) => item.product.restricted) });
+    await logDebugEmail({ type: "ORDER_CONFIRMATION", to: session?.email ?? "guest@stunfry.example", subject: confirmation.subject, text: confirmation.text, orderId: order.id, metadata: { orderNumber: order.orderNumber } });
+    const adminEmail = buildAdminNewOrderEmail({ orderNumber: order.orderNumber, customerEmail: session?.email, totalCents: order.totalCents, hasRestrictedItems: order.items.some((item: { product: { restricted: boolean } }) => item.product.restricted), shippingState: order.shippingAddress?.state, shippingPostalCode: order.shippingAddress?.postalCode, adminOrderUrl: `/admin/orders/${order.orderNumber}` });
+    await logDebugEmail({ type: "ADMIN_NEW_ORDER", to: process.env.ADMIN_ORDER_EMAIL || "owner@stunfry.example", subject: adminEmail.subject, text: adminEmail.text, orderId: order.id, metadata: { orderNumber: order.orderNumber } });
 
     await clearCart();
 
