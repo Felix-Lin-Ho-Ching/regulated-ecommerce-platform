@@ -11,6 +11,7 @@ export function AdminSidebar() {
     "/admin/products",
     "/admin/inventory",
     "/admin/orders",
+    "/admin/email-log",
     "/admin/verification-queue",
     "/admin/document-review",
     "/admin/compliance-rules",
