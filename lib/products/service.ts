@@ -2,18 +2,76 @@ import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
 import { getCatalogProducts, type CatalogProduct } from "@/lib/db/catalog";
 import type { ProductFeatureInput, ProductFormInput } from "@/lib/products/validation";
 
+export type AdminProductListFilter = "active" | "archived" | "all";
+
 export type AdminProductDetail = CatalogProduct & {
+  archivedAt: Date | null;
   hasInventory: boolean;
 };
 
-export async function getAdminProducts(): Promise<AdminProductDetail[]> {
-  const products = await getCatalogProducts();
-  return products.map((product) => ({ ...product, hasInventory: product.sku !== "UNASSIGNED" }));
+type AdminProductRow = {
+  id: string;
+  slug: string;
+  brand: string;
+  name: string;
+  category: string;
+  description: string;
+  status: string;
+  restricted: boolean;
+  archivedAt: Date | null;
+  variants: Array<{ id: string; sku: string; priceCents: number; inventory: { onHand: number; reserved: number } | null }>;
+  features: Array<{ code: string; label: string; value: string; restrictedRelevant: boolean }>;
+};
+
+function toAdminProductDetail(product: AdminProductRow): AdminProductDetail {
+  const variant = product.variants[0];
+  return {
+    id: product.id,
+    slug: product.slug,
+    brand: product.brand,
+    name: product.name,
+    category: product.category,
+    description: product.description,
+    status: product.status,
+    restricted: product.restricted,
+    archivedAt: product.archivedAt,
+    variantId: variant?.id ?? product.id,
+    sku: variant?.sku ?? "UNASSIGNED",
+    price: (variant?.priceCents ?? 0) / 100,
+    stock: variant?.inventory?.onHand ?? 0,
+    reserved: variant?.inventory?.reserved ?? 0,
+    features: product.features.map((feature) => ({ code: feature.code, label: feature.label, value: feature.value, restrictedRelevant: feature.restrictedRelevant })),
+    hasInventory: Boolean(variant?.inventory) && (variant?.sku ?? "UNASSIGNED") !== "UNASSIGNED",
+  };
+}
+
+export async function getAdminProducts(filter: AdminProductListFilter = "active"): Promise<AdminProductDetail[]> {
+  if (!isDatabaseConfigured) {
+    const products = await getCatalogProducts();
+    return products.map((product) => ({ ...product, archivedAt: null, hasInventory: product.sku !== "UNASSIGNED" }));
+  }
+
+  const where = filter === "active" ? { archivedAt: null } : filter === "archived" ? { archivedAt: { not: null } } : undefined;
+  const products = await prisma.product.findMany({
+    where,
+    include: { variants: { include: { inventory: true } }, features: true },
+    orderBy: { createdAt: "asc" },
+  });
+  return (products as AdminProductRow[]).map((product: AdminProductRow) => toAdminProductDetail(product));
 }
 
 export async function getAdminProductById(id: string): Promise<AdminProductDetail | undefined> {
-  const products = await getAdminProducts();
-  return products.find((product) => product.id === id || product.variantId === id);
+  if (!isDatabaseConfigured) {
+    const products = await getAdminProducts("all");
+    return products.find((product) => product.id === id || product.variantId === id);
+  }
+
+  const product = await prisma.product.findFirst({
+    where: { OR: [{ id }, { variants: { some: { id } } }] },
+    include: { variants: { include: { inventory: true } }, features: true },
+  });
+
+  return product ? toAdminProductDetail(product as AdminProductRow) : undefined;
 }
 
 async function replaceFeatures(productId: string, features: ProductFeatureInput[]) {
@@ -109,5 +167,22 @@ export async function archiveProduct(productId: string) {
   await prisma.product.update({
     where: { id: productId },
     data: { status: "ARCHIVED", archivedAt: new Date() },
+  });
+}
+
+export async function restoreProduct(productId: string) {
+  if (!isDatabaseConfigured) return;
+
+  const product = await prisma.product.findUnique({ where: { id: productId }, select: { restricted: true, variants: { select: { id: true } } } });
+  const restoredStatus = product?.restricted ? "RESTRICTED_REVIEW" : "ACTIVE";
+
+  await prisma.product.update({
+    where: { id: productId },
+    data: { status: restoredStatus, archivedAt: null },
+  });
+
+  await prisma.productVariant.updateMany({
+    where: { productId },
+    data: { status: restoredStatus, archivedAt: null },
   });
 }

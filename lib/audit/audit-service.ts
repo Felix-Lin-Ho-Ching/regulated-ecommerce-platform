@@ -1,6 +1,6 @@
 import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
 
-export type AuditActionName = "CREATE" | "UPDATE" | "ARCHIVE" | "DEACTIVATE" | "REVIEW" | "APPROVE" | "REJECT" | "PAYMENT" | "MOCK_EVENT" | "SEED";
+export type AuditActionName = "CREATE" | "UPDATE" | "ARCHIVE" | "DEACTIVATE" | "REVIEW" | "APPROVE" | "REJECT" | "PAYMENT" | "MOCK_EVENT" | "SEED" | "RESTORE";
 
 type AuditInput = {
   action: AuditActionName;
