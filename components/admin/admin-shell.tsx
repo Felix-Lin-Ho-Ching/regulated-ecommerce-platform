@@ -3,6 +3,7 @@ import { brand } from "@/lib/config/brand";
 import { complianceRules, launchGates, auditLogs } from "@/lib/mock-data";
 import type { RuleCoverageRow } from "@/lib/db/catalog";
 import { StatusBadge } from "@/components/common/badge";
+import { adminLogoutAction, requireAdminSession } from "@/lib/admin/auth";
 
 export function AdminSidebar() {
   const links = [
@@ -38,23 +39,32 @@ export function AdminSidebar() {
   );
 }
 
-export function AdminHeader({ title }: { title: string }) {
+export function AdminHeader({ title, adminName }: { title: string; adminName: string }) {
   return (
     <header className="border-b border-stone-200 bg-white p-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-black">{title}</h1>
-        <StatusBadge tone="info">Mock operations data</StatusBadge>
+        <div className="flex items-center gap-3">
+          <StatusBadge tone="info">{adminName}</StatusBadge>
+          <form action={adminLogoutAction}>
+            <button className="btn btn-secondary text-sm" type="submit">
+              Log out
+            </button>
+          </form>
+        </div>
       </div>
     </header>
   );
 }
 
-export function AdminShell({ title, children }: { title: string; children: React.ReactNode }) {
+export async function AdminShell({ title, children }: { title: string; children: React.ReactNode }) {
+  const admin = await requireAdminSession();
+
   return (
     <div className="admin-grid">
       <AdminSidebar />
       <div>
-        <AdminHeader title={title} />
+        <AdminHeader title={title} adminName={admin.name} />
         <main className="p-4 md:p-6">{children}</main>
       </div>
     </div>
