@@ -23,10 +23,11 @@ async function main() {
     update: {},
     create: { id: "role_owner", code: "OWNER", name: "Owner", description: "Owner-level access for launch gates and approvals." },
   });
+  // Local development seed credential only. Replace before production.
   const owner = await prisma.adminUser.upsert({
-    where: { email: "owner@stunfry.example" },
-    update: { roleId: ownerRole.id, status: "ACTIVE" },
-    create: { id: "admin_owner", email: "owner@stunfry.example", name: "Olivia Owner", roleId: ownerRole.id, status: "ACTIVE" },
+    where: { email: "linhochingfelix@gmail.com" },
+    update: { name: "Felix Lin", roleId: ownerRole.id, status: "ACTIVE" },
+    create: { id: "admin_owner", email: "linhochingfelix@gmail.com", name: "Felix Lin", roleId: ownerRole.id, status: "ACTIVE" },
   });
 
   await prisma.storefrontSettings.upsert({

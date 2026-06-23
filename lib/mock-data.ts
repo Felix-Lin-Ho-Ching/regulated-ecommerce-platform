@@ -17,7 +17,7 @@ export const checkoutCases: Record<CheckoutOutcome, { title:string; reason:strin
  paid:{title:"Paid and queued for fulfillment",reason:"Payment review succeeded and fulfillment can begin.",state:"TX",orderId:"SF-1007",payment:"paid",verification:"approved",fulfillment:"processing",docs:[]}
 };
 export const orders = Object.values(checkoutCases).map((o,i)=>({ ...o, id:o.orderId, customer:["Maya Chen","Jordan Lee","Avery Smith","Sam Rivera","Taylor Brooks","Chris Morgan","Pat Nguyen"][i], total:171.84 }));
-export const adminUsers = [{name:"Olivia Owner",role:"Owner",status:"active"},{name:"Riley Reviewer",role:"Compliance reviewer",status:"active"},{name:"Morgan Ops",role:"Operations",status:"active"}];
+export const adminUsers = [{name:"Felix Lin",role:"Owner",status:"active"},{name:"Riley Reviewer",role:"Compliance reviewer",status:"active"},{name:"Morgan Ops",role:"Operations",status:"active"}];
 export const complianceRules = [
  {id:"R-001", state:"TX", category:"knuckle_stun_device", outcome:"allowed", coverage:"covered", note:"Age + address verification required."},
  {id:"R-002", state:"NY", category:"knuckle_stun_device", outcome:"blocked", coverage:"covered", note:"Blocked by restricted device rule."},
@@ -28,5 +28,5 @@ export const complianceRules = [
 export const verificationTemplates = [{id:"VT-1", name:"Restricted device attestation", category:"knuckle_stun_device", requirements:["18+ attestation","Destination address confirmation","Restricted-product acknowledgement"]},{id:"VT-2",name:"Document review package",category:"knuckle_stun_device",requirements:["Government ID","Proof of residence","Reviewer note"]}];
 export const documentReviews = [{id:"DOC-91", order:"SF-1004", customer:"Sam Rivera", type:"Government ID", status:"pending", age:"2h"},{id:"DOC-92",order:"SF-1004",customer:"Sam Rivera",type:"Proof of residence",status:"pending",age:"2h"}];
 export const launchGates = [{name:"Restricted product catalog",state:"ready",ownerOnly:false},{name:"Rule coverage for launch states",state:"blocked",ownerOnly:true},{name:"Mock payment settings",state:"ready",ownerOnly:true},{name:"Legal policies published",state:"enabled",ownerOnly:false},{name:"Backup/export configured",state:"blocked",ownerOnly:true}];
-export const auditLogs = [{time:"2026-06-10 14:22 UTC", actor:"Riley Reviewer", action:"Rejected document", target:"DOC-88", note:"Address mismatch noted."},{time:"2026-06-10 16:04 UTC", actor:"Olivia Owner", action:"Updated launch gate", target:"Rule coverage", note:"OR remains missing."},{time:"2026-06-11 09:10 UTC", actor:"Morgan Ops", action:"Adjusted stock", target:"AKS-310", note:"Cycle count correction +2."}];
+export const auditLogs = [{time:"2026-06-10 14:22 UTC", actor:"Riley Reviewer", action:"Rejected document", target:"DOC-88", note:"Address mismatch noted."},{time:"2026-06-10 16:04 UTC", actor:"Felix Lin", action:"Updated launch gate", target:"Rule coverage", note:"OR remains missing."},{time:"2026-06-11 09:10 UTC", actor:"Morgan Ops", action:"Adjusted stock", target:"AKS-310", note:"Cycle count correction +2."}];
 export const states = ["AZ","CA","IL","NY","OR","TX"];

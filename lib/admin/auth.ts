@@ -1,0 +1,150 @@
+"use server";
+
+import { createHmac, timingSafeEqual } from "crypto";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
+import { validateEmail, validatePassword } from "@/lib/auth/validation";
+
+export type AdminSession = {
+  adminId: string;
+  email: string;
+  name: string;
+  role: string;
+  demo: boolean;
+};
+
+const adminSessionCookieName = "stun_fry_admin";
+const fallbackSecret = "stun-fry-local-mvp-admin-session-secret";
+
+function getSessionSecret() {
+  return process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || fallbackSecret;
+}
+
+function signPayload(payload: string) {
+  return createHmac("sha256", getSessionSecret()).update(payload).digest("hex");
+}
+
+function encodeSession(session: AdminSession) {
+  const payload = Buffer.from(JSON.stringify(session), "utf8").toString("base64url");
+  return `${payload}.${signPayload(payload)}`;
+}
+
+function decodeSession(value?: string): AdminSession | null {
+  if (!value) {
+    return null;
+  }
+
+  const [payload, signature] = value.split(".");
+
+  if (!payload || !signature) {
+    return null;
+  }
+
+  const expected = Buffer.from(signPayload(payload));
+  const actual = Buffer.from(signature);
+
+  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as AdminSession;
+  } catch {
+    return null;
+  }
+}
+
+function safeEquals(a: string, b: string) {
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
+function getConfiguredAdminCredentials() {
+  // Local development seed credential only. Replace before production.
+  return {
+    email: (process.env.ADMIN_EMAIL || "linhochingfelix@gmail.com").trim().toLowerCase(),
+    password: process.env.ADMIN_PASSWORD || "linhochingfelix",
+  };
+}
+
+function getNextPath(formData: FormData) {
+  const next = String(formData.get("next") || "/admin");
+  return next.startsWith("/admin") ? next : "/admin";
+}
+
+async function setAdminSession(session: AdminSession) {
+  const cookieStore = await cookies();
+  cookieStore.set(adminSessionCookieName, encodeSession(session), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 8,
+  });
+}
+
+export async function getAdminSession(): Promise<AdminSession | null> {
+  const cookieStore = await cookies();
+  return decodeSession(cookieStore.get(adminSessionCookieName)?.value);
+}
+
+export async function requireAdminSession(nextPath = "/admin") {
+  const session = await getAdminSession();
+
+  if (!session) {
+    redirect(`/admin/login?next=${encodeURIComponent(nextPath)}`);
+  }
+
+  return session;
+}
+
+export async function adminLoginAction(formData: FormData) {
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  const password = String(formData.get("password") || "");
+  const nextPath = getNextPath(formData);
+
+  for (const result of [validateEmail(email), validatePassword(password)]) {
+    if (!result.ok) {
+      redirect(`/admin/login?error=${encodeURIComponent(result.message || "Check the form.")}`);
+    }
+  }
+
+  const credentials = getConfiguredAdminCredentials();
+
+  if (!safeEquals(email, credentials.email) || !safeEquals(password, credentials.password)) {
+    redirect("/admin/login?error=Invalid email or password.");
+  }
+
+  if (!isDatabaseConfigured) {
+    await setAdminSession({ adminId: `local-${email}`, email, name: "Felix", role: "OWNER", demo: true });
+    redirect(nextPath);
+  }
+
+  const admin = await prisma.adminUser.findUnique({
+    where: { email },
+    select: { id: true, email: true, name: true, status: true, role: { select: { code: true } } },
+  });
+
+  if (!admin || admin.status !== "ACTIVE") {
+    redirect("/admin/login?error=Invalid email or password.");
+  }
+
+  await setAdminSession({
+    adminId: admin.id,
+    email: admin.email,
+    name: admin.name,
+    role: admin.role.code,
+    demo: false,
+  });
+
+  redirect(nextPath);
+}
+
+export async function adminLogoutAction() {
+  const cookieStore = await cookies();
+  cookieStore.delete(adminSessionCookieName);
+  redirect("/admin/login?message=You have been logged out.");
+}

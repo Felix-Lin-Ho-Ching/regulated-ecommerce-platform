@@ -193,7 +193,7 @@ export async function createMockOrderFromCart(): Promise<CustomerOrderSummary> {
     const confirmation = buildOrderConfirmationEmail({ orderNumber: order.orderNumber, createdAt: order.createdAt, items: order.items, totalCents: order.totalCents, shippingAddress: order.shippingAddress!, hasRestrictedItems: order.items.some((item: { product: { restricted: boolean } }) => item.product.restricted) });
     await logDebugEmail({ type: "ORDER_CONFIRMATION", to: session?.email ?? "guest@stunfry.example", subject: confirmation.subject, text: confirmation.text, orderId: order.id, metadata: { orderNumber: order.orderNumber } });
     const adminEmail = buildAdminNewOrderEmail({ orderNumber: order.orderNumber, customerEmail: session?.email, totalCents: order.totalCents, hasRestrictedItems: order.items.some((item: { product: { restricted: boolean } }) => item.product.restricted), shippingState: order.shippingAddress?.state, shippingPostalCode: order.shippingAddress?.postalCode, adminOrderUrl: `/admin/orders/${order.orderNumber}` });
-    await logDebugEmail({ type: "ADMIN_NEW_ORDER", to: process.env.ADMIN_ORDER_EMAIL || "owner@stunfry.example", subject: adminEmail.subject, text: adminEmail.text, orderId: order.id, metadata: { orderNumber: order.orderNumber } });
+    await logDebugEmail({ type: "ADMIN_NEW_ORDER", to: process.env.ADMIN_ORDER_EMAIL || process.env.ADMIN_EMAIL || "linhochingfelix@gmail.com", subject: adminEmail.subject, text: adminEmail.text, orderId: order.id, metadata: { orderNumber: order.orderNumber } });
 
     await clearCart();
 
