@@ -1,0 +1,2 @@
+ALTER TABLE "AdminUser" ADD COLUMN "passwordHash" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "AdminUser" ALTER COLUMN "passwordHash" DROP DEFAULT;

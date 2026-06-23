@@ -197,16 +197,17 @@ model User {
 }
 
 model AdminUser {
-  id         String      @id @default(cuid())
-  email      String      @unique
-  name       String
-  status     AdminStatus @default(ACTIVE)
-  roleId     String
-  role       AdminRole   @relation(fields: [roleId], references: [id])
-  auditLogs  AuditLog[]
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  archivedAt DateTime?
+  id           String      @id @default(cuid())
+  email        String      @unique
+  name         String
+  passwordHash String
+  status       AdminStatus @default(ACTIVE)
+  roleId       String
+  role         AdminRole   @relation(fields: [roleId], references: [id])
+  auditLogs    AuditLog[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  archivedAt   DateTime?
 }
 
 model AdminRole {

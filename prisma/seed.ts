@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { hashPassword } from "../lib/auth/password";
 
 const prisma = new PrismaClient();
 const states = [
@@ -24,10 +25,11 @@ async function main() {
     create: { id: "role_owner", code: "OWNER", name: "Owner", description: "Owner-level access for launch gates and approvals." },
   });
   // Local development seed credential only. Replace before production.
+  const ownerPasswordHash = hashPassword("linhochingfelix");
   const owner = await prisma.adminUser.upsert({
     where: { email: "linhochingfelix@gmail.com" },
-    update: { name: "Felix Lin", roleId: ownerRole.id, status: "ACTIVE" },
-    create: { id: "admin_owner", email: "linhochingfelix@gmail.com", name: "Felix Lin", roleId: ownerRole.id, status: "ACTIVE" },
+    update: { name: "Felix Lin", passwordHash: ownerPasswordHash, roleId: ownerRole.id, status: "ACTIVE" },
+    create: { id: "admin_owner", email: "linhochingfelix@gmail.com", name: "Felix Lin", passwordHash: ownerPasswordHash, roleId: ownerRole.id, status: "ACTIVE" },
   });
 
   await prisma.storefrontSettings.upsert({
