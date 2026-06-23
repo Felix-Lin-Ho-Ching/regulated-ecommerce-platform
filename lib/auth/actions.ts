@@ -6,6 +6,10 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { clearCustomerSession, setCustomerSession } from "@/lib/auth/session";
 import { validateEmail, validateName, validatePassword } from "@/lib/auth/validation";
 
+function isLocalAdminEmail(email: string) {
+  return email === (process.env.ADMIN_EMAIL || "linhochingfelix@gmail.com").trim().toLowerCase();
+}
+
 function getNextPath(formData: FormData) {
   const next = String(formData.get("next") || "/account");
   return next.startsWith("/") ? next : "/account";
@@ -61,6 +65,10 @@ export async function loginAction(formData: FormData) {
   }
 
   if (!isDatabaseConfigured) {
+    if (isLocalAdminEmail(email)) {
+      redirect("/account/login?error=Invalid email or password.");
+    }
+
     await setCustomerSession({
       userId: `demo-${email}`,
       email,

@@ -4,6 +4,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
+import { verifyPassword } from "@/lib/auth/password";
 import { validateEmail, validatePassword } from "@/lib/auth/validation";
 
 export type AdminSession = {
@@ -112,23 +113,23 @@ export async function adminLoginAction(formData: FormData) {
     }
   }
 
-  const credentials = getConfiguredAdminCredentials();
-
-  if (!safeEquals(email, credentials.email) || !safeEquals(password, credentials.password)) {
-    redirect("/admin/login?error=Invalid email or password.");
-  }
-
   if (!isDatabaseConfigured) {
-    await setAdminSession({ adminId: `local-${email}`, email, name: "Felix", role: "OWNER", demo: true });
+    const credentials = getConfiguredAdminCredentials();
+
+    if (!safeEquals(email, credentials.email) || !safeEquals(password, credentials.password)) {
+      redirect("/admin/login?error=Invalid email or password.");
+    }
+
+    await setAdminSession({ adminId: `local-${email}`, email, name: "Felix Lin", role: "OWNER", demo: true });
     redirect(nextPath);
   }
 
   const admin = await prisma.adminUser.findUnique({
     where: { email },
-    select: { id: true, email: true, name: true, status: true, role: { select: { code: true } } },
+    select: { id: true, email: true, name: true, passwordHash: true, status: true, role: { select: { code: true } } },
   });
 
-  if (!admin || admin.status !== "ACTIVE") {
+  if (!admin || admin.status !== "ACTIVE" || !verifyPassword(password, admin.passwordHash)) {
     redirect("/admin/login?error=Invalid email or password.");
   }
 
