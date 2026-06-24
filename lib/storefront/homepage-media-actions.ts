@@ -29,20 +29,26 @@ export async function saveHomepageMediaAction(_prev: HomepageMediaFormState, for
 
   if (Object.keys(errors).length > 0) return { ok: false, errors };
 
-  try {
-    if (isUploadFile(mediaFile)) {
+  if (isUploadFile(mediaFile)) {
+    try {
       const allowedTypes = type === "VIDEO" ? [...VIDEO_MEDIA_TYPES] : [...IMAGE_MEDIA_TYPES];
       const maxBytes = type === "VIDEO" ? MAX_VIDEO_UPLOAD_BYTES : MAX_IMAGE_UPLOAD_BYTES;
       const upload = await saveLocalMediaUpload(mediaFile, { folder: "homepage", allowedTypes, maxBytes });
       url = upload.publicPath;
+    } catch (error) {
+      const message = error instanceof LocalMediaUploadError ? error.message : "Upload failed. Try again or use a media URL.";
+      return { ok: false, errors: { homepageUpload: message } };
     }
-    if (isUploadFile(thumbnailFile)) {
+  }
+
+  if (isUploadFile(thumbnailFile)) {
+    try {
       const upload = await saveLocalMediaUpload(thumbnailFile, { folder: "homepage", allowedTypes: [...IMAGE_MEDIA_TYPES], maxBytes: MAX_IMAGE_UPLOAD_BYTES });
       thumbnailUrl = upload.publicPath;
+    } catch (error) {
+      const message = error instanceof LocalMediaUploadError ? error.message : "Fallback image upload failed. Try again or use an image URL.";
+      return { ok: false, errors: { homepageThumbnailUpload: message } };
     }
-  } catch (error) {
-    const message = error instanceof LocalMediaUploadError ? error.message : "Upload failed. Try again or use a media URL.";
-    return { ok: false, errors: { homepageUrl: message } };
   }
 
   const note = text(formData, "homepageAuditNote") || "Owner updated homepage media.";

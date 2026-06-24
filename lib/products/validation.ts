@@ -82,7 +82,9 @@ function isValidMediaUrl(value: string): boolean {
 type MediaUploadResolver = (file: File, type: ProductMediaType, role: "media" | "thumbnail") => Promise<string>;
 
 function isUploadFile(value: FormDataEntryValue | null): value is File {
-  return typeof File !== "undefined" && value instanceof File && value.size > 0;
+  if (!value || typeof value === "string") return false;
+  const maybeFile = value as { size?: unknown; name?: unknown; arrayBuffer?: unknown };
+  return typeof maybeFile.size === "number" && maybeFile.size > 0 && typeof maybeFile.name === "string" && maybeFile.name.length > 0 && typeof maybeFile.arrayBuffer === "function";
 }
 
 async function parseMediaRows(formData: FormData, resolveUpload?: MediaUploadResolver): Promise<ProductMediaInput[]> {
