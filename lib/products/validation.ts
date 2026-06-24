@@ -1,3 +1,5 @@
+import { detectMediaKindFromUpload, isUploadFile } from "@/lib/media/upload-detection";
+
 export const productStatuses = ["DRAFT", "ACTIVE", "INACTIVE", "ARCHIVED", "RESTRICTED_REVIEW"] as const;
 export const productCategories = ["personal_safety_alarm", "training", "knuckle_stun_device", "visibility"] as const;
 export const productMediaTypes = ["IMAGE", "VIDEO"] as const;
@@ -81,17 +83,11 @@ function isValidMediaUrl(value: string): boolean {
 
 type MediaUploadResolver = (file: File, type: ProductMediaType, role: "media" | "thumbnail") => Promise<string>;
 
-function isUploadFile(value: FormDataEntryValue | null): value is File {
-  if (!value || typeof value === "string") return false;
-  const maybeFile = value as { size?: unknown; name?: unknown; arrayBuffer?: unknown };
-  return typeof maybeFile.size === "number" && maybeFile.size > 0 && typeof maybeFile.name === "string" && maybeFile.name.length > 0 && typeof maybeFile.arrayBuffer === "function";
-}
-
 async function parseMediaRows(formData: FormData, resolveUpload?: MediaUploadResolver): Promise<ProductMediaInput[]> {
   const rows: ProductMediaInput[] = [];
 
   for (let index = 0; index < maxProductMediaRows; index += 1) {
-    const type = oneOf(text(formData, `mediaType${index}`), productMediaTypes, "IMAGE");
+    let type = oneOf(text(formData, `mediaType${index}`), productMediaTypes, "IMAGE");
     const url = text(formData, `mediaUrl${index}`);
     const thumbnailUrl = text(formData, `mediaThumbnailUrl${index}`);
     const alt = text(formData, `mediaAlt${index}`);
@@ -101,9 +97,12 @@ async function parseMediaRows(formData: FormData, resolveUpload?: MediaUploadRes
     const thumbnailUploadFile = formData.get(`mediaThumbnailUpload${index}`);
     const hasUpload = isUploadFile(uploadFile);
     const hasThumbnailUpload = isUploadFile(thumbnailUploadFile);
+    const detectedMediaType = detectMediaKindFromUpload(uploadFile);
     const hasVisibleInput = Boolean(url || thumbnailUrl || alt || title || sortOrderValue || hasUpload || hasThumbnailUpload);
 
     if (!hasVisibleInput) continue;
+    if (hasUpload && !detectedMediaType) throw new ProductFormValidationError(`Media row ${index + 1}: Unsupported media file. Upload a JPEG, PNG, WebP, MP4, WebM, or MOV file.`);
+    if (detectedMediaType) type = detectedMediaType;
     if (!url && !hasUpload) throw new ProductFormValidationError(`Media row ${index + 1}: Media URL or uploaded file is required when media details are provided.`);
     if (url && !isValidMediaUrl(url)) throw new ProductFormValidationError(`Media row ${index + 1}: enter a valid http(s) or local URL.`);
     if (thumbnailUrl && !isValidMediaUrl(thumbnailUrl)) throw new ProductFormValidationError(`Media row ${index + 1}: enter a valid thumbnail URL.`);

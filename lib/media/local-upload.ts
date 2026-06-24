@@ -1,10 +1,10 @@
 import { randomBytes } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { IMAGE_MEDIA_TYPES, VIDEO_MEDIA_TYPES, isUploadFile } from "@/lib/media/upload-detection";
+export { IMAGE_MEDIA_TYPES, VIDEO_MEDIA_TYPES, detectMediaKindFromUpload, isUploadFile, type LocalMediaKind } from "@/lib/media/upload-detection";
 
 // Local upload storage is for development/testing. Production should use S3/R2/Cloudinary or another durable object store.
-export const IMAGE_MEDIA_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
-export const VIDEO_MEDIA_TYPES = ["video/mp4", "video/webm", "video/quicktime"] as const;
 export const MAX_IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024;
 export const MAX_VIDEO_UPLOAD_BYTES = 50 * 1024 * 1024;
 
@@ -38,30 +38,27 @@ function safeBaseName(fileName: string): string {
   return safe || "media";
 }
 
-function uploadFileName(value: FormDataEntryValue | null): string {
-  if (!value || typeof value === "string") return "";
-  const maybeFile = value as { name?: unknown };
-  return typeof maybeFile.name === "string" ? maybeFile.name : "";
-}
-
-export function isUploadFile(value: FormDataEntryValue | null): value is File {
-  if (!value || typeof value === "string") return false;
-  const maybeFile = value as { size?: unknown; name?: unknown; arrayBuffer?: unknown };
-  return typeof maybeFile.size === "number" && maybeFile.size > 0 && typeof maybeFile.name === "string" && maybeFile.name.length > 0 && typeof maybeFile.arrayBuffer === "function";
-}
-
 function allowedExtensions(allowedTypes: string[]): string[] {
   return allowedTypes.flatMap((type) => [...(extensionsByMimeType[type] ?? [])]);
 }
 
+function unsupportedFileMessage(allowedTypes: string[]): string {
+  const allowsImages = IMAGE_MEDIA_TYPES.some((type) => allowedTypes.includes(type));
+  const allowsVideos = VIDEO_MEDIA_TYPES.some((type) => allowedTypes.includes(type));
+  if (allowsImages && !allowsVideos) return "Unsupported image file. Upload a JPEG, PNG, or WebP file.";
+  if (allowsVideos && !allowsImages) return "Unsupported video file. Upload an MP4, WebM, or MOV file.";
+  return "Unsupported media file. Upload a JPEG, PNG, WebP, MP4, WebM, or MOV file.";
+}
+
 function resolveUploadExtension(file: File, allowedTypes: string[]): string {
   const fileType = file.type.toLowerCase();
-  if (allowedTypes.includes(fileType)) return extensionByMimeType[fileType] ?? path.extname(file.name).toLowerCase();
+  const extension = path.extname(file.name).toLowerCase();
+  const safeExtensions = allowedExtensions(allowedTypes);
 
-  const extension = path.extname(uploadFileName(file)).toLowerCase();
-  if (fallbackMimeTypes.has(fileType) && allowedExtensions(allowedTypes).includes(extension)) return extension;
+  if (allowedTypes.includes(fileType) && safeExtensions.includes(extension)) return extensionByMimeType[fileType] ?? extension;
+  if (fallbackMimeTypes.has(fileType) && safeExtensions.includes(extension)) return extension;
 
-  throw new LocalMediaUploadError("Unsupported file type. Upload a JPEG, PNG, WebP, MP4, WebM, or MOV file.");
+  throw new LocalMediaUploadError(unsupportedFileMessage(allowedTypes));
 }
 
 export async function saveLocalMediaUpload(
