@@ -17,12 +17,14 @@ function ProductImagePlaceholder({ name }: { name: string }) {
 
 function ProductCardMedia({ product }: { product: CatalogProduct }) {
   const image = product.media.find((media) => media.type === "IMAGE");
-  if (!image) return <ProductImagePlaceholder name={product.name} />;
+  const videoThumbnail = product.media.find((media) => media.type === "VIDEO" && media.thumbnailUrl)?.thumbnailUrl;
+  const imageUrl = image?.url ?? videoThumbnail;
+  if (!imageUrl) return <ProductImagePlaceholder name={product.name} />;
 
   return (
     <div className="mb-4 h-44 overflow-hidden rounded-2xl bg-stone-100">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img className="h-full w-full object-cover" src={image.url} alt={image.alt ?? product.name} />
+      <img className="h-full w-full object-cover" src={imageUrl} alt={image?.alt ?? product.name} />
     </div>
   );
 }
