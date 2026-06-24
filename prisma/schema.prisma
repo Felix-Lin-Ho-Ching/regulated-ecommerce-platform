@@ -280,6 +280,7 @@ model Product {
   archivedAt              DateTime?
   variants                ProductVariant[]
   images                  ProductImage[]
+  media                   ProductMedia[]
   features                ProductFeature[]
   stateRestrictionRules   StateRestrictionRule[]
   localRestrictionRules   LocalRestrictionRule[]
@@ -314,6 +315,25 @@ model ProductImage {
   alt       String
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
+}
+
+enum ProductMediaType {
+  IMAGE
+  VIDEO
+}
+
+model ProductMedia {
+  id           String           @id @default(cuid())
+  productId    String
+  product      Product          @relation(fields: [productId], references: [id])
+  type         ProductMediaType @default(IMAGE)
+  url          String
+  thumbnailUrl String?
+  alt          String?
+  title        String?
+  sortOrder    Int             @default(0)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 }
 
 model ProductFeature {

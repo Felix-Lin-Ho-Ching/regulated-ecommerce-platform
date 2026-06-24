@@ -2,6 +2,15 @@ import { brand } from "@/lib/config/brand";
 import { products as mockProducts, complianceRules } from "@/lib/mock-data";
 import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
 
+export type CatalogProductMedia = {
+  type: "IMAGE" | "VIDEO";
+  url: string;
+  thumbnailUrl?: string;
+  alt?: string;
+  title?: string;
+  sortOrder: number;
+};
+
 type CatalogProductRow = {
   id: string;
   slug: string;
@@ -26,6 +35,14 @@ type CatalogProductRow = {
     value: string;
     restrictedRelevant: boolean;
   }>;
+  media: Array<{
+    type: "IMAGE" | "VIDEO";
+    url: string;
+    thumbnailUrl: string | null;
+    alt: string | null;
+    title: string | null;
+    sortOrder: number;
+  }>;
 };
 
 type StateRestrictionRuleRow = {
@@ -47,6 +64,7 @@ type ProductRow = {
   restricted: boolean;
   variants: Array<{ id: string; sku: string; priceCents: number; inventory: { onHand: number; reserved: number } | null }>;
   features: Array<{ code: string; label: string; value: string; restrictedRelevant: boolean }>;
+  media: CatalogProductMedia[];
 };
 
 type RestrictionRuleRow = {
@@ -72,6 +90,7 @@ export type CatalogProduct = {
   stock: number;
   reserved: number;
   features: Array<{ code: string; label: string; value: string; restrictedRelevant: boolean }>;
+  media: CatalogProductMedia[];
 };
 
 const fallbackProducts: CatalogProduct[] = mockProducts.map((p) => ({
@@ -80,13 +99,14 @@ const fallbackProducts: CatalogProduct[] = mockProducts.map((p) => ({
   brand: brand.name,
   reserved: Math.min(4, p.stock),
   features: [],
+  media: [],
 }));
 
 export async function getCatalogProducts(): Promise<CatalogProduct[]> {
   if (!isDatabaseConfigured) return fallbackProducts;
   const rows = (await prisma.product.findMany({
     where: { archivedAt: null },
-    include: { variants: { include: { inventory: true } }, features: true },
+    include: { variants: { include: { inventory: true } }, features: true, media: { orderBy: { sortOrder: "asc" } } },
     orderBy: { createdAt: "asc" },
   }));
   return rows.map((product: CatalogProductRow) => {
@@ -106,6 +126,7 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
       stock: Math.max(0, (variant?.inventory?.onHand ?? 0) - (variant?.inventory?.reserved ?? 0)),
       reserved: variant?.inventory?.reserved ?? 0,
       features: product.features.map((feature: CatalogProductRow["features"][number]) => ({ code: feature.code, label: feature.label, value: feature.value, restrictedRelevant: feature.restrictedRelevant })),
+      media: product.media.map((media) => ({ type: media.type, url: media.url, thumbnailUrl: media.thumbnailUrl ?? undefined, alt: media.alt ?? undefined, title: media.title ?? undefined, sortOrder: media.sortOrder })),
     };
   });
 }
