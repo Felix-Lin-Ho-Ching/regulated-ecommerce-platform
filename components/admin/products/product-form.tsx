@@ -1,4 +1,7 @@
-import { createProductAction, updateProductAction } from "@/lib/products/actions";
+"use client";
+
+import { useActionState } from "react";
+import { createProductAction, updateProductAction, type ProductActionState } from "@/lib/products/actions";
 import { productCategories, productStatuses } from "@/lib/products/validation";
 import type { AdminProductDetail } from "@/lib/products/service";
 import { AlertPanel } from "@/components/common/panels";
@@ -32,17 +35,22 @@ function FeatureRows({ product }: { product?: AdminProductDetail }) {
 
   return (
     <div className="grid gap-3 md:col-span-2">
-      <h3 className="font-black">Product feature rows</h3>
+      <div>
+        <h3 className="font-black">Product specs / features</h3>
+        <p className="mt-1 text-sm text-slate-600">
+          Optional product details shown or used for restricted-item review. Leave blank if not needed.
+        </p>
+      </div>
       {[0, 1, 2, 3, 4].map((index) => {
         const feature = features[index];
         return (
           <div className="grid gap-3 rounded-2xl border border-stone-200 p-3 md:grid-cols-[1fr_1fr_1fr_auto]" key={index}>
-            <Field label="Code" name={`featureCode${index}`} defaultValue={feature?.code} />
-            <Field label="Label" name={`featureLabel${index}`} defaultValue={feature?.label} />
+            <Field label="Internal code" name={`featureCode${index}`} defaultValue={feature?.code} />
+            <Field label="Public label" name={`featureLabel${index}`} defaultValue={feature?.label} />
             <Field label="Value" name={`featureValue${index}`} defaultValue={feature?.value} />
             <label className="flex items-end gap-2 pb-3 text-sm font-bold text-slate-800">
               <input defaultChecked={feature?.restrictedRelevant} name={`featureRestricted${index}`} type="checkbox" />
-              Restricted relevant
+              Relevant to restricted-item review
             </label>
           </div>
         );
@@ -53,13 +61,15 @@ function FeatureRows({ product }: { product?: AdminProductDetail }) {
 
 export function ProductForm({ product }: { product?: AdminProductDetail }) {
   const action = product ? updateProductAction : createProductAction;
+  const [state, formAction] = useActionState<ProductActionState, FormData>(action, {});
 
   return (
-    <form action={action} className="grid gap-6">
+    <form action={formAction} className="grid gap-6">
       {product ? <input name="id" type="hidden" value={product.id} /> : null}
       <AlertPanel title="Dangerous product changes require notes" tone="warning">
         Archive actions and restricted-status changes are audit logged. Use ARCHIVED instead of hard delete.
       </AlertPanel>
+      {state.error ? <AlertPanel title="Product change blocked" tone="danger">{state.error}</AlertPanel> : null}
       <section className="card grid gap-4 p-5 md:grid-cols-2">
         <Field label="Product name" name="name" defaultValue={product?.name} />
         <Field label="Slug" name="slug" defaultValue={product?.slug} />

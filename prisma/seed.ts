@@ -76,8 +76,25 @@ async function main() {
     { id: "prod_light", slug: "civicshield-safety-light", brand: "Stun Fry", name: "CivicShield Safety Light", category: "visibility", description: "High-visibility light and whistle bundle for commuting and travel.", sku: "CSL-400", priceCents: 3900, stock: 92, restricted: false, status: "ACTIVE" },
   ] as const;
   for (const product of products) {
-    await prisma.product.upsert({ where: { slug: product.slug }, update: {}, create: { id: product.id, slug: product.slug, brand: product.brand, name: product.name, category: product.category, description: product.description, restricted: product.restricted, status: product.status } });
-    const variant = await prisma.productVariant.upsert({ where: { sku: product.sku }, update: {}, create: { id: `variant_${product.sku.toLowerCase().replace(/[^a-z0-9]/g, "_")}`, productId: product.id, sku: product.sku, name: "Default", priceCents: product.priceCents, status: product.status === "RESTRICTED_REVIEW" ? "RESTRICTED_REVIEW" : "ACTIVE" } });
+    await prisma.product.upsert({
+      where: { slug: product.slug },
+      update: {
+        brand: product.brand,
+        name: product.name,
+        category: product.category,
+        description: product.description,
+        restricted: product.restricted,
+        status: product.status,
+        archivedAt: null,
+      },
+      create: { id: product.id, slug: product.slug, brand: product.brand, name: product.name, category: product.category, description: product.description, restricted: product.restricted, status: product.status, archivedAt: null },
+    });
+    const variantStatus = product.status === "RESTRICTED_REVIEW" ? "RESTRICTED_REVIEW" : "ACTIVE";
+    const variant = await prisma.productVariant.upsert({
+      where: { sku: product.sku },
+      update: { productId: product.id, name: "Default", priceCents: product.priceCents, status: variantStatus, archivedAt: null },
+      create: { id: `variant_${product.sku.toLowerCase().replace(/[^a-z0-9]/g, "_")}`, productId: product.id, sku: product.sku, name: "Default", priceCents: product.priceCents, status: variantStatus, archivedAt: null },
+    });
     const inventory = await prisma.inventory.upsert({ where: { variantId: variant.id }, update: { onHand: product.stock }, create: { id: `inventory_${variant.id}`, variantId: variant.id, onHand: product.stock, reserved: product.restricted ? 2 : 0, reorderThreshold: product.restricted ? 5 : 20 } });
     await prisma.inventoryTransaction.create({ data: { id: `seed_tx_${variant.id}`, inventoryId: inventory.id, type: "STOCK_IN", quantity: product.stock, reason: "Phase 1 seed stock; reason captured for auditability." } }).catch(() => undefined);
   }
@@ -86,7 +103,7 @@ async function main() {
     ["stun_capability", "Stun capability", "Electrical defense function"],
     ["knuckle_form_factor", "Knuckle form factor", "Knuckle-style grip profile"],
   ] as const) {
-    await prisma.productFeature.upsert({ where: { productId_code: { productId: "prod_knuckle", code: feature[0] } }, update: {}, create: { productId: "prod_knuckle", code: feature[0], label: feature[1], value: feature[2], restrictedRelevant: true } });
+    await prisma.productFeature.upsert({ where: { productId_code: { productId: "prod_knuckle", code: feature[0] } }, update: { label: feature[1], value: feature[2], restrictedRelevant: true }, create: { productId: "prod_knuckle", code: feature[0], label: feature[1], value: feature[2], restrictedRelevant: true } });
     await prisma.productFeatureRestrictionRule.create({ data: { id: `feature_rule_${feature[0]}`, productId: "prod_knuckle", featureCode: feature[0], outcome: "MANUAL_REVIEW", reviewStatus: "MANUAL_REVIEW", reason: "Default manual review; not attorney-reviewed or provider-approved." } }).catch(() => undefined);
   }
 

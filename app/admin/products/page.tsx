@@ -1,14 +1,29 @@
 import Link from "next/link";
 import { AdminDataTable, AdminShell, RestrictedProductBadge, StatusBadge } from "@/components/ui";
-import { getAdminProducts } from "@/lib/products/service";
+import { getAdminProducts, type AdminProductListFilter } from "@/lib/products/service";
 import { money } from "@/lib/utils";
 
-export default async function ProductsAdminPage() {
-  const products = await getAdminProducts();
+const filters: Array<{ label: string; value: AdminProductListFilter }> = [
+  { label: "Active products", value: "active" },
+  { label: "Archived products", value: "archived" },
+  { label: "All products", value: "all" },
+];
+
+export default async function ProductsAdminPage({ searchParams }: { searchParams?: Promise<{ filter?: string }> }) {
+  const params = await searchParams;
+  const filter = filters.some((item) => item.value === params?.filter) ? (params?.filter as AdminProductListFilter) : "active";
+  const products = await getAdminProducts(filter);
 
   return (
     <AdminShell title="Products">
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          {filters.map((item) => (
+            <Link className={`btn ${filter === item.value ? "btn-primary" : "btn-secondary"}`} href={`/admin/products?filter=${item.value}`} key={item.value}>
+              {item.label}
+            </Link>
+          ))}
+        </div>
         <Link className="btn btn-primary" href="/admin/products/new">
           New product
         </Link>
@@ -18,8 +33,8 @@ export default async function ProductsAdminPage() {
         rows={products.map((product) => [
           product.name,
           product.category,
-          <StatusBadge key={`${product.id}-status`} tone={product.status === "ACTIVE" ? "success" : "warning"}>
-            {product.status}
+          <StatusBadge key={`${product.id}-status`} tone={product.archivedAt ? "danger" : product.status === "ACTIVE" ? "success" : "warning"}>
+            {product.archivedAt ? "ARCHIVED" : product.status}
           </StatusBadge>,
           product.restricted ? <RestrictedProductBadge key={`${product.id}-restricted`} /> : "Unrestricted",
           product.hasInventory ? "Attached" : "Missing",

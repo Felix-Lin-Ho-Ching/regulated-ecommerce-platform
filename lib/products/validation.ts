@@ -70,6 +70,7 @@ export function parseProductForm(formData: FormData): ProductFormInput {
         value: text(formData, `featureValue${index}`),
         restrictedRelevant: formData.get(`featureRestricted${index}`) === "on",
       }))
+      .filter((feature) => feature.code || feature.label || feature.value)
       .filter((feature) => feature.code && feature.label),
     auditNote: text(formData, "auditNote"),
   };
