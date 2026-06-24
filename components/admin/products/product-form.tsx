@@ -70,6 +70,7 @@ export function ProductForm({ product }: { product?: AdminProductDetail }) {
         Archive actions and restricted-status changes are audit logged. Use ARCHIVED instead of hard delete.
       </AlertPanel>
       {state.error ? <AlertPanel title="Product change blocked" tone="danger">{state.error}</AlertPanel> : null}
+      {state.success ? <AlertPanel title="Product saved" tone="success">{state.success}</AlertPanel> : null}
       <section className="card grid gap-4 p-5 md:grid-cols-2">
         <Field label="Product name" name="name" defaultValue={product?.name} />
         <Field label="Slug" name="slug" defaultValue={product?.slug} />
@@ -88,7 +89,7 @@ export function ProductForm({ product }: { product?: AdminProductDetail }) {
         </label>
         <FeatureRows product={product} />
         <label className="grid gap-2 text-sm font-bold text-slate-800 md:col-span-2">
-          Required audit note
+          Owner note (optional for routine details)
           <textarea className="input min-h-24" name="auditNote" />
         </label>
         <button className="btn btn-primary md:w-fit" type="submit">

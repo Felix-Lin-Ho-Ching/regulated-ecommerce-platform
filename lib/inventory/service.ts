@@ -44,12 +44,13 @@ export async function getInventoryRows(): Promise<InventoryAdminRow[]> {
   }));
 }
 
-export async function adjustInventory(inventoryId: string, nextOnHand: number, reason: string) {
-  if (!isDatabaseConfigured) return;
+export async function adjustInventory(inventoryId: string, nextOnHand: number, reason: string): Promise<{ previousOnHand: number; reason: string } | null> {
+  if (!isDatabaseConfigured) return { previousOnHand: nextOnHand, reason: reason.trim() || "Owner adjusted inventory count." };
 
   const current = await prisma.inventory.findUnique({ where: { id: inventoryId } });
-  if (!current) throw new Error("Inventory record not found.");
+  if (!current) return null;
 
+  const auditReason = reason.trim() || `Owner adjusted inventory from ${current.onHand} to ${nextOnHand}.`;
   const delta = nextOnHand - current.onHand;
   await (prisma as any).$transaction([
     prisma.inventory.update({ where: { id: inventoryId }, data: { onHand: nextOnHand } }),
@@ -58,8 +59,9 @@ export async function adjustInventory(inventoryId: string, nextOnHand: number, r
         inventoryId,
         type: "ADJUSTMENT",
         quantity: delta,
-        reason,
+        reason: auditReason,
       },
     }),
   ]);
+  return { previousOnHand: current.onHand, reason: auditReason };
 }

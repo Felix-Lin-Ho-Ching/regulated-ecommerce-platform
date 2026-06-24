@@ -1,7 +1,7 @@
-import { notFound } from "next/navigation";
+import Link from "next/link";
 import { AdminShell, EmptyState, SectionHeader, StatusBadge } from "@/components/ui";
 import { adminOrderStatuses, getAdminOrder } from "@/lib/admin/orders/service";
-import { updateOrderStatusAction } from "@/lib/admin/orders/actions";
+import { OrderStatusForm } from "@/components/admin/orders/order-status-form";
 
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 const fmt = (date: Date) => new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(date);
@@ -10,7 +10,7 @@ export default async function OrderAdmin({ params }: { params: Promise<{ id: str
   const { id } = await params;
   const result = await getAdminOrder(id);
   if (!result.available) return <AdminShell title="Order"><EmptyState title="Database unavailable">Order detail requires DATABASE_URL.</EmptyState></AdminShell>;
-  if (!result.order) notFound();
+  if (!result.order) return <AdminShell title="Order not found"><EmptyState title="Order not found">This order could not be found. <Link className="font-bold text-teal-900 underline" href="/admin/orders">Back to orders</Link></EmptyState></AdminShell>;
   const order: any = result.order;
   const address = order.shippingAddress;
   const restricted = order.items.some((item: any) => item.product.restricted);
@@ -25,12 +25,7 @@ export default async function OrderAdmin({ params }: { params: Promise<{ id: str
           <p className="md:col-span-2"><b>Shipping:</b> {[address?.name, address?.line1, address?.line2, `${address?.city ?? ""}, ${address?.state ?? ""} ${address?.postalCode ?? ""}`, address?.country].filter(Boolean).join(", ")}</p>
         </div>
       </section>
-      <form action={updateOrderStatusAction} className="card p-5 grid gap-3">
-        <h2 className="font-black">Update status</h2><input type="hidden" name="orderId" value={order.id}/><input type="hidden" name="orderNumber" value={order.orderNumber}/>
-        <select name="status" className="input" defaultValue={order.status}>{adminOrderStatuses.map((s) => <option key={s} value={s}>{s}</option>)}</select>
-        <textarea name="note" className="input" required minLength={8} placeholder="Required audit note" />
-        <button className="btn btn-primary">Save status</button>
-      </form>
+<OrderStatusForm orderId={order.id} orderNumber={order.orderNumber} currentStatus={order.status} statuses={adminOrderStatuses} />
     </div>
     <section className="card p-5 mt-4"><h2 className="font-black mb-3">Items</h2><table className="table"><tbody>{order.items.map((item: any) => <tr key={item.id}><td>{item.name}</td><td>{item.sku}</td><td>{item.quantity}</td><td>{money(item.unitPriceCents)}</td><td>{money(item.unitPriceCents * item.quantity)}</td></tr>)}</tbody></table><div className="mt-4 text-right text-sm"><p>Subtotal {money(order.subtotalCents)}</p><p>Shipping {money(order.shippingCents)}</p><p>Tax {money(order.taxCents)}</p><p className="font-black">Total {money(order.totalCents)}</p></div></section>
     <section className="card p-5 mt-4"><h2 className="font-black">Eligibility</h2><pre className="mt-2 whitespace-pre-wrap text-sm">{order.verificationSnapshot ? JSON.stringify(order.verificationSnapshot, null, 2) : "No checkout eligibility snapshot stored."}</pre></section>

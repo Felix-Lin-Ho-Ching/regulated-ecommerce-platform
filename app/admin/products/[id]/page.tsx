@@ -1,15 +1,23 @@
-import { notFound } from "next/navigation";
+import Link from "next/link";
 import { ArchiveProductForm, RestoreProductForm } from "@/components/admin/products/archive-product-form";
 import { ProductForm } from "@/components/admin/products/product-form";
 import { AlertPanel } from "@/components/common/panels";
-import { AdminShell, SectionHeader, StatusBadge } from "@/components/ui";
+import { AdminShell, EmptyState, SectionHeader, StatusBadge } from "@/components/ui";
 import { getAdminProductById } from "@/lib/products/service";
 
 export default async function ProductEditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const product = await getAdminProductById(id);
 
-  if (!product) notFound();
+  if (!product) {
+    return (
+      <AdminShell title="Product not found">
+        <EmptyState title="Product not found">
+          This product could not be found. <Link className="font-bold text-teal-900 underline" href="/admin/products">Back to products</Link>
+        </EmptyState>
+      </AdminShell>
+    );
+  }
 
   const isArchived = Boolean(product.archivedAt);
 
