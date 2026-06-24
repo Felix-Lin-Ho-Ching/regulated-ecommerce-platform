@@ -61,6 +61,38 @@ async function main() {
     },
   });
 
+
+  await prisma.homepageMedia.upsert({
+    where: { id: "homepage_hero_demo" },
+    update: {
+      slot: "hero",
+      type: "IMAGE",
+      url: "https://placehold.co/1200x900/123a42/f8f6f1?text=Everyday+Preparedness",
+      thumbnailUrl: "https://placehold.co/1200x900/123a42/f8f6f1?text=Everyday+Preparedness",
+      alt: "Calm everyday carry essentials arranged near a bag and keys",
+      title: "Prepared when the walk home feels different.",
+      subtitle: "Compact self-defense tools for people who want one extra layer of protection, without overcomplicating it.",
+      ctaLabel: "Shop devices",
+      ctaHref: "/products",
+      enabled: true,
+      sortOrder: 0,
+    },
+    create: {
+      id: "homepage_hero_demo",
+      slot: "hero",
+      type: "IMAGE",
+      url: "https://placehold.co/1200x900/123a42/f8f6f1?text=Everyday+Preparedness",
+      thumbnailUrl: "https://placehold.co/1200x900/123a42/f8f6f1?text=Everyday+Preparedness",
+      alt: "Calm everyday carry essentials arranged near a bag and keys",
+      title: "Prepared when the walk home feels different.",
+      subtitle: "Compact self-defense tools for people who want one extra layer of protection, without overcomplicating it.",
+      ctaLabel: "Shop devices",
+      ctaHref: "/products",
+      enabled: true,
+      sortOrder: 0,
+    },
+  });
+
   for (const tier of [
     ["BASIC", "Basic", 0],
     ["PLUS", "Plus", 500],
