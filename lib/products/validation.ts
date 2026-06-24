@@ -41,6 +41,7 @@ export type ProductFormInput = {
 
 export class ProductFormValidationError extends Error {}
 
+
 function text(formData: FormData, key: string): string {
   const value = formData.get(key);
   return typeof value === "string" ? value.trim() : "";
@@ -78,33 +79,64 @@ function isValidMediaUrl(value: string): boolean {
   }
 }
 
-function parseMediaRows(formData: FormData): ProductMediaInput[] {
-  const rows: Array<ProductMediaInput | undefined> = Array.from({ length: maxProductMediaRows }, (_, index) => {
+type MediaUploadResolver = (file: File, type: ProductMediaType, role: "media" | "thumbnail") => Promise<string>;
+
+function isUploadFile(value: FormDataEntryValue | null): value is File {
+  return typeof File !== "undefined" && value instanceof File && value.size > 0;
+}
+
+async function parseMediaRows(formData: FormData, resolveUpload?: MediaUploadResolver): Promise<ProductMediaInput[]> {
+  const rows: ProductMediaInput[] = [];
+
+  for (let index = 0; index < maxProductMediaRows; index += 1) {
     const type = oneOf(text(formData, `mediaType${index}`), productMediaTypes, "IMAGE");
     const url = text(formData, `mediaUrl${index}`);
     const thumbnailUrl = text(formData, `mediaThumbnailUrl${index}`);
     const alt = text(formData, `mediaAlt${index}`);
     const title = text(formData, `mediaTitle${index}`);
     const sortOrderValue = text(formData, `mediaSortOrder${index}`);
-    const hasVisibleInput = Boolean(url || thumbnailUrl || alt || title || sortOrderValue);
-    if (!hasVisibleInput) return undefined;
-    if (!url) throw new ProductFormValidationError(`Media row ${index + 1}: URL is required when media details are provided.`);
-    if (!isValidMediaUrl(url)) throw new ProductFormValidationError(`Media row ${index + 1}: enter a valid http(s) or local URL.`);
+    const uploadFile = formData.get(`mediaUpload${index}`);
+    const thumbnailUploadFile = formData.get(`mediaThumbnailUpload${index}`);
+    const hasUpload = isUploadFile(uploadFile);
+    const hasThumbnailUpload = isUploadFile(thumbnailUploadFile);
+    const hasVisibleInput = Boolean(url || thumbnailUrl || alt || title || sortOrderValue || hasUpload || hasThumbnailUpload);
+
+    if (!hasVisibleInput) continue;
+    if (!url && !hasUpload) throw new ProductFormValidationError(`Media row ${index + 1}: Media URL or uploaded file is required when media details are provided.`);
+    if (url && !isValidMediaUrl(url)) throw new ProductFormValidationError(`Media row ${index + 1}: enter a valid http(s) or local URL.`);
     if (thumbnailUrl && !isValidMediaUrl(thumbnailUrl)) throw new ProductFormValidationError(`Media row ${index + 1}: enter a valid thumbnail URL.`);
-    return {
+
+    let finalUrl = url;
+    let finalThumbnailUrl = thumbnailUrl;
+    try {
+      if (hasUpload) {
+        if (!resolveUpload) throw new ProductFormValidationError("Upload handling is unavailable.");
+        finalUrl = await resolveUpload(uploadFile, type, "media");
+      }
+      if (hasThumbnailUpload) {
+        if (!resolveUpload) throw new ProductFormValidationError("Upload handling is unavailable.");
+        finalThumbnailUrl = await resolveUpload(thumbnailUploadFile, "IMAGE", "thumbnail");
+      }
+    } catch (error) {
+      if (error instanceof ProductFormValidationError) throw error;
+      const message = error instanceof Error ? error.message : "Upload failed. Try again or use a media URL.";
+      throw new ProductFormValidationError(`Media row ${index + 1}: ${message}`);
+    }
+
+    rows.push({
       type,
-      url,
-      thumbnailUrl: thumbnailUrl || undefined,
+      url: finalUrl,
+      thumbnailUrl: finalThumbnailUrl || undefined,
       alt: alt || undefined,
       title: title || undefined,
       sortOrder: sortOrderValue ? intOrDefault(sortOrderValue, index) : index,
-    };
-  });
+    });
+  }
 
-  return rows.filter((media): media is ProductMediaInput => Boolean(media));
+  return rows;
 }
 
-export function parseProductForm(formData: FormData): ProductFormInput {
+export async function parseProductForm(formData: FormData, resolveUpload?: MediaUploadResolver): Promise<ProductFormInput> {
   const name = text(formData, "name") || "Untitled product";
   const restricted = formData.get("restricted") === "on";
 
@@ -128,7 +160,7 @@ export function parseProductForm(formData: FormData): ProductFormInput {
       }))
       .filter((feature) => feature.code || feature.label || feature.value)
       .filter((feature) => feature.code && feature.label),
-    media: parseMediaRows(formData),
+    media: await parseMediaRows(formData, resolveUpload),
     auditNote: text(formData, "auditNote"),
   };
 }

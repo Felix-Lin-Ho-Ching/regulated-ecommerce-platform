@@ -67,7 +67,7 @@ function MediaRows({ product }: { product?: AdminProductDetail }) {
       <div>
         <h3 className="font-black">Product media</h3>
         <p className="mt-1 text-sm text-slate-600">
-          Optional URL-based storefront images or videos. Blank rows are ignored; media URLs must be http(s) or local paths.
+          Optional storefront images or videos. Paste a URL or upload local media for development/testing. Blank rows are ignored; media URLs must be http(s) or local paths.
         </p>
       </div>
       {Array.from({ length: maxProductMediaRows }, (_, index) => {
@@ -76,10 +76,19 @@ function MediaRows({ product }: { product?: AdminProductDetail }) {
           <div className="grid gap-3 rounded-2xl border border-stone-200 p-3 md:grid-cols-6" key={index}>
             <Select label="Type" name={`mediaType${index}`} defaultValue={media?.type ?? "IMAGE"} values={productMediaTypes} />
             <label className="grid gap-2 text-sm font-bold text-slate-800 md:col-span-2">
-              URL
+              Media URL
               <input className="input invalid:border-red-500" name={`mediaUrl${index}`} defaultValue={media?.url} type="text" />
+              <span className="text-center text-xs font-black uppercase text-slate-500">or</span>
+              <span>Upload file</span>
+              <input className="input" name={`mediaUpload${index}`} type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" />
+              <span className="text-xs font-medium text-slate-500">Upload is stored locally for development. Use external storage before production launch.</span>
             </label>
-            <Field label="Thumbnail URL" name={`mediaThumbnailUrl${index}`} defaultValue={media?.thumbnailUrl} type="text" />
+            <label className="grid gap-2 text-sm font-bold text-slate-800">
+              Thumbnail URL
+              <input className="input" name={`mediaThumbnailUrl${index}`} defaultValue={media?.thumbnailUrl} type="text" />
+              <span>Thumbnail upload file</span>
+              <input className="input" name={`mediaThumbnailUpload${index}`} type="file" accept="image/jpeg,image/png,image/webp" />
+            </label>
             <Field label="Alt text" name={`mediaAlt${index}`} defaultValue={media?.alt} />
             <Field label="Title" name={`mediaTitle${index}`} defaultValue={media?.title} />
             <Field label="Sort order" name={`mediaSortOrder${index}`} defaultValue={media?.sortOrder} type="number" />
