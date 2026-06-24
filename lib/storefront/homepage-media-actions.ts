@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/audit/audit-service";
 import { upsertHomepageHeroMedia, type HomepageHeroMedia, type HomepageMediaType } from "@/lib/storefront/homepage-media";
-import { IMAGE_MEDIA_TYPES, LocalMediaUploadError, MAX_IMAGE_UPLOAD_BYTES, MAX_VIDEO_UPLOAD_BYTES, saveLocalMediaUpload, VIDEO_MEDIA_TYPES, isUploadFile } from "@/lib/media/local-upload";
+import { IMAGE_MEDIA_TYPES, LocalMediaUploadError, MAX_IMAGE_UPLOAD_BYTES, MAX_VIDEO_UPLOAD_BYTES, detectMediaKindFromUpload, saveLocalMediaUpload, VIDEO_MEDIA_TYPES, isUploadFile } from "@/lib/media/local-upload";
 
 export type HomepageMediaFormState = { ok: boolean; errors: Record<string, string> };
 
@@ -14,13 +14,18 @@ function optionalUrl(value: string): boolean { return !value || isSafeUrl(value)
 export async function saveHomepageMediaAction(_prev: HomepageMediaFormState, formData: FormData): Promise<HomepageMediaFormState> {
   const enabled = formData.get("homepageEnabled") === "on";
   const typeValue = text(formData, "homepageType");
-  const type: HomepageMediaType = typeValue === "VIDEO" ? "VIDEO" : "IMAGE";
+  const selectedType: HomepageMediaType = typeValue === "VIDEO" ? "VIDEO" : "IMAGE";
+  let type: HomepageMediaType = selectedType;
   let url = text(formData, "homepageUrl");
   let thumbnailUrl = text(formData, "homepageThumbnailUrl");
   const mediaFile = formData.get("homepageUpload");
   const thumbnailFile = formData.get("homepageThumbnailUpload");
   const ctaHref = text(formData, "homepageCtaHref") || "/products";
   const errors: Record<string, string> = {};
+
+  const detectedMediaType = detectMediaKindFromUpload(mediaFile);
+  if (isUploadFile(mediaFile) && !detectedMediaType) errors.homepageUpload = "Unsupported media file. Upload a JPEG, PNG, WebP, MP4, WebM, or MOV file.";
+  if (detectedMediaType) type = detectedMediaType;
 
   if (enabled && !url && !isUploadFile(mediaFile)) errors.homepageUrl = "Media URL or uploaded media file is required when homepage media is enabled.";
   if (enabled && url && !isSafeUrl(url)) errors.homepageUrl = "Enter a valid URL beginning with https://, http://, or /.";
