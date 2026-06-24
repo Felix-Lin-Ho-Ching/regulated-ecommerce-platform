@@ -5,36 +5,34 @@ import type { RuleCoverageRow } from "@/lib/db/catalog";
 import { StatusBadge } from "@/components/common/badge";
 import { adminLogoutAction, requireAdminSession } from "@/lib/admin/auth";
 
-export function AdminSidebar() {
-  const links = [
-    "/admin",
-    "/admin/storefront",
-    "/admin/products",
-    "/admin/inventory",
-    "/admin/orders",
-    "/admin/email-log",
-    "/admin/notification-recipients",
-    "/admin/verification-queue",
-    "/admin/document-review",
-    "/admin/compliance-rules",
-    "/admin/verification-templates",
-    "/admin/rule-coverage",
-    "/admin/launch-gates",
-    "/admin/audit-log",
-    "/admin/backups",
+export function AdminSidebar({ role }: { role: string }) {
+  const ownerAdminLinks = [
+    ["/admin", "Dashboard"],
+    ["/admin/products", "Products"],
+    ["/admin/inventory", "Inventory"],
+    ["/admin/orders", "Orders"],
+    ["/admin/fulfillment", "Fulfillment"],
+    ["/admin/notification-recipients", "Notification recipients"],
+    ["/admin/employees", "Employees"],
+    ["/admin/compliance-rules", "Compliance rules"],
+    ["/admin/storefront", "Storefront"],
+    ["/admin/audit-log", "Audit log"],
+    ["/admin/launch-gates", "Launch gates"],
   ];
+  const links = role === "FULFILLMENT" ? [["/admin/fulfillment", "Fulfillment"]] : ownerAdminLinks;
 
   return (
     <aside className="admin-sidebar border-r border-stone-200 bg-slate-950 p-4 text-white md:min-h-screen">
-      <Link href="/admin" className="text-xl font-black">
+      <Link href={role === "FULFILLMENT" ? "/admin/fulfillment" : "/admin"} className="text-xl font-black">
         {brand.adminName}
       </Link>
       <nav className="mt-6 grid gap-1 text-sm">
-        {links.map((link) => (
-          <Link className="rounded-lg px-3 py-2 hover:bg-white/10 focus-ring" href={link} key={link}>
-            {link.replace("/admin", "Admin home").replaceAll("-", " ")}
+        {links.map(([href, label]) => (
+          <Link className="rounded-lg px-3 py-2 hover:bg-white/10 focus-ring" href={href} key={href}>
+            {label}
           </Link>
         ))}
+        {role === "FULFILLMENT" ? <form action={adminLogoutAction}><button className="rounded-lg px-3 py-2 text-left hover:bg-white/10 focus-ring">Logout</button></form> : null}
       </nav>
     </aside>
   );
@@ -63,7 +61,7 @@ export async function AdminShell({ title, children }: { title: string; children:
 
   return (
     <div className="admin-grid">
-      <AdminSidebar />
+      <AdminSidebar role={admin.role} />
       <div>
         <AdminHeader title={title} adminName={admin.name} />
         <main className="p-4 md:p-6">{children}</main>

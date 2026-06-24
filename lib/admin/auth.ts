@@ -99,6 +99,30 @@ export async function requireAdminSession(nextPath = "/admin") {
     redirect(`/admin/login?next=${encodeURIComponent(nextPath)}`);
   }
 
+  if (!session.demo && isDatabaseConfigured) {
+    const admin = await prisma.adminUser.findUnique({
+      where: { id: session.adminId },
+      select: { id: true, email: true, name: true, status: true, role: { select: { code: true } } },
+    });
+
+    if (!admin || admin.status !== "ACTIVE") {
+      const cookieStore = await cookies();
+      cookieStore.delete(adminSessionCookieName);
+      redirect("/admin/login?error=Account disabled. Contact the owner.");
+    }
+
+    if (admin.role.code !== session.role || admin.email !== session.email || admin.name !== session.name) {
+      session.email = admin.email;
+      session.name = admin.name;
+      session.role = admin.role.code;
+      await setAdminSession(session);
+    }
+  }
+
+  if (session.role === "FULFILLMENT" && !nextPath.startsWith("/admin/fulfillment")) {
+    redirect("/admin/fulfillment?error=access-denied");
+  }
+
   return session;
 }
 
@@ -129,9 +153,17 @@ export async function adminLoginAction(formData: FormData) {
     select: { id: true, email: true, name: true, passwordHash: true, status: true, role: { select: { code: true } } },
   });
 
-  if (!admin || admin.status !== "ACTIVE" || !verifyPassword(password, admin.passwordHash)) {
+  if (!admin || !verifyPassword(password, admin.passwordHash)) {
     redirect("/admin/login?error=Invalid email or password.");
   }
+
+  if (admin.status !== "ACTIVE") {
+    redirect("/admin/login?error=Account disabled. Contact the owner.");
+  }
+
+  await prisma.adminUser.update({ where: { id: admin.id }, data: { lastLoginAt: new Date() } });
+
+  const destination = admin.role.code === "FULFILLMENT" && nextPath === "/admin" ? "/admin/fulfillment" : nextPath;
 
   await setAdminSession({
     adminId: admin.id,
@@ -141,7 +173,7 @@ export async function adminLoginAction(formData: FormData) {
     demo: false,
   });
 
-  redirect(nextPath);
+  redirect(destination);
 }
 
 export async function adminLogoutAction() {

@@ -177,6 +177,13 @@ enum AuditAction {
   PAYMENT
   MOCK_EVENT
   SEED
+  EMPLOYEE_CREATED
+  EMPLOYEE_UPDATED
+  EMPLOYEE_DISABLED
+  EMPLOYEE_ENABLED
+  EMPLOYEE_PASSWORD_RESET
+  EMPLOYEE_ROLE_CHANGED
+  EMPLOYEE_REMOVED
 }
 
 enum LaunchGateStatus {
@@ -214,6 +221,7 @@ model AdminUser {
   auditLogs    AuditLog[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+  lastLoginAt  DateTime?
   archivedAt   DateTime?
 }
 
