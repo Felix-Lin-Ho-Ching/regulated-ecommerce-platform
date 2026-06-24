@@ -10,11 +10,11 @@ export default async function Success({ searchParams }: { searchParams: Promise<
 
   return (
     <AppShell>
-      <SectionHeader eyebrow="Confirmation" title="Order confirmation">
-        Your order was submitted. Fulfillment will begin after standard order review is complete.
+      <SectionHeader eyebrow="Confirmation" title="Order request received">
+        Your order request has been received. We will contact you to complete payment if approved.
       </SectionHeader>
       <section className="card mt-6 p-6">
-        <StatusBadge tone="success">Order submitted</StatusBadge>
+        <StatusBadge tone="success">Pending payment</StatusBadge>
         <h2 className="mt-3 text-2xl font-black">Order {orderNumber}</h2>
         <p className="text-slate-600">Status: {order?.status || "Fulfillment hold"} · Eligibility result: approved</p>
         {order?.items?.length ? (

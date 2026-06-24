@@ -1,0 +1,11 @@
+"use client";
+import { useActionState } from "react";
+import { AlertPanel } from "@/components/common/panels";
+import type { AdminActionState } from "@/lib/admin/action-state";
+import { deleteNotificationRecipientAction, saveNotificationRecipientAction } from "@/lib/admin/notification-recipients/actions";
+
+export function RecipientForm({ recipient }: { recipient?: any }) {
+  const [state, action] = useActionState<AdminActionState, FormData>(saveNotificationRecipientAction, {});
+  return <form action={action} className="card grid gap-3 p-5"><h2 className="font-black">{recipient ? "Edit recipient" : "Add recipient"}</h2><input type="hidden" name="id" value={recipient?.id || ""} />{state.error ? <AlertPanel title="Recipient not saved" tone="danger">{state.error}</AlertPanel> : null}{state.success ? <AlertPanel title="Saved" tone="success">{state.success}</AlertPanel> : null}<label className="text-sm font-bold">Email *<input className="input mt-1" name="email" type="email" defaultValue={recipient?.email || ""} /></label><label className="text-sm font-bold">Name<input className="input mt-1" name="name" defaultValue={recipient?.name || ""} /></label><label className="text-sm font-bold">Role<input className="input mt-1" name="role" defaultValue={recipient?.role || ""} /></label><label className="flex gap-2 text-sm font-bold"><input name="orderAlerts" type="checkbox" defaultChecked={recipient?.orderAlerts ?? true} /> Order alerts</label><label className="flex gap-2 text-sm font-bold"><input name="shippingAlerts" type="checkbox" defaultChecked={recipient?.shippingAlerts ?? true} /> Shipping alerts</label><label className="flex gap-2 text-sm font-bold"><input name="enabled" type="checkbox" defaultChecked={recipient?.enabled ?? true} /> Enabled</label><button className="btn btn-primary">Save recipient</button></form>;
+}
+export function DeleteRecipientForm({ id }: { id: string }) { const [state, action] = useActionState<AdminActionState, FormData>(deleteNotificationRecipientAction, {}); return <form action={action} className="mt-2"><input type="hidden" name="id" value={id} />{state.error ? <AlertPanel title="Remove blocked" tone="danger">{state.error}</AlertPanel> : null}<button className="btn btn-secondary text-sm">Remove</button></form>; }
