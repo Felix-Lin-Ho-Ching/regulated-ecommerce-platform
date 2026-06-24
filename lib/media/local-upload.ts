@@ -21,14 +21,47 @@ const extensionByMimeType: Record<string, string> = {
   "video/quicktime": ".mov",
 };
 
+const extensionsByMimeType: Record<string, readonly string[]> = {
+  "image/jpeg": [".jpg", ".jpeg"],
+  "image/png": [".png"],
+  "image/webp": [".webp"],
+  "video/mp4": [".mp4"],
+  "video/webm": [".webm"],
+  "video/quicktime": [".mov"],
+};
+
+const fallbackMimeTypes = new Set(["", "application/octet-stream"]);
+
 function safeBaseName(fileName: string): string {
   const parsed = path.parse(fileName).name.toLowerCase();
   const safe = parsed.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 48);
   return safe || "media";
 }
 
+function uploadFileName(value: FormDataEntryValue | null): string {
+  if (!value || typeof value === "string") return "";
+  const maybeFile = value as { name?: unknown };
+  return typeof maybeFile.name === "string" ? maybeFile.name : "";
+}
+
 export function isUploadFile(value: FormDataEntryValue | null): value is File {
-  return typeof File !== "undefined" && value instanceof File && value.size > 0;
+  if (!value || typeof value === "string") return false;
+  const maybeFile = value as { size?: unknown; name?: unknown; arrayBuffer?: unknown };
+  return typeof maybeFile.size === "number" && maybeFile.size > 0 && typeof maybeFile.name === "string" && maybeFile.name.length > 0 && typeof maybeFile.arrayBuffer === "function";
+}
+
+function allowedExtensions(allowedTypes: string[]): string[] {
+  return allowedTypes.flatMap((type) => [...(extensionsByMimeType[type] ?? [])]);
+}
+
+function resolveUploadExtension(file: File, allowedTypes: string[]): string {
+  const fileType = file.type.toLowerCase();
+  if (allowedTypes.includes(fileType)) return extensionByMimeType[fileType] ?? path.extname(file.name).toLowerCase();
+
+  const extension = path.extname(uploadFileName(file)).toLowerCase();
+  if (fallbackMimeTypes.has(fileType) && allowedExtensions(allowedTypes).includes(extension)) return extension;
+
+  throw new LocalMediaUploadError("Unsupported file type. Upload a JPEG, PNG, WebP, MP4, WebM, or MOV file.");
 }
 
 export async function saveLocalMediaUpload(
@@ -44,14 +77,13 @@ export async function saveLocalMediaUpload(
   mimeType: string;
   size: number;
 }> {
-  if (!file || file.size === 0) throw new LocalMediaUploadError("Choose a non-empty media file to upload.");
-  if (!options.allowedTypes.includes(file.type)) throw new LocalMediaUploadError("Unsupported file type. Upload a JPEG, PNG, WebP, MP4, WebM, or MOV file.");
+  if (!isUploadFile(file)) throw new LocalMediaUploadError("Choose a non-empty media file to upload.");
+  const extension = resolveUploadExtension(file, options.allowedTypes);
   if (file.size > options.maxBytes) throw new LocalMediaUploadError(`File is too large. Maximum size is ${Math.floor(options.maxBytes / 1024 / 1024)} MB.`);
 
   const uploadDir = path.join(process.cwd(), "public", "uploads", options.folder);
   await mkdir(uploadDir, { recursive: true });
 
-  const extension = extensionByMimeType[file.type] ?? path.extname(file.name).toLowerCase();
   const fileName = `${safeBaseName(file.name)}-${randomBytes(6).toString("hex")}${extension}`;
   const destination = path.join(uploadDir, fileName);
   const bytes = Buffer.from(await file.arrayBuffer());

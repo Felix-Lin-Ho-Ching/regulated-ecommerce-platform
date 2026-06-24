@@ -80,14 +80,14 @@ function MediaRows({ product }: { product?: AdminProductDetail }) {
               <input className="input invalid:border-red-500" name={`mediaUrl${index}`} defaultValue={media?.url} type="text" />
               <span className="text-center text-xs font-black uppercase text-slate-500">or</span>
               <span>Upload file</span>
-              <input className="input" name={`mediaUpload${index}`} type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" />
-              <span className="text-xs font-medium text-slate-500">Upload is stored locally for development. Use external storage before production launch.</span>
+              <input className="input" name={`mediaUpload${index}`} type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,.jpg,.jpeg,.png,.webp,.mp4,.webm,.mov" />
+              <span className="text-xs font-medium text-slate-500">Local uploads are for development/testing. Use durable external storage before production launch.</span>
             </label>
             <label className="grid gap-2 text-sm font-bold text-slate-800">
               Thumbnail URL
               <input className="input" name={`mediaThumbnailUrl${index}`} defaultValue={media?.thumbnailUrl} type="text" />
               <span>Thumbnail upload file</span>
-              <input className="input" name={`mediaThumbnailUpload${index}`} type="file" accept="image/jpeg,image/png,image/webp" />
+              <input className="input" name={`mediaThumbnailUpload${index}`} type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" />
             </label>
             <Field label="Alt text" name={`mediaAlt${index}`} defaultValue={media?.alt} />
             <Field label="Title" name={`mediaTitle${index}`} defaultValue={media?.title} />
@@ -104,7 +104,7 @@ export function ProductForm({ product }: { product?: AdminProductDetail }) {
   const [state, formAction] = useActionState<ProductActionState, FormData>(action, {});
 
   return (
-    <form action={formAction} className="grid gap-6">
+    <form action={formAction} encType="multipart/form-data" className="grid gap-6">
       {product ? <input name="id" type="hidden" value={product.id} /> : null}
       <AlertPanel title="Dangerous product changes require notes" tone="warning">
         Archive actions and restricted-status changes are audit logged. Use ARCHIVED instead of hard delete.
