@@ -322,6 +322,25 @@ enum ProductMediaType {
   VIDEO
 }
 
+model HomepageMedia {
+  id           String           @id @default(cuid())
+  slot         String
+  type         ProductMediaType @default(IMAGE)
+  url          String
+  thumbnailUrl String?
+  alt          String?
+  title        String?
+  subtitle     String?
+  ctaLabel     String?
+  ctaHref      String?
+  enabled      Boolean          @default(true)
+  sortOrder    Int              @default(0)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([slot, enabled, sortOrder])
+}
+
 model ProductMedia {
   id           String           @id @default(cuid())
   productId    String
