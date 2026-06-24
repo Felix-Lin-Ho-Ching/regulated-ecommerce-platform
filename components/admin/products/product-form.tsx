@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { createProductAction, updateProductAction, type ProductActionState } from "@/lib/products/actions";
-import { productCategories, productStatuses } from "@/lib/products/validation";
+import { maxProductMediaRows, productCategories, productMediaTypes, productStatuses } from "@/lib/products/validation";
 import type { AdminProductDetail } from "@/lib/products/service";
 import { AlertPanel } from "@/components/common/panels";
 
@@ -59,6 +59,37 @@ function FeatureRows({ product }: { product?: AdminProductDetail }) {
   );
 }
 
+function MediaRows({ product }: { product?: AdminProductDetail }) {
+  const mediaRows = product?.media ?? [];
+
+  return (
+    <div className="grid gap-3 md:col-span-2">
+      <div>
+        <h3 className="font-black">Product media</h3>
+        <p className="mt-1 text-sm text-slate-600">
+          Optional URL-based storefront images or videos. Blank rows are ignored; media URLs must be http(s) or local paths.
+        </p>
+      </div>
+      {Array.from({ length: maxProductMediaRows }, (_, index) => {
+        const media = mediaRows[index];
+        return (
+          <div className="grid gap-3 rounded-2xl border border-stone-200 p-3 md:grid-cols-6" key={index}>
+            <Select label="Type" name={`mediaType${index}`} defaultValue={media?.type ?? "IMAGE"} values={productMediaTypes} />
+            <label className="grid gap-2 text-sm font-bold text-slate-800 md:col-span-2">
+              URL
+              <input className="input invalid:border-red-500" name={`mediaUrl${index}`} defaultValue={media?.url} type="text" />
+            </label>
+            <Field label="Thumbnail URL" name={`mediaThumbnailUrl${index}`} defaultValue={media?.thumbnailUrl} type="text" />
+            <Field label="Alt text" name={`mediaAlt${index}`} defaultValue={media?.alt} />
+            <Field label="Title" name={`mediaTitle${index}`} defaultValue={media?.title} />
+            <Field label="Sort order" name={`mediaSortOrder${index}`} defaultValue={media?.sortOrder} type="number" />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function ProductForm({ product }: { product?: AdminProductDetail }) {
   const action = product ? updateProductAction : createProductAction;
   const [state, formAction] = useActionState<ProductActionState, FormData>(action, {});
@@ -87,6 +118,7 @@ export function ProductForm({ product }: { product?: AdminProductDetail }) {
           Description
           <textarea className="input min-h-32" name="description" defaultValue={product?.description} />
         </label>
+        <MediaRows product={product} />
         <FeatureRows product={product} />
         <label className="grid gap-2 text-sm font-bold text-slate-800 md:col-span-2">
           Owner note (optional for routine details)

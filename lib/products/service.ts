@@ -1,6 +1,6 @@
 import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
 import { getCatalogProducts, type CatalogProduct } from "@/lib/db/catalog";
-import type { ProductFeatureInput, ProductFormInput } from "@/lib/products/validation";
+import type { ProductFeatureInput, ProductFormInput, ProductMediaInput } from "@/lib/products/validation";
 
 export type AdminProductListFilter = "active" | "archived" | "all";
 
@@ -21,6 +21,7 @@ type AdminProductRow = {
   archivedAt: Date | null;
   variants: Array<{ id: string; sku: string; priceCents: number; inventory: { onHand: number; reserved: number } | null }>;
   features: Array<{ code: string; label: string; value: string; restrictedRelevant: boolean }>;
+  media: Array<{ id: string; type: "IMAGE" | "VIDEO"; url: string; thumbnailUrl: string | null; alt: string | null; title: string | null; sortOrder: number }>;
 };
 
 function toAdminProductDetail(product: AdminProductRow): AdminProductDetail {
@@ -41,6 +42,7 @@ function toAdminProductDetail(product: AdminProductRow): AdminProductDetail {
     stock: variant?.inventory?.onHand ?? 0,
     reserved: variant?.inventory?.reserved ?? 0,
     features: product.features.map((feature) => ({ code: feature.code, label: feature.label, value: feature.value, restrictedRelevant: feature.restrictedRelevant })),
+    media: product.media.map((media) => ({ type: media.type, url: media.url, thumbnailUrl: media.thumbnailUrl ?? undefined, alt: media.alt ?? undefined, title: media.title ?? undefined, sortOrder: media.sortOrder })),
     hasInventory: Boolean(variant?.inventory) && (variant?.sku ?? "UNASSIGNED") !== "UNASSIGNED",
   };
 }
@@ -54,7 +56,7 @@ export async function getAdminProducts(filter: AdminProductListFilter = "active"
   const where = filter === "active" ? { archivedAt: null } : filter === "archived" ? { archivedAt: { not: null } } : undefined;
   const products = await prisma.product.findMany({
     where,
-    include: { variants: { include: { inventory: true } }, features: true },
+    include: { variants: { include: { inventory: true } }, features: true, media: { orderBy: { sortOrder: "asc" } } },
     orderBy: { createdAt: "asc" },
   });
   return (products as AdminProductRow[]).map((product: AdminProductRow) => toAdminProductDetail(product));
@@ -68,7 +70,7 @@ export async function getAdminProductById(id: string): Promise<AdminProductDetai
 
   const product = await prisma.product.findFirst({
     where: { OR: [{ id }, { variants: { some: { id } } }] },
-    include: { variants: { include: { inventory: true } }, features: true },
+    include: { variants: { include: { inventory: true } }, features: true, media: { orderBy: { sortOrder: "asc" } } },
   });
 
   return product ? toAdminProductDetail(product as AdminProductRow) : undefined;
@@ -85,6 +87,24 @@ async function replaceFeatures(productId: string, features: ProductFeatureInput[
         label: feature.label,
         value: feature.value,
         restrictedRelevant: feature.restrictedRelevant,
+      },
+    });
+  }
+}
+
+async function replaceMedia(productId: string, mediaRows: ProductMediaInput[]) {
+  await prisma.productMedia.deleteMany({ where: { productId } });
+
+  for (const media of mediaRows) {
+    await prisma.productMedia.create({
+      data: {
+        productId,
+        type: media.type,
+        url: media.url,
+        thumbnailUrl: media.thumbnailUrl,
+        alt: media.alt,
+        title: media.title,
+        sortOrder: media.sortOrder,
       },
     });
   }
@@ -115,6 +135,7 @@ export async function createProduct(input: ProductFormInput): Promise<string> {
   });
 
   await replaceFeatures(product.id, input.features);
+  await replaceMedia(product.id, input.media);
   return product.id as string;
 }
 
@@ -159,6 +180,7 @@ export async function updateProduct(input: ProductFormInput) {
   }
 
   await replaceFeatures(input.id, input.features);
+  await replaceMedia(input.id, input.media);
 }
 
 export async function archiveProduct(productId: string): Promise<boolean> {

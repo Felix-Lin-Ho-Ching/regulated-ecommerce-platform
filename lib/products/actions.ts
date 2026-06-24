@@ -5,14 +5,20 @@ import { redirect } from "next/navigation";
 import { createAuditLog } from "@/lib/audit/audit-service";
 import { optionalAuditNote, reasonRequiredMessage, validateManualReason, type AdminActionState } from "@/lib/admin/action-state";
 import { archiveProduct, createProduct, getAdminProductById, restoreProduct, updateProduct } from "@/lib/products/service";
-import { parseProductForm } from "@/lib/products/validation";
+import { parseProductForm, ProductFormValidationError } from "@/lib/products/validation";
 
 export type ProductActionState = AdminActionState;
 
 const riskyStatuses = new Set(["ARCHIVED", "RESTRICTED_REVIEW"]);
 
 export async function createProductAction(_state: ProductActionState, formData: FormData): Promise<ProductActionState> {
-  const input = parseProductForm(formData);
+  let input;
+  try {
+    input = parseProductForm(formData);
+  } catch (error) {
+    if (error instanceof ProductFormValidationError) return { error: error.message };
+    throw error;
+  }
   const note = optionalAuditNote(input.auditNote, "Owner created product.");
   const productId = await createProduct(input);
 
@@ -23,7 +29,13 @@ export async function createProductAction(_state: ProductActionState, formData: 
 }
 
 export async function updateProductAction(_state: ProductActionState, formData: FormData): Promise<ProductActionState> {
-  const input = parseProductForm(formData);
+  let input;
+  try {
+    input = parseProductForm(formData);
+  } catch (error) {
+    if (error instanceof ProductFormValidationError) return { error: error.message };
+    throw error;
+  }
   if (!input.id) return { error: "Missing product id." };
 
   const current = await getAdminProductById(input.id);

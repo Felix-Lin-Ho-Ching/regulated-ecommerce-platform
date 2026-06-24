@@ -98,6 +98,22 @@ async function main() {
     const inventory = await prisma.inventory.upsert({ where: { variantId: variant.id }, update: { onHand: product.stock }, create: { id: `inventory_${variant.id}`, variantId: variant.id, onHand: product.stock, reserved: product.restricted ? 2 : 0, reorderThreshold: product.restricted ? 5 : 20 } });
     await prisma.inventoryTransaction.create({ data: { id: `seed_tx_${variant.id}`, inventoryId: inventory.id, type: "STOCK_IN", quantity: product.stock, reason: "Phase 1 seed stock; reason captured for auditability." } }).catch(() => undefined);
   }
+
+  const productMedia = [
+    { id: "media_alarm_image", productId: "prod_alarm", type: "IMAGE", url: "https://placehold.co/960x720/0f766e/ffffff?text=Guardian+Alarm", alt: "Guardian Rescue Alarm product image", title: "Guardian Rescue Alarm", sortOrder: 0 },
+    { id: "media_training_image", productId: "prod_training", type: "IMAGE", url: "https://placehold.co/960x720/134e4a/ffffff?text=Training+Kit", alt: "SecureWalk Training Kit product image", title: "SecureWalk Training Kit", sortOrder: 0 },
+    { id: "media_knuckle_image", productId: "prod_knuckle", type: "IMAGE", url: "https://placehold.co/960x720/1e293b/fbbf24?text=ArcGuard", alt: "ArcGuard restricted device product image", title: "ArcGuard product image", sortOrder: 0 },
+    { id: "media_knuckle_video", productId: "prod_knuckle", type: "VIDEO", url: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4", thumbnailUrl: "https://placehold.co/960x720/1e293b/fbbf24?text=ArcGuard+Demo", alt: "ArcGuard safe placeholder demo video", title: "Safe placeholder demo video", sortOrder: 1 },
+    { id: "media_light_image", productId: "prod_light", type: "IMAGE", url: "https://placehold.co/960x720/f59e0b/111827?text=Safety+Light", alt: "CivicShield Safety Light product image", title: "CivicShield Safety Light", sortOrder: 0 },
+  ] as const;
+
+  for (const media of productMedia) {
+    await prisma.productMedia.upsert({
+      where: { id: media.id },
+      update: { productId: media.productId, type: media.type, url: media.url, thumbnailUrl: "thumbnailUrl" in media ? media.thumbnailUrl : null, alt: media.alt, title: media.title, sortOrder: media.sortOrder },
+      create: { id: media.id, productId: media.productId, type: media.type, url: media.url, thumbnailUrl: "thumbnailUrl" in media ? media.thumbnailUrl : null, alt: media.alt, title: media.title, sortOrder: media.sortOrder },
+    });
+  }
   for (const feature of [
     ["contact_prongs", "Contact prongs", "Integrated restricted feature"],
     ["stun_capability", "Stun capability", "Electrical defense function"],
