@@ -24,12 +24,28 @@ async function main() {
     update: {},
     create: { id: "role_owner", code: "OWNER", name: "Owner", description: "Owner-level access for launch gates and approvals." },
   });
+  await prisma.adminRole.upsert({
+    where: { code: "ADMIN" },
+    update: {},
+    create: { id: "role_admin", code: "ADMIN", name: "Admin", description: "Admin access for operations and employee management." },
+  });
+  const fulfillmentRole = await prisma.adminRole.upsert({
+    where: { code: "FULFILLMENT" },
+    update: {},
+    create: { id: "role_fulfillment", code: "FULFILLMENT", name: "Fulfillment", description: "Shipping dashboard and shipment action access." },
+  });
   // Local development seed credential only. Replace before production.
   const ownerPasswordHash = hashPassword("linhochingfelix");
   const owner = await prisma.adminUser.upsert({
     where: { email: "linhochingfelix@gmail.com" },
     update: { name: "Felix Lin", passwordHash: ownerPasswordHash, roleId: ownerRole.id, status: "ACTIVE" },
     create: { id: "admin_owner", email: "linhochingfelix@gmail.com", name: "Felix Lin", passwordHash: ownerPasswordHash, roleId: ownerRole.id, status: "ACTIVE" },
+  });
+  const shippingPasswordHash = hashPassword("shipping123");
+  await prisma.adminUser.upsert({
+    where: { email: "shipping@example.com" },
+    update: { name: "Shipping Employee", passwordHash: shippingPasswordHash, roleId: fulfillmentRole.id, status: "ACTIVE" },
+    create: { id: "admin_fulfillment", email: "shipping@example.com", name: "Shipping Employee", passwordHash: shippingPasswordHash, roleId: fulfillmentRole.id, status: "ACTIVE" },
   });
 
   await prisma.storefrontSettings.upsert({
