@@ -39,6 +39,7 @@ enum InventoryTransactionType {
   ADJUSTMENT
   RESERVATION
   RELEASE
+  RELEASE_RESERVATION
   FULFILLMENT
 }
 
@@ -71,6 +72,10 @@ enum OrderStatus {
   PAID
   FULFILLMENT_HOLD
   FULFILLED
+  SHIPPED
+  ORDER_REQUEST_SUBMITTED
+  AUTO_ELIGIBLE
+  PENDING_PAYMENT
   CANCELLED
   BLOCKED
   ARCHIVED
@@ -79,6 +84,7 @@ enum OrderStatus {
 enum PaymentProviderKind {
   MOCK
   NMI
+  ORDER_REQUEST
 }
 
 enum PaymentProviderStatus {
@@ -94,6 +100,7 @@ enum PaymentAttemptStatus {
   DECLINED
   FAILED
   MANUAL_REVIEW
+  ORDER_REQUEST
 }
 
 enum RefundStatus {
@@ -423,6 +430,11 @@ model Order {
   customerPhone          String?
   liveCheckoutEnabled    Boolean                    @default(false)
   liveFulfillmentEnabled Boolean                    @default(false)
+  paymentMode            String                     @default("order_request")
+  eligibilityResult      String?
+  carrier                String?
+  trackingNumber         String?
+  shippedAt              DateTime?
   items                  OrderItem[]
   shippingAddress        ShippingAddress?
   paymentAttempts        PaymentAttempt[]
@@ -430,6 +442,7 @@ model Order {
   verificationSnapshot   OrderVerificationSnapshot?
   couponRedemptions      CouponRedemption[]
   emailLogs              EmailLog[]
+  fulfillmentTokens      FulfillmentToken[]
   createdAt              DateTime                   @default(now())
   updatedAt              DateTime                   @updatedAt
   archivedAt             DateTime?
@@ -645,6 +658,29 @@ model AuditLog {
   note         String
   metadata     Json?
   createdAt    DateTime    @default(now())
+}
+
+model NotificationRecipient {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  name           String?
+  role           String?
+  orderAlerts    Boolean  @default(true)
+  shippingAlerts Boolean  @default(true)
+  enabled        Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model FulfillmentToken {
+  id        String   @id @default(cuid())
+  orderId   String
+  tokenHash String   @unique
+  purpose   String   @default("SHIPMENT_CONFIRMATION")
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  order     Order    @relation(fields: [orderId], references: [id])
 }
 
 model EmailLog {

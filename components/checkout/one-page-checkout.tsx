@@ -53,6 +53,7 @@ export function OnePageCheckout({ cart, error }: { cart: CartSnapshot; error?: s
         {error === "address" ? <CheckoutNotice tone="warning">Complete your shipping address to continue.</CheckoutNotice> : null}
         {error === "blocked" ? <BlockedNotice /> : null}
         {error === "verification" ? <CheckoutNotice tone="warning">Age verification is required for restricted items.</CheckoutNotice> : null}
+        {error === "stock" ? <CheckoutNotice tone="danger">Only the currently available quantity can be requested.</CheckoutNotice> : null}
 
         <section className="card p-5">
           <h2 className="text-xl font-black">Express checkout</h2>
@@ -83,7 +84,7 @@ export function OnePageCheckout({ cart, error }: { cart: CartSnapshot; error?: s
         </section>
 
         <section className="card p-5"><h2 className="text-xl font-black">Shipping method</h2><ShippingMethod addressComplete={addressComplete} destination={destination} shipping={cart.shipping} /></section>
-        <section className="card p-5"><h2 className="text-xl font-black">Payment</h2><PaymentBlock disabled={blocked} /></section>
+        <section className="card p-5"><h2 className="text-xl font-black">Order request</h2><PaymentBlock disabled={blocked} /></section>
 
         {hasRestricted ? (
           <section className="card p-5">
@@ -96,7 +97,7 @@ export function OnePageCheckout({ cart, error }: { cart: CartSnapshot; error?: s
         ) : null}
 
         {blocked ? <BlockedNotice /> : null}
-        <button className="btn btn-primary w-full" disabled={!canSubmit} type="submit">Place order</button>
+        <button className="btn btn-primary w-full" disabled={!canSubmit} type="submit">Submit order request</button>
       </div>
       <OrderSummary cart={cart} />
     </form>
@@ -110,7 +111,7 @@ function ShippingMethod({ addressComplete, destination, shipping }: { addressCom
 }
 
 function PaymentBlock({ disabled }: { disabled: boolean }) {
-  return <div className="mt-4 overflow-hidden rounded-2xl border border-stone-200"><label className="flex items-center gap-3 border-b bg-white p-4 font-black"><input checked readOnly type="radio" /> Credit card</label><fieldset disabled={disabled} className="grid gap-3 bg-stone-50 p-4 sm:grid-cols-2"><input className="input sm:col-span-2" name="cardNumberDisplay" placeholder="Card number" inputMode="numeric" /><input className="input" name="cardExpiryDisplay" placeholder="Expiration date (MM / YY)" /><input className="input" name="cardSecurityDisplay" placeholder="Security code" /><input className="input sm:col-span-2" name="cardNameDisplay" placeholder="Name on card" /><label className="flex gap-3 text-sm font-bold sm:col-span-2"><input defaultChecked name="billingSame" type="checkbox" /> Use shipping address as billing address</label></fieldset><p className="border-t bg-white p-4 text-xs text-slate-500">Card fields are placeholders for checkout flow only and are not stored or sent to a payment gateway.</p></div>;
+  return <div className="mt-4 rounded-2xl border border-stone-200 bg-stone-50 p-4"><p className="font-bold text-slate-800">Payment is not collected online yet.</p><p className="mt-2 text-sm text-slate-600">Submit an order request now. We will contact you to complete payment if approved.</p><input type="hidden" name="paymentMode" value="order_request" /><fieldset disabled={disabled} className="mt-3"><label className="flex gap-3 text-sm font-bold"><input defaultChecked name="billingSame" type="checkbox" /> Use shipping address for order-request review</label></fieldset></div>;
 }
 
 function OrderSummary({ cart }: { cart: CartSnapshot }) { return <aside className="card h-fit p-5 lg:sticky lg:top-4"><h2 className="text-xl font-black">Order summary</h2><div className="mt-4 divide-y divide-stone-200">{cart.lines.map((line) => <div className="flex gap-3 py-3" key={line.product.slug}><div className="h-16 w-16 rounded-xl bg-gradient-to-br from-amber-100 to-teal-100" /><div className="flex-1"><p className="font-black">{line.product.name}</p><p className="text-sm text-slate-600">Qty {line.quantity}</p></div><strong>{money(line.lineTotal)}</strong></div>)}</div><label className="mt-4 flex gap-2"><input className="input" placeholder="Discount code" /><button className="btn btn-secondary" type="button">Apply</button></label><dl className="mt-4 space-y-2 text-sm"><Row label="Subtotal" value={money(cart.subtotal)} /><Row label="Shipping" value={money(cart.shipping)} /><Row label="Estimated tax" value={money(cart.tax)} /><div className="flex justify-between border-t pt-3 text-lg font-black"><dt>Total</dt><dd>{money(cart.total)}</dd></div></dl></aside>; }

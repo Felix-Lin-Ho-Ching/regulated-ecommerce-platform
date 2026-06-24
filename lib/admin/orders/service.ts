@@ -3,7 +3,7 @@ import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
 import { createAuditLog } from "@/lib/audit/audit-service";
 import { optionalAuditNote, reasonRequiredMessage, validateManualReason } from "@/lib/admin/action-state";
 
-export const adminOrderStatuses = ["FULFILLMENT_HOLD", "PENDING_ELIGIBILITY", "READY_FOR_PAYMENT", "PAID", "FULFILLED", "CANCELLED", "BLOCKED"] as const;
+export const adminOrderStatuses = ["ORDER_REQUEST_SUBMITTED", "AUTO_ELIGIBLE", "PENDING_PAYMENT", "FULFILLMENT_HOLD", "PENDING_ELIGIBILITY", "READY_FOR_PAYMENT", "PAID", "FULFILLED", "SHIPPED", "CANCELLED", "BLOCKED"] as const;
 export type AdminOrderStatus = (typeof adminOrderStatuses)[number];
 
 export async function getAdminOrders() {
@@ -14,7 +14,7 @@ export async function getAdminOrders() {
 
 export async function getAdminOrder(idOrNumber: string) {
   if (!isDatabaseConfigured) return { available: false as const, order: null };
-  const order = await prisma.order.findFirst({ where: { OR: [{ id: idOrNumber }, { orderNumber: idOrNumber }], archivedAt: null }, include: { user: { select: { email: true, name: true } }, shippingAddress: true, items: { include: { product: { select: { restricted: true } } } }, paymentAttempts: { orderBy: { createdAt: "desc" } }, verificationSnapshot: true, emailLogs: { orderBy: { createdAt: "desc" } } } });
+  const order = await prisma.order.findFirst({ where: { OR: [{ id: idOrNumber }, { orderNumber: idOrNumber }], archivedAt: null }, include: { user: { select: { email: true, name: true } }, shippingAddress: true, items: { include: { product: { select: { restricted: true } } } }, paymentAttempts: { orderBy: { createdAt: "desc" } }, verificationSnapshot: true, emailLogs: { orderBy: { createdAt: "desc" } }, fulfillmentTokens: { orderBy: { createdAt: "desc" } } } });
   if (!order) return { available: true as const, order: null, auditLogs: [] };
   const auditLogs = await prisma.auditLog.findMany({ where: { entityType: "Order", entityId: order.id }, orderBy: { createdAt: "desc" } });
   return { available: true as const, order, auditLogs };
@@ -36,5 +36,25 @@ export async function updateAdminOrderStatus(orderId: string, status: string, no
   await createAuditLog({ action: "UPDATE", entityType: "Order", entityId: order.id, note: noteResult.note, metadata: { status } });
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${order.orderNumber}`);
+  return {};
+}
+
+
+export async function cancelOrderBeforeShipment(orderId: string, note: string): Promise<{ error?: string }> {
+  if (!isDatabaseConfigured) return { error: "Database is not configured." };
+  const noteResult = validateManualReason(note);
+  if ("error" in noteResult) return { error: reasonRequiredMessage };
+  const order = await prisma.order.findUnique({ where: { id: orderId }, include: { items: true } });
+  if (!order) return { error: "Order was not found." };
+  if (order.status === "SHIPPED") return { error: "This order is already shipped. Return/refund workflow is separate." };
+  await (prisma as any).$transaction(async (tx: any) => {
+    for (const item of order.items) {
+      const inventory = await tx.inventory.findUnique({ where: { variantId: item.variantId } });
+      if (inventory && inventory.reserved >= item.quantity) await tx.inventory.update({ where: { id: inventory.id }, data: { reserved: { decrement: item.quantity }, transactions: { create: { type: "RELEASE_RESERVATION", quantity: item.quantity, reason: `Order ${order.orderNumber} cancelled` } }, reservations: { updateMany: { where: { orderItemId: item.id, status: "ACTIVE" }, data: { status: "RELEASED" } } } } });
+    }
+    await tx.order.update({ where: { id: order.id }, data: { status: "CANCELLED" } });
+    await tx.auditLog.create({ data: { action: "UPDATE", entityType: "Order", entityId: order.id, note: noteResult.note, metadata: { status: "CANCELLED" } } });
+  });
+  revalidatePath("/admin/orders"); revalidatePath(`/admin/orders/${order.orderNumber}`);
   return {};
 }

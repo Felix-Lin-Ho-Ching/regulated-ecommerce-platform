@@ -103,7 +103,7 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
       variantId: variant?.id ?? product.id,
       sku: variant?.sku ?? "UNASSIGNED",
       price: (variant?.priceCents ?? 0) / 100,
-      stock: variant?.inventory?.onHand ?? 0,
+      stock: Math.max(0, (variant?.inventory?.onHand ?? 0) - (variant?.inventory?.reserved ?? 0)),
       reserved: variant?.inventory?.reserved ?? 0,
       features: product.features.map((feature: CatalogProductRow["features"][number]) => ({ code: feature.code, label: feature.label, value: feature.value, restrictedRelevant: feature.restrictedRelevant })),
     };

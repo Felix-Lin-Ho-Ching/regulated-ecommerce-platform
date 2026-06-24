@@ -6,6 +6,7 @@ import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
 import { logDebugEmail } from "@/lib/email/email-log-service";
 import { buildOrderConfirmationEmail } from "@/lib/email/templates/order-confirmation";
 import { buildAdminNewOrderEmail } from "@/lib/email/templates/admin-new-order";
+import { createRawFulfillmentToken, fulfillmentTokenExpiry, hashFulfillmentToken } from "@/lib/fulfillment/tokens";
 
 export type CheckoutReadiness = {
   canCollectPayment: boolean;
@@ -132,11 +133,19 @@ export async function createMockOrderFromCart(): Promise<CustomerOrderSummary> {
   const orderNumber = buildOrderNumber();
 
   if (isDatabaseConfigured) {
+    for (const line of cart.lines) {
+      const product = await prisma.product.findFirst({ where: { id: line.product.id, archivedAt: null, status: { not: "ARCHIVED" } }, include: { variants: { include: { inventory: true } } } });
+      const variant = product?.variants.find((candidate: any) => candidate.id === line.product.variantId);
+      const available = Math.max(0, (variant?.inventory?.onHand ?? 0) - (variant?.inventory?.reserved ?? 0));
+      if (!product || !variant || !variant.inventory) throw new Error("This item is not available for checkout.");
+      if (line.quantity > available) throw new Error(`Only ${available} available.`);
+    }
+
     const order = await prisma.order.create({
       data: {
         orderNumber,
         userId: session?.demo ? undefined : session?.userId,
-        status: "FULFILLMENT_HOLD",
+        status: "ORDER_REQUEST_SUBMITTED",
         subtotalCents: toCents(cart.subtotal),
         shippingCents: toCents(cart.shipping),
         taxCents: toCents(cart.tax),
@@ -146,6 +155,8 @@ export async function createMockOrderFromCart(): Promise<CustomerOrderSummary> {
         customerPhone: shipping.phone,
         liveCheckoutEnabled: false,
         liveFulfillmentEnabled: false,
+        paymentMode: process.env.PAYMENT_MODE || "order_request",
+        eligibilityResult: "AUTO_ELIGIBLE",
         shippingAddress: {
           create: {
             name: shipping.name,
@@ -171,12 +182,12 @@ export async function createMockOrderFromCart(): Promise<CustomerOrderSummary> {
         },
         paymentAttempts: {
           create: {
-            provider: "MOCK",
-            providerStatus: "DEVELOPMENT_APPROVED",
-            status: "APPROVED",
+            provider: "ORDER_REQUEST",
+            providerStatus: "DISABLED",
+            status: "ORDER_REQUEST",
             amountCents: toCents(cart.total),
             livePaymentEnabled: false,
-            providerReference: `mock-approved-${orderNumber}`,
+            providerReference: `order-request-${orderNumber}`,
           },
         },
       },
@@ -191,9 +202,18 @@ export async function createMockOrderFromCart(): Promise<CustomerOrderSummary> {
     }
 
     const confirmation = buildOrderConfirmationEmail({ orderNumber: order.orderNumber, createdAt: order.createdAt, items: order.items, totalCents: order.totalCents, shippingAddress: order.shippingAddress!, hasRestrictedItems: order.items.some((item: { product: { restricted: boolean } }) => item.product.restricted) });
-    await logDebugEmail({ type: "ORDER_CONFIRMATION", to: session?.email ?? "guest@stunfry.example", subject: confirmation.subject, text: confirmation.text, orderId: order.id, metadata: { orderNumber: order.orderNumber } });
+    await logDebugEmail({ type: "ORDER_REQUEST_CONFIRMATION", to: session?.email ?? "guest@stunfry.example", subject: confirmation.subject, text: confirmation.text, orderId: order.id, metadata: { orderNumber: order.orderNumber } }).catch(() => undefined);
     const adminEmail = buildAdminNewOrderEmail({ orderNumber: order.orderNumber, customerEmail: session?.email, totalCents: order.totalCents, hasRestrictedItems: order.items.some((item: { product: { restricted: boolean } }) => item.product.restricted), shippingState: order.shippingAddress?.state, shippingPostalCode: order.shippingAddress?.postalCode, adminOrderUrl: `/admin/orders/${order.orderNumber}` });
-    await logDebugEmail({ type: "ADMIN_NEW_ORDER", to: process.env.ADMIN_ORDER_EMAIL || process.env.ADMIN_EMAIL || "linhochingfelix@gmail.com", subject: adminEmail.subject, text: adminEmail.text, orderId: order.id, metadata: { orderNumber: order.orderNumber } });
+    await logDebugEmail({ type: "ADMIN_NEW_ORDER", to: process.env.ADMIN_ORDER_EMAIL || process.env.ADMIN_EMAIL || "linhochingfelix@gmail.com", subject: adminEmail.subject, text: adminEmail.text, orderId: order.id, metadata: { orderNumber: order.orderNumber } }).catch(() => undefined);
+
+    const rawFulfillmentToken = createRawFulfillmentToken();
+    const fulfillmentUrl = `/fulfillment/ship/${rawFulfillmentToken}`;
+    await prisma.fulfillmentToken.create({ data: { orderId: order.id, tokenHash: hashFulfillmentToken(rawFulfillmentToken), expiresAt: fulfillmentTokenExpiry() } });
+    const recipients = await prisma.notificationRecipient.findMany({ where: { enabled: true, orderAlerts: true } });
+    for (const recipient of recipients) {
+      const shippingText = recipient.shippingAlerts ? `\n\nFulfillment link: ${fulfillmentUrl}` : "";
+      await logDebugEmail({ type: recipient.shippingAlerts ? "SHIPPING_FULFILLMENT" : "INTERNAL_ORDER", to: recipient.email, subject: `Order request ${order.orderNumber}`, text: `${adminEmail.text}${shippingText}`, orderId: order.id, metadata: { orderNumber: order.orderNumber, fulfillmentUrl: recipient.shippingAlerts ? fulfillmentUrl : undefined } }).catch(() => undefined);
+    }
 
     await clearCart();
 
@@ -210,7 +230,7 @@ export async function createMockOrderFromCart(): Promise<CustomerOrderSummary> {
 
   const order = {
     orderNumber,
-    status: "FULFILLMENT_HOLD",
+    status: "ORDER_REQUEST_SUBMITTED",
     total: cart.total,
     payment: "order request",
     verification: "approved",

@@ -53,6 +53,13 @@ export async function submitCheckoutAction(formData: FormData) {
     if (!adult || !attested) redirect("/checkout?error=verification");
   }
 
-  const order = await createMockOrderFromCart();
+  let order;
+  try {
+    order = await createMockOrderFromCart();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Checkout could not be completed.";
+    if (message.startsWith("Only ")) redirect(`/checkout?error=stock&message=${encodeURIComponent(message)}`);
+    redirect("/checkout?error=blocked");
+  }
   redirect(`/checkout/success?order=${encodeURIComponent(order.orderNumber)}`);
 }

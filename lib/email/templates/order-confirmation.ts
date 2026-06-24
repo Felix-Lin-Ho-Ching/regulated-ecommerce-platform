@@ -8,6 +8,6 @@ export function buildOrderConfirmationEmail(input: OrderConfirmationInput) {
   const restricted = input.hasRestrictedItems ? "\n\nThis order includes restricted item(s). We may review eligibility before fulfillment." : "";
   return {
     subject: `Your order request ${input.orderNumber} was received`,
-    text: `Your order request was received.\n\nOrder: ${input.orderNumber}\nDate: ${input.createdAt.toISOString()}\n\nItems:\n${itemLines}\n\nTotal: ${money(input.totalCents)}\n\nShipping address:\n${address}${restricted}\n\nNo real payment has been charged by this mock checkout.`,
+    text: `Your order request has been received. We will contact you to complete payment if approved.\n\nOrder: ${input.orderNumber}\nDate: ${input.createdAt.toISOString()}\n\nItems:\n${itemLines}\n\nTotal: ${money(input.totalCents)}\n\nShipping address:\n${address}${restricted}\n\nNo payment has been collected online for this order request.`,
   };
 }
