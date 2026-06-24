@@ -78,36 +78,49 @@ async function main() {
   });
 
 
-  await prisma.homepageMedia.upsert({
-    where: { id: "homepage_hero_demo" },
-    update: {
-      slot: "hero",
-      type: "IMAGE",
-      url: "https://placehold.co/1200x900/123a42/f8f6f1?text=Everyday+Preparedness",
-      thumbnailUrl: "https://placehold.co/1200x900/123a42/f8f6f1?text=Everyday+Preparedness",
-      alt: "Calm everyday carry essentials arranged near a bag and keys",
+  const homepageSlides = [
+    {
+      id: "homepage_hero_slide_1",
+      url: "https://placehold.co/1800x1000/123a42/f8f6f1?text=Everyday+Preparedness",
+      thumbnailUrl: "https://placehold.co/1800x1000/123a42/f8f6f1?text=Everyday+Preparedness",
       title: "Prepared when the walk home feels different.",
       subtitle: "Compact self-defense tools for people who want one extra layer of protection, without overcomplicating it.",
       ctaLabel: "Shop devices",
       ctaHref: "/products",
-      enabled: true,
+      alt: "Responsible ownership | Secure order handling | Verified at checkout",
       sortOrder: 0,
     },
-    create: {
-      id: "homepage_hero_demo",
-      slot: "hero",
-      type: "IMAGE",
-      url: "https://placehold.co/1200x900/123a42/f8f6f1?text=Everyday+Preparedness",
-      thumbnailUrl: "https://placehold.co/1200x900/123a42/f8f6f1?text=Everyday+Preparedness",
-      alt: "Calm everyday carry essentials arranged near a bag and keys",
-      title: "Prepared when the walk home feels different.",
-      subtitle: "Compact self-defense tools for people who want one extra layer of protection, without overcomplicating it.",
-      ctaLabel: "Shop devices",
+    {
+      id: "homepage_hero_slide_2",
+      url: "https://placehold.co/1800x1000/f0ede6/164e52?text=Compact+Everyday+Tools",
+      thumbnailUrl: "https://placehold.co/1800x1000/f0ede6/164e52?text=Compact+Everyday+Tools",
+      title: "Simple tools for everyday preparedness.",
+      subtitle: "Designed for people who want something compact, accessible, and easy to keep nearby.",
+      ctaLabel: "View products",
       ctaHref: "/products",
-      enabled: true,
-      sortOrder: 0,
+      alt: "Compact carry | Clear product details | Stock tracked",
+      sortOrder: 1,
     },
-  });
+    {
+      id: "homepage_hero_slide_3",
+      url: "https://placehold.co/1800x1000/0f172a/f8f6f1?text=Responsible+Ordering",
+      thumbnailUrl: "https://placehold.co/1800x1000/0f172a/f8f6f1?text=Responsible+Ordering",
+      title: "Ships only where allowed.",
+      subtitle: "We check shipping eligibility during checkout so restricted items are handled responsibly.",
+      ctaLabel: "How ordering works",
+      ctaHref: "#how-ordering-works",
+      alt: "Location checked | Restricted item review | Order request mode",
+      sortOrder: 2,
+    },
+  ];
+
+  for (const slide of homepageSlides) {
+    await prisma.homepageMedia.upsert({
+      where: { id: slide.id },
+      update: { slot: "hero-slide", type: "IMAGE", enabled: true, ...slide },
+      create: { slot: "hero-slide", type: "IMAGE", enabled: true, ...slide },
+    });
+  }
 
   for (const tier of [
     ["BASIC", "Basic", 0],
