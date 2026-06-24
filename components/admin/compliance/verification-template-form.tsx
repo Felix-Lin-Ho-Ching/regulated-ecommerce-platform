@@ -1,17 +1,25 @@
+"use client";
+
+import { useActionState } from "react";
+import { AlertPanel } from "@/components/common/panels";
+import type { AdminActionState } from "@/lib/admin/action-state";
 import { saveVerificationTemplateAction } from "@/lib/compliance/actions";
 import { verificationRequirementTypes, verificationTemplateCodes } from "@/lib/compliance/validation";
 
 export function VerificationTemplateForm() {
+  const [state, formAction] = useActionState<AdminActionState, FormData>(saveVerificationTemplateAction, {});
   return (
-    <form action={saveVerificationTemplateAction} className="card mt-6 grid gap-4 p-5 md:grid-cols-2">
+    <form action={formAction} className="card mt-6 grid gap-4 p-5 md:grid-cols-2">
       <div className="md:col-span-2">
         <h2 className="font-black">Manage verification template</h2>
         <p className="mt-1 text-sm text-slate-600">
           Update one of the controlled template codes and define its requirement rows. External ID or document services remain mocked in Phase 2B.
         </p>
       </div>
+      {state.error ? <div className="md:col-span-2"><AlertPanel title="Verification template blocked" tone="danger">{state.error}</AlertPanel></div> : null}
+      {state.success ? <div className="md:col-span-2"><AlertPanel title="Verification template saved" tone="success">{state.success}</AlertPanel></div> : null}
       <label className="grid gap-2 text-sm font-bold text-slate-800">
-        Template code
+        Template code *
         <select className="input" name="code" defaultValue="MANUAL_REVIEW_DEFAULT">
           {verificationTemplateCodes.map((code) => (
             <option key={code} value={code}>
@@ -62,7 +70,7 @@ export function VerificationTemplateForm() {
         ))}
       </div>
       <label className="grid gap-2 text-sm font-bold text-slate-800 md:col-span-2">
-        Required audit note
+        Required audit note *
         <textarea className="input min-h-24" name="auditNote" />
       </label>
       <button className="btn btn-primary md:w-fit" type="submit">

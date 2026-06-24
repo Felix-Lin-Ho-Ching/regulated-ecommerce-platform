@@ -161,19 +161,24 @@ export async function updateProduct(input: ProductFormInput) {
   await replaceFeatures(input.id, input.features);
 }
 
-export async function archiveProduct(productId: string) {
-  if (!isDatabaseConfigured) return;
+export async function archiveProduct(productId: string): Promise<boolean> {
+  if (!isDatabaseConfigured) return true;
+
+  const existing = await prisma.product.findUnique({ where: { id: productId }, select: { id: true } });
+  if (!existing) return false;
 
   await prisma.product.update({
     where: { id: productId },
     data: { status: "ARCHIVED", archivedAt: new Date() },
   });
+  return true;
 }
 
-export async function restoreProduct(productId: string) {
-  if (!isDatabaseConfigured) return;
+export async function restoreProduct(productId: string): Promise<boolean> {
+  if (!isDatabaseConfigured) return true;
 
   const product = await prisma.product.findUnique({ where: { id: productId }, select: { restricted: true, variants: { select: { id: true } } } });
+  if (!product) return false;
   const restoredStatus = product?.restricted ? "RESTRICTED_REVIEW" : "ACTIVE";
 
   await prisma.product.update({
@@ -185,4 +190,5 @@ export async function restoreProduct(productId: string) {
     where: { productId },
     data: { status: restoredStatus, archivedAt: null },
   });
+  return true;
 }

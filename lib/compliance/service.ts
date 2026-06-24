@@ -103,14 +103,14 @@ export async function getComplianceRules(): Promise<ComplianceRuleRow[]> {
   });
 }
 
-export async function upsertComplianceRule(input: ComplianceRuleInput): Promise<string> {
+export async function upsertComplianceRule(input: ComplianceRuleInput): Promise<string | { error: string }> {
   if (!isDatabaseConfigured) return input.id ?? "mock-rule";
 
   const template = input.verificationTemplateId
     ? await prisma.verificationTemplate.findUnique({ where: { id: input.verificationTemplateId } })
     : await prisma.verificationTemplate.findUnique({ where: { code: "MANUAL_REVIEW_DEFAULT" } });
 
-  if (!template) throw new Error("Verification template is required.");
+  if (!template) return { error: "Verification template is required." };
 
   const rule = input.id
     ? await prisma.stateRestrictionRule.update({

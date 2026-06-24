@@ -1,3 +1,8 @@
+"use client";
+
+import { useActionState } from "react";
+import { AlertPanel } from "@/components/common/panels";
+import type { AdminActionState } from "@/lib/admin/action-state";
 import { saveComplianceRuleAction } from "@/lib/compliance/actions";
 import { ruleOutcomes, ruleReviewStatuses } from "@/lib/compliance/validation";
 import type { ComplianceRuleRow, VerificationTemplateRow } from "@/lib/compliance/service";
@@ -15,8 +20,9 @@ export function ComplianceRuleForm({
   templates: VerificationTemplateRow[];
   rule?: ComplianceRuleRow;
 }) {
+  const [state, formAction] = useActionState<AdminActionState, FormData>(saveComplianceRuleAction, {});
   return (
-    <form action={saveComplianceRuleAction} className="card mt-6 grid gap-4 p-5 md:grid-cols-2">
+    <form action={formAction} className="card mt-6 grid gap-4 p-5 md:grid-cols-2">
       {rule ? <input name="id" type="hidden" value={rule.id} /> : null}
       <div className="md:col-span-2">
         <h2 className="font-black">Create or update restricted-product state rule</h2>
@@ -24,8 +30,10 @@ export function ComplianceRuleForm({
           Use examples like CA requiring ID verification, HI blocked, IL permit/FOID-style review, and UN manual review for unknown states. Seeded rules are not legal advice.
         </p>
       </div>
+      {state.error ? <div className="md:col-span-2"><AlertPanel title="Compliance rule blocked" tone="danger">{state.error}</AlertPanel></div> : null}
+      {state.success ? <div className="md:col-span-2"><AlertPanel title="Compliance rule saved" tone="success">{state.success}</AlertPanel></div> : null}
       <label className="grid gap-2 text-sm font-bold text-slate-800">
-        State code
+        State code *
         <input className="input" list="state-examples" maxLength={2} name="stateCode" defaultValue={rule?.stateCode ?? "UN"} />
         <datalist id="state-examples">
           {exampleStates.map((state) => (
@@ -97,7 +105,7 @@ export function ComplianceRuleForm({
         <textarea className="input min-h-24" name="reason" defaultValue={rule?.reason} />
       </label>
       <label className="grid gap-2 text-sm font-bold text-slate-800 md:col-span-2">
-        Required audit note for this rule change
+        Required audit note for this rule change *
         <textarea className="input min-h-24" name="auditNote" />
       </label>
       <button className="btn btn-primary md:w-fit" type="submit">
