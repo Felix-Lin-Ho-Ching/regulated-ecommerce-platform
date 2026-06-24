@@ -1,27 +1,35 @@
 "use client";
 
 import { useActionState } from "react";
-import type { HomepageHeroMedia } from "@/lib/storefront/homepage-media";
+import type { HomepageSlide } from "@/lib/storefront/homepage-slides";
 import { saveHomepageMediaAction, type HomepageMediaFormState } from "@/lib/storefront/homepage-media-actions";
 
-function ErrorText({ message }: { message?: string }) { return message ? <p className="text-sm font-bold text-red-700">{message}</p> : null; }
-function Field({ label, name, value, error }: { label: string; name: string; value?: string; error?: string }) { return <label className="grid gap-2 text-sm font-bold text-slate-800">{label}<input className={`input ${error ? "border-red-600" : ""}`} name={name} defaultValue={value ?? ""}/><ErrorText message={error}/></label>; }
+function ErrorText({ message }: { message?: string }) { return message ? <p className="text-xs font-bold text-red-700">{message}</p> : null; }
+function Field({ label, name, value, error, type = "text" }: { label: string; name: string; value?: string | number; error?: string; type?: string }) { return <label className="grid gap-2 text-sm font-bold text-slate-800">{label}<input className={`input ${error ? "border-red-600" : ""}`} name={name} type={type} defaultValue={value ?? ""}/><ErrorText message={error}/></label>; }
 
-export function HomepageMediaForm({ media }: { media: HomepageHeroMedia }) {
+function SlideForm({ slide, isNew = false }: { slide: HomepageSlide; isNew?: boolean }) {
   const initial: HomepageMediaFormState = { ok: false, errors: {} };
   const [state, action, pending] = useActionState(saveHomepageMediaAction, initial);
-  return <form action={action} encType="multipart/form-data" className="card grid gap-4 p-5 md:grid-cols-2">
-    <div className="md:col-span-2"><h2 className="text-lg font-black">Homepage media</h2><p className="mt-1 text-sm text-slate-600">Configure the hero story media independently from product media. Paste a URL or upload local media for development/testing.</p>{state.ok ? <p className="mt-2 text-sm font-bold text-green-700">Homepage media saved.</p> : null}</div>
-    <label className="grid gap-2 text-sm font-bold text-slate-800">Media type<select className="input" name="homepageType" defaultValue={media.type}><option value="IMAGE">IMAGE</option><option value="VIDEO">VIDEO</option></select><span className="text-xs font-medium text-slate-500">If you upload a file, the system will automatically detect whether it is an image or video.</span></label>
-    <label className="flex items-center gap-2 text-sm font-bold text-slate-800"><input name="homepageEnabled" type="checkbox" defaultChecked={media.enabled}/> Enabled</label>
-    <div className="grid gap-2"><Field label="Media URL" name="homepageUrl" value={media.url} error={state.errors.homepageUrl}/><p className="text-center text-xs font-black uppercase text-slate-500">or</p><label className="grid gap-2 text-sm font-bold text-slate-800">Or upload media file<input className="input" name="homepageUpload" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,.jpg,.jpeg,.png,.webp,.mp4,.webm,.mov"/><span className="text-xs font-medium text-slate-500">Local uploads are for development/testing. Use durable external storage before production launch.</span><ErrorText message={state.errors.homepageUpload}/></label></div>
-    <div className="grid gap-2"><Field label="Fallback image URL" name="homepageThumbnailUrl" value={media.thumbnailUrl} error={state.errors.homepageThumbnailUrl}/><p className="text-center text-xs font-black uppercase text-slate-500">or</p><label className="grid gap-2 text-sm font-bold text-slate-800">Or upload fallback image<input className="input" name="homepageThumbnailUpload" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"/><span className="text-xs font-medium text-slate-500">Local uploads are for development/testing. Use durable external storage before production launch.</span><ErrorText message={state.errors.homepageThumbnailUpload}/></label></div>
-    <Field label="Alt text" name="homepageAlt" value={media.alt}/>
-    <Field label="CTA link" name="homepageCtaHref" value={media.ctaHref} error={state.errors.homepageCtaHref}/>
-    <div className="md:col-span-2"><Field label="Hero title" name="homepageTitle" value={media.title}/></div>
-    <label className="grid gap-2 text-sm font-bold text-slate-800 md:col-span-2">Hero subtitle<textarea className="input min-h-24" name="homepageSubtitle" defaultValue={media.subtitle ?? ""}/></label>
-    <Field label="CTA label" name="homepageCtaLabel" value={media.ctaLabel}/>
-    <label className="grid gap-2 text-sm font-bold text-slate-800">Owner note (optional)<textarea className={`input min-h-24 ${state.errors.homepageAuditNote ? "border-red-600" : ""}`} name="homepageAuditNote"/><ErrorText message={state.errors.homepageAuditNote}/></label>
-    <div className="md:col-span-2"><button className="btn btn-primary" disabled={pending} type="submit">{pending ? "Saving..." : "Save homepage media"}</button></div>
-  </form>;
+  return (
+    <form action={action} className="card grid gap-4 p-5 md:grid-cols-2">
+      <input type="hidden" name="homepageId" value={slide.id}/>
+      <div className="md:col-span-2 flex items-start justify-between gap-4"><div><h3 className="text-lg font-black">{isNew ? "Add hero slide" : slide.headline}</h3><p className="text-sm text-slate-600">Slides use media, calm sales copy, CTA, and trust badges.</p>{state.ok ? <p className="mt-2 text-sm font-bold text-green-700">Slide saved.</p> : null}</div><label className="flex items-center gap-2 text-sm font-bold"><input name="homepageEnabled" type="checkbox" defaultChecked={slide.enabled}/> Enabled</label></div>
+      <label className="grid gap-2 text-sm font-bold text-slate-800">Media type<select className="input" name="homepageType" defaultValue={slide.type}><option value="IMAGE">IMAGE</option><option value="VIDEO">VIDEO</option></select></label>
+      <Field label="Sort order" name="homepageSortOrder" type="number" value={slide.sortOrder}/>
+      <div className="grid gap-2"><Field label="Media URL" name="homepageUrl" value={slide.url} error={state.errors.homepageUrl}/><p className="text-center text-xs font-black uppercase text-slate-500">or</p><label className="grid gap-2 text-sm font-bold text-slate-800">Upload media file<input className="input" name="homepageUpload" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,.jpg,.jpeg,.png,.webp,.mp4,.webm,.mov"/><ErrorText message={state.errors.homepageUpload}/></label></div>
+      <div className="grid gap-2"><Field label="Fallback image URL / video poster" name="homepageThumbnailUrl" value={slide.thumbnailUrl} error={state.errors.homepageThumbnailUrl}/><p className="text-center text-xs font-black uppercase text-slate-500">or</p><label className="grid gap-2 text-sm font-bold text-slate-800">Upload fallback image<input className="input" name="homepageThumbnailUpload" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"/><ErrorText message={state.errors.homepageThumbnailUpload}/></label></div>
+      <div className="md:col-span-2"><Field label="Headline" name="homepageHeadline" value={slide.headline} error={state.errors.homepageHeadline}/></div>
+      <label className="grid gap-2 text-sm font-bold text-slate-800 md:col-span-2">Subheadline<textarea className="input min-h-24" name="homepageSubheadline" defaultValue={slide.subheadline}/></label>
+      <Field label="CTA label" name="homepageCtaLabel" value={slide.ctaLabel}/><Field label="CTA link" name="homepageCtaHref" value={slide.ctaHref} error={state.errors.homepageCtaHref}/>
+      <Field label="Badge 1" name="homepageBadge1" value={slide.badge1}/><Field label="Badge 2" name="homepageBadge2" value={slide.badge2}/><Field label="Badge 3" name="homepageBadge3" value={slide.badge3}/>
+      <label className="grid gap-2 text-sm font-bold text-slate-800">Owner note<textarea className="input min-h-20" name="homepageAuditNote"/></label>
+      <div className="md:col-span-2 flex flex-wrap gap-3"><button className="btn btn-primary" name="intent" value="save" disabled={pending} type="submit">{pending ? "Saving..." : "Save slide"}</button>{!isNew ? <button className="btn btn-secondary" name="intent" value="delete" disabled={pending} type="submit">Delete slide</button> : null}</div>
+    </form>
+  );
+}
+
+export function HomepageMediaForm({ slides }: { slides: HomepageSlide[] }) {
+  const nextOrder = Math.max(-1, ...slides.map((slide) => slide.sortOrder)) + 1;
+  const blank: HomepageSlide = { id: "new", slot: "hero-slide", type: "IMAGE", url: "", headline: "", subheadline: "", ctaLabel: "Shop devices", ctaHref: "/products", badge1: "Responsible ownership", badge2: "Secure order handling", badge3: "Verified at checkout", enabled: false, sortOrder: nextOrder };
+  return <section className="grid gap-5"><div><h2 className="text-xl font-black">Homepage hero slideshow</h2><p className="text-sm text-slate-600">Manage up to three active hero slides. Disabled slides may be saved without media.</p></div>{slides.map((slide) => <SlideForm key={slide.id} slide={slide}/>)}<SlideForm slide={blank} isNew /></section>;
 }
