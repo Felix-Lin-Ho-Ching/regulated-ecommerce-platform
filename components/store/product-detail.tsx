@@ -89,7 +89,7 @@ export function ProductDetail({ product }: { product: CatalogProduct }) {
         </section>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <AddToCartForm returnTo={`/products/${product.slug}`} showQuantity slug={product.slug} />
+          <AddToCartForm availableStock={product.stock} returnTo={`/products/${product.slug}`} showQuantity slug={product.slug} />
           <a className="btn btn-secondary text-center" href="/cart">
             View cart
           </a>

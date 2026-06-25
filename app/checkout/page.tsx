@@ -4,7 +4,7 @@ import { EmptyState } from "@/components/common/panels";
 import { getCartSnapshot } from "@/lib/cart/cart-service";
 import Link from "next/link";
 
-export default async function Checkout({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+export default async function Checkout({ searchParams }: { searchParams: Promise<{ error?: string; message?: string }> }) {
   const [cart, sp] = await Promise.all([getCartSnapshot(), searchParams]);
 
   return (
@@ -18,7 +18,7 @@ export default async function Checkout({ searchParams }: { searchParams: Promise
           <Link className="btn btn-primary mt-5" href="/products">Shop products</Link>
         </EmptyState>
       ) : (
-        <OnePageCheckout cart={cart} error={sp.error} />
+        <OnePageCheckout cart={cart} error={sp.error} message={sp.message} />
       )}
     </AppShell>
   );
