@@ -1,10 +1,17 @@
 import type { AdminSession } from "@/lib/admin/auth";
 import type { FulfillmentOrderForAdmin } from "@/lib/fulfillment/admin-queries";
+import type { FulfillmentSettingsForAdmin } from "@/lib/fulfillment/admin-actions";
 import { SectionHeader } from "@/components/ui";
 import { ClaimBatchForm } from "@/components/admin/fulfillment/claim-batch-form";
 import { FulfillmentSettingsForm } from "@/components/admin/fulfillment/fulfillment-settings-form";
 import { FulfillmentOrdersTable } from "@/components/admin/fulfillment/fulfillment-orders-table";
 import { ShipSelectedForm } from "@/components/admin/fulfillment/ship-selected-form";
+
+type FulfillmentDashboardProps = {
+  admin: AdminSession;
+  settings: FulfillmentSettingsForAdmin;
+  orders: FulfillmentOrderForAdmin[];
+};
 
 function getFulfillmentPageDescription(admin: AdminSession) {
   if (admin.role === "FULFILLMENT") {
@@ -18,11 +25,7 @@ export function FulfillmentDashboard({
   admin,
   settings,
   orders,
-}: {
-  admin: AdminSession;
-  settings: { defaultBatchSize: number; maxBatchSize: number; allowCustomClaim: boolean };
-  orders: FulfillmentOrderForAdmin[];
-}) {
+}: FulfillmentDashboardProps) {
   const canEditSettings = ["OWNER", "ADMIN"].includes(admin.role);
 
   return (
