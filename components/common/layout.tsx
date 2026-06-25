@@ -28,7 +28,8 @@ export async function StoreHeader() {
     getStorefrontContent(),
   ]);
   const cartCount = getCartLineCount(cart);
-  const announcement = content.announcementBarText || "Free shipping on qualifying orders";
+  const announcement =
+    content.announcementBarText || "Free shipping on qualifying orders";
 
   return (
     <header className="sticky top-0 z-30 border-b border-stone-200 bg-white/95 shadow-sm backdrop-blur">
@@ -36,39 +37,80 @@ export async function StoreHeader() {
         {announcement}
       </div>
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 lg:flex-nowrap">
-        <Link className="shrink-0 text-2xl font-black tracking-tight text-teal-950" href="/">
+        <Link
+          className="shrink-0 text-2xl font-black tracking-tight text-teal-950"
+          href="/"
+        >
           {brand.name}
         </Link>
         <nav className="hidden items-center gap-5 text-sm font-black text-slate-700 lg:flex">
-          <Link className="hover:text-teal-900" href="/products">Shop</Link>
-          <Link className="hover:text-teal-900" href="/my-state">My State</Link>
-          <Link className="hover:text-teal-900" href="/">About Us</Link>
-          <Link className="hover:text-teal-900" href="/shipping-policy">Resources</Link>
+          <Link className="hover:text-teal-900" href="/products">
+            Shop
+          </Link>
+          <Link className="hover:text-teal-900" href="/my-state">
+            My State
+          </Link>
+          <Link className="hover:text-teal-900" href="/">
+            About Us
+          </Link>
+          <Link className="hover:text-teal-900" href="/shipping-policy">
+            Resources
+          </Link>
         </nav>
         <div className="order-3 hidden w-full justify-end sm:flex lg:order-none lg:ml-auto lg:w-auto">
-          <label className="relative w-full max-w-[14rem] lg:w-52">
-            <span className="sr-only">Search products</span>
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400" aria-hidden="true">⌕</span>
-            <input className="h-9 w-full rounded-full border border-stone-200 bg-stone-50 py-1.5 pl-8 pr-3 text-sm shadow-inner transition focus:border-teal-800 focus:bg-white" placeholder="Search" type="search" />
-          </label>
+          <form
+            action="/products"
+            method="get"
+            className="w-full max-w-[14rem] lg:w-52"
+          >
+            <label className="relative block">
+              <span className="sr-only">Search products</span>
+              <span
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"
+                aria-hidden="true"
+              >
+                ⌕
+              </span>
+              <input
+                className="h-9 w-full rounded-full border border-stone-200 bg-stone-50 py-1.5 pl-8 pr-3 text-sm shadow-inner transition focus:border-teal-800 focus:bg-white"
+                name="q"
+                placeholder="Search"
+                type="search"
+              />
+            </label>
+          </form>
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-2 lg:ml-0">
-          <Link className="hidden rounded-full px-2 py-2 text-sm font-bold text-slate-700 hover:bg-stone-100 sm:inline-flex" href={session ? "/account" : "/account/login"} aria-label="Account">
-            <span aria-hidden="true">👤</span><span className="ml-1 hidden xl:inline">Account</span>
+          <Link
+            className="hidden rounded-full px-2 py-2 text-sm font-bold text-slate-700 hover:bg-stone-100 sm:inline-flex"
+            href={session ? "/account" : "/account/login"}
+            aria-label="Account"
+          >
+            <span aria-hidden="true">👤</span>
+            <span className="ml-1 hidden xl:inline">Account</span>
           </Link>
-          <Link className="hidden rounded-full px-2 py-2 text-sm font-bold text-slate-700 hover:bg-stone-100 sm:inline-flex" href="/restricted-products-policy" aria-label="Help and policy information">
-            <span aria-hidden="true">ⓘ</span><span className="ml-1 hidden xl:inline">Help</span>
+          <Link
+            className="hidden rounded-full px-2 py-2 text-sm font-bold text-slate-700 hover:bg-stone-100 sm:inline-flex"
+            href="/restricted-products-policy"
+            aria-label="Help and policy information"
+          >
+            <span aria-hidden="true">ⓘ</span>
+            <span className="ml-1 hidden xl:inline">Help</span>
           </Link>
           {session ? <LogoutButton /> : null}
           <CartIcon count={cartCount} />
           <details className="relative lg:hidden">
-            <summary className="list-none rounded-full border border-stone-200 px-3 py-2 text-sm font-black">Menu</summary>
+            <summary className="list-none rounded-full border border-stone-200 px-3 py-2 text-sm font-black">
+              Menu
+            </summary>
             <div className="absolute right-0 mt-2 grid w-52 gap-2 rounded-2xl border border-stone-200 bg-white p-3 text-sm font-bold shadow-xl">
               <Link href="/products">Shop</Link>
               <Link href="/my-state">My State</Link>
               <Link href="/">About Us</Link>
               <Link href="/shipping-policy">Resources</Link>
-              <Link href={session ? "/account" : "/account/login"}>Account</Link>
+              <Link href={session ? "/account" : "/account/login"}>
+                Account
+              </Link>
             </div>
           </details>
         </div>
