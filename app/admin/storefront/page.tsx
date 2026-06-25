@@ -8,7 +8,7 @@ export default async function StorefrontAdminPage() {
   const [content, homepageSlides] = await Promise.all([getStorefrontContent(), getHomepageSlidesForAdmin()]);
 
   return (
-    <AdminShell title="Storefront content">
+    <AdminShell title="Storefront content" currentPath="/admin/storefront">
       <div className="grid gap-6"><HomepageMediaForm slides={homepageSlides} /><StorefrontSettingsForm content={content} /></div>
     </AdminShell>
   );

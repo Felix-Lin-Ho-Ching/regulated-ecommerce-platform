@@ -1,19 +1,23 @@
-import { AdminLoginForm } from "@/components/admin/admin-login-form";
-import { AppShell, SectionHeader } from "@/components/ui";
+import { redirect } from "next/navigation";
 
-export default async function AdminLogin({
+function appendParam(params: URLSearchParams, name: string, value?: string) {
+  if (value) {
+    params.set(name, value);
+  }
+}
+
+export default async function AdminLoginRedirect({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string; message?: string; next?: string }>;
 }) {
   const sp = await searchParams;
+  const params = new URLSearchParams();
 
-  return (
-    <AppShell>
-      <SectionHeader eyebrow="Admin" title="Admin login">
-        Access the local development operations dashboard.
-      </SectionHeader>
-      <AdminLoginForm error={sp.error} message={sp.message} next={sp.next} />
-    </AppShell>
-  );
+  appendParam(params, "next", sp.next);
+  appendParam(params, "error", sp.error);
+  appendParam(params, "message", sp.message);
+
+  const query = params.toString();
+  redirect(query ? `/staff/login?${query}` : "/staff/login");
 }

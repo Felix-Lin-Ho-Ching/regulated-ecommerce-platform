@@ -10,10 +10,10 @@ const fmt = (date: Date) => new Intl.DateTimeFormat("en", { dateStyle: "medium",
 export default async function OrdersAdmin() {
   const result = await getAdminOrders();
   if (!result.available) {
-    return <AdminShell title="Orders"><EmptyState title="Database unavailable">Admin orders require DATABASE_URL. No mock orders are shown as real orders.</EmptyState></AdminShell>;
+    return <AdminShell title="Orders" currentPath="/admin/orders"><EmptyState title="Database unavailable">Admin orders require DATABASE_URL. No mock orders are shown as real orders.</EmptyState></AdminShell>;
   }
   return (
-    <AdminShell title="Orders">
+    <AdminShell title="Orders" currentPath="/admin/orders">
       <AdminDataTable columns={["Order", "Customer", "Email", "Total", "Payment", "Status", "Restricted", "State", "ZIP", "Created", "Action"]} rows={result.orders.map((order: any) => [
         order.orderNumber,
         order.customerName ?? order.shippingAddress?.name ?? order.user?.name ?? "—",
