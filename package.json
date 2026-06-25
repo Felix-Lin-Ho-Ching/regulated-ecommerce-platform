@@ -6,13 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "node scripts/static-check.mjs lint",
-    "typecheck": "node scripts/static-check.mjs typecheck",
+    "lint": "eslint . --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit",
     "smoke": "node scripts/static-check.mjs smoke",
     "prisma:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "lint:static": "node scripts/static-check.mjs lint"
   },
   "dependencies": {
     "next": "^15.5.6",
