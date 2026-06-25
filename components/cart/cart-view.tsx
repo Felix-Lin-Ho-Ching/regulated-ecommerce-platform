@@ -6,20 +6,26 @@ import { RestrictedProductBadge, StatusBadge } from "@/components/common/badge";
 import { AlertPanel, EmptyState } from "@/components/common/panels";
 import { CheckoutSummary } from "@/components/checkout/checkout-flow";
 
-export function CartView({ cart }: { cart: CartSnapshot }) {
+export function CartView({ cart, messages }: { cart: CartSnapshot; messages?: { cartError?: string; cartNotice?: string; available?: string } }) {
+  const messagePanel = getCartMessagePanel(messages);
   if (cart.lines.length === 0) {
     return (
-      <EmptyState title="Your cart is empty">
+      <>
+        {messagePanel}
+        <EmptyState title="Your cart is empty">
         Add products to your cart to begin checkout review.
         <Link className="btn btn-primary mt-5" href="/products">
           Shop products
         </Link>
-      </EmptyState>
+        </EmptyState>
+      </>
     );
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-[1fr_320px]">
+    <>
+      {messagePanel}
+      <div className="grid gap-6 md:grid-cols-[1fr_320px]">
       <section className="card divide-y divide-stone-200 p-5">
         {cart.lines.map((line) => (
           <article
@@ -54,11 +60,9 @@ export function CartView({ cart }: { cart: CartSnapshot }) {
                 <input name="slug" type="hidden" value={line.product.slug} />
                 <select className="input w-24" defaultValue={line.quantity} name="quantity">
                   <option value="0">Remove</option>
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                  <option value="4">4</option>
-                  <option value="5">5</option>
+                  {Array.from({ length: Math.min(10, line.product.stock) }, (_, index) => index + 1).map((quantity) => (
+                    <option key={quantity} value={quantity}>{quantity}</option>
+                  ))}
                 </select>
                 <button className="btn btn-secondary" type="submit">
                   Update
@@ -81,6 +85,33 @@ export function CartView({ cart }: { cart: CartSnapshot }) {
           Checkout
         </Link>
       </div>
+      </div>
+    </>
+  );
+}
+
+function getCartMessagePanel(messages?: { cartError?: string; cartNotice?: string; available?: string }) {
+  if (messages?.cartNotice === "adjusted") {
+    return (
+      <div className="mb-5">
+        <AlertPanel title="Quantity adjusted" tone="warning">
+          Quantity adjusted to available stock{messages.available ? ` (${messages.available}).` : "."}
+        </AlertPanel>
+      </div>
+    );
+  }
+
+  if (!messages?.cartError) return null;
+
+  const text = messages.cartError === "out-of-stock"
+    ? "Item is out of stock."
+    : messages.cartError === "not-found"
+      ? "Item could not be found."
+      : "Cart could not be updated.";
+
+  return (
+    <div className="mb-5">
+      <AlertPanel title="Cart update needed" tone="warning">{text}</AlertPanel>
     </div>
   );
 }

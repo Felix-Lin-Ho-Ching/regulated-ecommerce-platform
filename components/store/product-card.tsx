@@ -29,7 +29,7 @@ function ProductCardMedia({ product }: { product: CatalogProduct }) {
   );
 }
 
-export function ProductCard({ product }: { product: CatalogProduct }) {
+export function ProductCard({ product, returnTo = "/products" }: { product: CatalogProduct; returnTo?: string }) {
   const stockTone = product.stock > 20 ? "success" : product.stock > 0 ? "warning" : "danger";
   const stockText = product.stock > 0 ? `${product.stock} in stock` : "Out of stock";
 
@@ -51,17 +51,17 @@ export function ProductCard({ product }: { product: CatalogProduct }) {
         <Link className="btn btn-secondary" href={`/products/${product.slug}`}>
           View
         </Link>
-        <AddToCartForm returnTo="/products" slug={product.slug} />
+        <AddToCartForm availableStock={product.stock} returnTo={returnTo} slug={product.slug} />
       </div>
     </article>
   );
 }
 
-export function ProductGrid({ products }: { products: CatalogProduct[] }) {
+export function ProductGrid({ products, returnTo = "/products" }: { products: CatalogProduct[]; returnTo?: string }) {
   return (
     <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {products.map((product) => (
-        <ProductCard product={product} key={product.id} />
+        <ProductCard product={product} key={product.id} returnTo={returnTo} />
       ))}
     </section>
   );

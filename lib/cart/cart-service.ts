@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { getCatalogProducts, type CatalogProduct } from "@/lib/db/catalog";
+import { getCatalogProductBySlug, getCatalogProducts, type CatalogProduct } from "@/lib/db/catalog";
 
 export type CartCookieItem = {
   slug: string;
@@ -66,6 +66,11 @@ export async function clearCart() {
   cookieStore.delete(cartCookieName);
 }
 
+export async function getAvailableStockBySlug(slug: string): Promise<{ product?: CatalogProduct; available: number }> {
+  const product = await getCatalogProductBySlug(slug);
+  return { product, available: Math.max(0, product?.stock ?? 0) };
+}
+
 export async function getCartSnapshot(): Promise<CartSnapshot> {
   const [items, products] = await Promise.all([getCartCookieItems(), getCatalogProducts()]);
   const lines = items
@@ -76,7 +81,13 @@ export async function getCartSnapshot(): Promise<CartSnapshot> {
         return null;
       }
 
-      const quantity = normalizeQuantity(item.quantity);
+      const available = Math.max(0, product.stock);
+
+      if (available <= 0) {
+        return null;
+      }
+
+      const quantity = Math.min(normalizeQuantity(item.quantity), available);
       return { product, quantity, lineTotal: product.price * quantity };
     })
     .filter((line): line is CartLine => Boolean(line));

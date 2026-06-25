@@ -9,6 +9,9 @@ import { getCatalogProducts, storefrontCategories } from "@/lib/db/catalog";
 
 type ProductSearchParams = {
   added?: string;
+  cartError?: string;
+  cartNotice?: string;
+  available?: string;
   q?: string;
   category?: string;
 };
@@ -22,6 +25,10 @@ export default async function Products({
   const q = sp.q?.trim() ?? "";
   const category = sp.category?.trim() ?? "all";
   const products = await getCatalogProducts({ q, category });
+  const returnParams = new URLSearchParams();
+  if (q) returnParams.set("q", q);
+  if (category && category !== "all") returnParams.set("category", category);
+  const returnTo = returnParams.toString() ? `/products?${returnParams}` : "/products";
 
   return (
     <AppShell>
@@ -32,10 +39,24 @@ export default async function Products({
       {sp.added ? (
         <div className="mb-5">
           <AlertPanel title="Added to cart" tone="success">
-            Your item was added.{" "}
+            Your item was added. {" "}
             <Link className="font-black underline" href="/cart">
               View cart
             </Link>
+          </AlertPanel>
+        </div>
+      ) : null}
+      {sp.cartNotice === "adjusted" ? (
+        <div className="mb-5">
+          <AlertPanel title="Quantity adjusted" tone="warning">
+            Quantity adjusted to available stock{sp.available ? ` (${sp.available}).` : "."}
+          </AlertPanel>
+        </div>
+      ) : null}
+      {sp.cartError ? (
+        <div className="mb-5">
+          <AlertPanel title="Cart update needed" tone="warning">
+            {sp.cartError === "out-of-stock" ? "Item is out of stock." : sp.cartError === "not-found" ? "Item could not be found." : "Cart could not be updated."}
           </AlertPanel>
         </div>
       ) : null}
@@ -76,7 +97,7 @@ export default async function Products({
         </Link>
       </form>
       {products.length > 0 ? (
-        <ProductCard.Grid products={products} />
+        <ProductCard.Grid products={products} returnTo={returnTo} />
       ) : (
         <section className="rounded-3xl border border-dashed border-stone-300 bg-white p-8 text-center shadow-sm">
           <h2 className="text-2xl font-black text-slate-950">

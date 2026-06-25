@@ -26,7 +26,7 @@ function isAdult({ year, month, day }: AgeState) {
   return new Date(dob.getFullYear() + 18, dob.getMonth(), dob.getDate()) <= today;
 }
 
-export function OnePageCheckout({ cart, error }: { cart: CartSnapshot; error?: string }) {
+export function OnePageCheckout({ cart, error, message }: { cart: CartSnapshot; error?: string; message?: string }) {
   const [address, setAddress] = useState<AddressState>({ email: "", firstName: "", lastName: "", line1: "", city: "", state: "", postalCode: "" });
   const [age, setAge] = useState<AgeState>({ month: "", day: "", year: "", verified: false, attested: false });
   const hasRestricted = cart.hasRestrictedItems;
@@ -53,7 +53,7 @@ export function OnePageCheckout({ cart, error }: { cart: CartSnapshot; error?: s
         {error === "address" ? <CheckoutNotice tone="warning">Complete your shipping address to continue.</CheckoutNotice> : null}
         {error === "blocked" ? <BlockedNotice /> : null}
         {error === "verification" ? <CheckoutNotice tone="warning">Age verification is required for restricted items.</CheckoutNotice> : null}
-        {error === "stock" ? <CheckoutNotice tone="danger">Only the currently available quantity can be requested.</CheckoutNotice> : null}
+        {error === "stock" ? <CheckoutNotice tone="danger">{getSafeStockMessage(message)}</CheckoutNotice> : null}
 
         <section className="card p-5">
           <h2 className="text-xl font-black">Express checkout</h2>
@@ -118,3 +118,11 @@ function OrderSummary({ cart }: { cart: CartSnapshot }) { return <aside classNam
 function Row({ label, value }: { label: string; value: string }) { return <div className="flex justify-between"><dt>{label}</dt><dd>{value}</dd></div>; }
 function BlockedNotice() { return <CheckoutNotice tone="danger">This item is not available for your shipping destination. <button className="underline" type="button">Change shipping address</button> or <Link className="underline" href="/cart">Remove restricted item</Link>.</CheckoutNotice>; }
 function CheckoutNotice({ children, tone }: { children: React.ReactNode; tone: "warning" | "danger" }) { return <div className={`rounded-2xl border p-4 text-sm font-bold ${tone === "danger" ? "border-red-200 bg-red-50 text-red-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>{children}</div>; }
+
+function getSafeStockMessage(message?: string) {
+  if (message && /^Only (\d+ available\.?|the currently available quantity can be requested\.)$/.test(message)) {
+    return message;
+  }
+
+  return "Only the currently available quantity can be requested.";
+}
