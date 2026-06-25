@@ -32,8 +32,10 @@ export async function saveHomepageMediaAction(_prev: HomepageMediaFormState, for
   const ctaHref = text(formData, "homepageCtaHref") || "/products";
   const errors: Record<string, string> = {};
   const detectedMediaType = detectMediaKindFromUpload(mediaFile);
+  const detectedThumbnailType = detectMediaKindFromUpload(thumbnailFile);
 
   if (isUploadFile(mediaFile) && !detectedMediaType) errors.homepageUpload = "Unsupported media file. Upload a JPEG, PNG, WebP, MP4, WebM, or MOV file.";
+  if (isUploadFile(thumbnailFile) && detectedThumbnailType !== "IMAGE") errors.homepageThumbnailUpload = "Unsupported fallback image file. Upload a JPEG, PNG, or WebP file.";
   if (detectedMediaType) type = detectedMediaType;
   if (!text(formData, "homepageHeadline")) errors.homepageHeadline = "Headline is required.";
   if (enabled && !url && !isUploadFile(mediaFile)) errors.homepageUrl = "Media URL or uploaded media file is required when this slide is enabled.";
