@@ -1,22 +1,27 @@
 "use client";
 
 import { useActionState } from "react";
-import { updateFulfillmentSettingsAction } from "@/lib/fulfillment/admin-actions";
-import { Message } from "@/components/admin/fulfillment/message";
+import { FulfillmentMessage } from "@/components/admin/fulfillment/fulfillment-message";
+import {
+  updateFulfillmentSettingsAction,
+  type FulfillmentSettingsForAdmin,
+} from "@/lib/fulfillment/admin-actions";
+
+type FulfillmentSettingsFormProps = {
+  settings: FulfillmentSettingsForAdmin;
+  canEdit: boolean;
+};
 
 export function FulfillmentSettingsForm({
   settings,
   canEdit,
-}: {
-  settings: { defaultBatchSize: number; maxBatchSize: number; allowCustomClaim: boolean };
-  canEdit: boolean;
-}) {
+}: FulfillmentSettingsFormProps) {
   const [state, action, pending] = useActionState(updateFulfillmentSettingsAction, {});
 
   return (
     <form action={action} className="card grid gap-3 p-5">
       <h2 className="text-xl font-black">Fulfillment batch settings</h2>
-      <Message state={state} />
+      <FulfillmentMessage state={state} />
 
       <label className="grid gap-1 text-sm font-bold">
         Default batch size

@@ -1,16 +1,23 @@
 "use client";
 
 import { useActionState } from "react";
-import { claimBatchAction } from "@/lib/fulfillment/admin-actions";
-import { Message } from "@/components/admin/fulfillment/message";
+import { FulfillmentMessage } from "@/components/admin/fulfillment/fulfillment-message";
+import {
+  claimBatchAction,
+  type FulfillmentSettingsForAdmin,
+} from "@/lib/fulfillment/admin-actions";
 
-export function ClaimBatchForm({ settings }: { settings: { defaultBatchSize: number; maxBatchSize: number; allowCustomClaim: boolean } }) {
+type ClaimBatchFormProps = {
+  settings: FulfillmentSettingsForAdmin;
+};
+
+export function ClaimBatchForm({ settings }: ClaimBatchFormProps) {
   const [state, action, pending] = useActionState(claimBatchAction, {});
 
   return (
     <form action={action} className="card grid gap-3 p-5">
       <h2 className="text-xl font-black">Claim orders</h2>
-      <Message state={state} />
+      <FulfillmentMessage state={state} />
 
       <button
         className="btn btn-primary"

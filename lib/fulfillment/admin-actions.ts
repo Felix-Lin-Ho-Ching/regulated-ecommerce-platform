@@ -5,7 +5,13 @@ import { prisma } from "@/lib/db/prisma";
 import { shipOrders } from "@/lib/fulfillment/ship-orders";
 
 export type FulfillmentFormState = { error?: string; success?: string };
-export async function getFulfillmentSettings() {
+export type FulfillmentSettingsForAdmin = {
+  defaultBatchSize: number;
+  maxBatchSize: number;
+  allowCustomClaim: boolean;
+};
+
+export async function getFulfillmentSettings(): Promise<FulfillmentSettingsForAdmin> {
   return (prisma as any).fulfillmentSettings.upsert({ where: { id: "default" }, update: {}, create: { id: "default", defaultBatchSize: 25, maxBatchSize: 100, allowCustomClaim: false } });
 }
 export async function updateFulfillmentSettingsAction(_s: FulfillmentFormState, fd: FormData): Promise<FulfillmentFormState> {
