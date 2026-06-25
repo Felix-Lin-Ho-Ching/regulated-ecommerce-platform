@@ -1,1 +1,1 @@
-import { AdminShell, AuditLogTable } from "@/components/ui";export default function Audit(){return <AdminShell title="Audit log"><AuditLogTable/></AdminShell>}
+import { AdminShell, AuditLogTable } from "@/components/ui";export default function Audit(){return <AdminShell title="Audit log" currentPath="/admin/audit-log"><AuditLogTable/></AdminShell>}

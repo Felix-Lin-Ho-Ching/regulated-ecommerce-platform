@@ -15,7 +15,7 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
   const products = await getAdminProducts(filter);
 
   return (
-    <AdminShell title="Products">
+    <AdminShell title="Products" currentPath="/admin/products">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           {filters.map((item) => (

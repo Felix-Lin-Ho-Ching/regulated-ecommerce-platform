@@ -14,14 +14,14 @@ export function AdminLoginForm({
     <section className="card mx-auto max-w-xl p-6">
       {message ? (
         <div className="mb-4">
-          <AlertPanel title="Admin message" tone="success">
+          <AlertPanel title="Staff message" tone="success">
             {message}
           </AlertPanel>
         </div>
       ) : null}
       {error ? (
         <div className="mb-4">
-          <AlertPanel title="Admin login issue" tone="danger">
+          <AlertPanel title="Staff login issue" tone="danger">
             {error}
           </AlertPanel>
         </div>
@@ -37,7 +37,7 @@ export function AdminLoginForm({
           <input className="input mt-2 focus-ring" name="password" type="password" />
         </label>
         <button className="btn btn-primary" type="submit">
-          Log in to admin
+          Log in to staff portal
         </button>
       </form>
     </section>

@@ -56,8 +56,16 @@ export function AdminHeader({ title, adminName }: { title: string; adminName: st
   );
 }
 
-export async function AdminShell({ title, children }: { title: string; children: React.ReactNode }) {
-  const admin = await requireAdminSession();
+export async function AdminShell({
+  title,
+  children,
+  currentPath = "/admin",
+}: {
+  title: string;
+  children: React.ReactNode;
+  currentPath?: string;
+}) {
+  const admin = await requireAdminSession(currentPath);
 
   return (
     <div className="admin-grid">

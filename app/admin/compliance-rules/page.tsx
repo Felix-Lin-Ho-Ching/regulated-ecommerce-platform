@@ -11,7 +11,7 @@ export default async function ComplianceRulesPage() {
   ]);
 
   return (
-    <AdminShell title="Compliance rules">
+    <AdminShell title="Compliance rules" currentPath="/admin/compliance-rules">
       <AlertPanel title="Database-driven rules, not legal advice" tone="warning">
         Missing or unreviewed restricted-product rules must remain MANUAL_REVIEW. Owners should treat seeded examples as workflow defaults, not final legal advice.
       </AlertPanel>

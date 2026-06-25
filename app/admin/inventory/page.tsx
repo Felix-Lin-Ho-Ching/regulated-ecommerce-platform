@@ -6,7 +6,7 @@ export default async function InventoryPage() {
   const rows = await getInventoryRows();
 
   return (
-    <AdminShell title="Inventory">
+    <AdminShell title="Inventory" currentPath="/admin/inventory">
       <AdminDataTable
         columns={["SKU", "Product", "On hand", "Reserved", "Available", "Restricted", "Audit requirement"]}
         rows={rows.map((row) => [

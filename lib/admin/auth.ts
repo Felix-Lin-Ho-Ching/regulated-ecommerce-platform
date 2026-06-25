@@ -73,7 +73,12 @@ function getConfiguredAdminCredentials() {
 
 function getNextPath(formData: FormData) {
   const next = String(formData.get("next") || "/admin");
-  return next.startsWith("/admin") ? next : "/admin";
+
+  if (next === "/admin" || next.startsWith("/admin/")) {
+    return next;
+  }
+
+  return "/admin";
 }
 
 async function setAdminSession(session: AdminSession) {
@@ -96,7 +101,7 @@ export async function requireAdminSession(nextPath = "/admin") {
   const session = await getAdminSession();
 
   if (!session) {
-    redirect(`/admin/login?next=${encodeURIComponent(nextPath)}`);
+    redirect(`/staff/login?next=${encodeURIComponent(nextPath)}`);
   }
 
   if (!session.demo && isDatabaseConfigured) {
@@ -108,7 +113,7 @@ export async function requireAdminSession(nextPath = "/admin") {
     if (!admin || admin.status !== "ACTIVE") {
       const cookieStore = await cookies();
       cookieStore.delete(adminSessionCookieName);
-      redirect("/admin/login?error=Account disabled. Contact the owner.");
+      redirect("/staff/login?error=Account disabled. Contact the owner.");
     }
 
     if (admin.role.code !== session.role || admin.email !== session.email || admin.name !== session.name) {
@@ -133,7 +138,7 @@ export async function adminLoginAction(formData: FormData) {
 
   for (const result of [validateEmail(email), validatePassword(password)]) {
     if (!result.ok) {
-      redirect(`/admin/login?error=${encodeURIComponent(result.message || "Check the form.")}`);
+      redirect(`/staff/login?error=${encodeURIComponent(result.message || "Check the form.")}`);
     }
   }
 
@@ -141,7 +146,7 @@ export async function adminLoginAction(formData: FormData) {
     const credentials = getConfiguredAdminCredentials();
 
     if (!safeEquals(email, credentials.email) || !safeEquals(password, credentials.password)) {
-      redirect("/admin/login?error=Invalid email or password.");
+      redirect("/staff/login?error=Invalid email or password.");
     }
 
     await setAdminSession({ adminId: `local-${email}`, email, name: "Felix Lin", role: "OWNER", demo: true });
@@ -154,11 +159,11 @@ export async function adminLoginAction(formData: FormData) {
   });
 
   if (!admin || !verifyPassword(password, admin.passwordHash)) {
-    redirect("/admin/login?error=Invalid email or password.");
+    redirect("/staff/login?error=Invalid email or password.");
   }
 
   if (admin.status !== "ACTIVE") {
-    redirect("/admin/login?error=Account disabled. Contact the owner.");
+    redirect("/staff/login?error=Account disabled. Contact the owner.");
   }
 
   await prisma.adminUser.update({ where: { id: admin.id }, data: { lastLoginAt: new Date() } });
@@ -179,5 +184,5 @@ export async function adminLoginAction(formData: FormData) {
 export async function adminLogoutAction() {
   const cookieStore = await cookies();
   cookieStore.delete(adminSessionCookieName);
-  redirect("/admin/login?message=You have been logged out.");
+  redirect("/staff/login?message=You have been logged out.");
 }
