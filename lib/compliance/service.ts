@@ -180,3 +180,56 @@ export async function upsertVerificationTemplate(input: VerificationTemplateInpu
 
   return template.id as string;
 }
+
+export type LocalRestrictionRuleRow = {
+  id: string;
+  stateCode: string;
+  localityType: string;
+  localityName: string;
+  productCategory: string;
+  productName: string;
+  productId: string;
+  outcome: string;
+  reason: string;
+};
+
+export async function getLocalRestrictionRules(): Promise<LocalRestrictionRuleRow[]> {
+  if (!isDatabaseConfigured) return [];
+
+  const rules = await prisma.localRestrictionRule.findMany({
+    where: { archivedAt: null },
+    include: { product: true },
+    orderBy: [{ stateCode: "asc" }, { localityType: "asc" }, { localityName: "asc" }],
+  });
+
+  return rules.map((rule: any) => ({
+    id: rule.id,
+    stateCode: rule.stateCode,
+    localityType: rule.localityType,
+    localityName: rule.localityName,
+    productCategory: rule.productCategory,
+    productName: rule.product?.name ?? "All products in category",
+    productId: rule.productId ?? "",
+    outcome: rule.outcome,
+    reason: rule.reason,
+  }));
+}
+
+export async function createLocalRestrictionRule(input: import("@/lib/compliance/validation").LocalRestrictionRuleInput): Promise<string | { error: string }> {
+  if (!isDatabaseConfigured) return "mock-local-rule";
+
+  const rule = await prisma.localRestrictionRule.create({
+    data: {
+      stateCode: input.stateCode,
+      localityType: input.localityType,
+      localityName: input.localityName,
+      productCategory: input.productCategory,
+      productId: input.productId,
+      outcome: input.outcome,
+      reviewStatus: "MANUAL_REVIEW",
+      reason: input.reason,
+    },
+  });
+
+  return rule.id as string;
+}

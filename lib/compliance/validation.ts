@@ -100,3 +100,27 @@ export function parseVerificationTemplateForm(formData: FormData): VerificationT
     auditNote: text(formData, "auditNote"),
   };
 }
+
+export type LocalRestrictionRuleInput = {
+  stateCode: string;
+  localityType: string;
+  localityName: string;
+  productCategory: string;
+  productId?: string;
+  outcome: (typeof ruleOutcomes)[number];
+  reason: string;
+  auditNote: string;
+};
+
+export function parseLocalRestrictionRuleForm(formData: FormData): LocalRestrictionRuleInput {
+  return {
+    stateCode: text(formData, "localStateCode").toUpperCase().slice(0, 2) || "UN",
+    localityType: text(formData, "localityType").toUpperCase() || "ZIP",
+    localityName: text(formData, "localityName") || "Unknown",
+    productCategory: text(formData, "localProductCategory") || "knuckle_stun_device",
+    productId: text(formData, "localProductId") || undefined,
+    outcome: oneOf(text(formData, "localOutcome"), ruleOutcomes, "BLOCK"),
+    reason: text(formData, "localReason") || "Local shipping restriction.",
+    auditNote: text(formData, "localAuditNote"),
+  };
+}
