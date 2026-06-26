@@ -15,8 +15,6 @@ export {
   AdminHeader,
   AdminShell,
   AdminSidebar,
-  AuditLogTable,
   ConfirmDialog,
-  LaunchGateCard,
   RuleCoverageMatrix,
 } from "@/components/admin/admin-shell";

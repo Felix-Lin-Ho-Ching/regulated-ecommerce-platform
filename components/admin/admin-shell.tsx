@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { brand } from "@/lib/config/brand";
-import { complianceRules, launchGates, auditLogs } from "@/lib/mock-data";
+import { complianceRules } from "@/lib/mock-data";
 import type { RuleCoverageRow } from "@/lib/db/catalog";
 import { StatusBadge } from "@/components/common/badge";
 import { adminLogoutAction, requireAdminSession } from "@/lib/admin/auth";
@@ -12,12 +12,12 @@ export function AdminSidebar({ role }: { role: string }) {
     ["/admin/inventory", "Inventory"],
     ["/admin/orders", "Orders"],
     ["/admin/fulfillment", "Fulfillment"],
+    ["/admin/storefront", "Storefront"],
+    ["/admin/compliance-rules", "Restricted rules"],
+    ["/admin/launch-gates", "Readiness"],
     ["/admin/notification-recipients", "Notification recipients"],
     ["/admin/employees", "Employees"],
-    ["/admin/compliance-rules", "Compliance rules"],
-    ["/admin/storefront", "Storefront"],
     ["/admin/audit-log", "Audit log"],
-    ["/admin/launch-gates", "Launch gates"],
   ];
   const links = role === "FULFILLMENT" ? [["/admin/fulfillment", "Fulfillment"]] : ownerAdminLinks;
 
@@ -144,48 +144,6 @@ export function RuleCoverageMatrix({ rows }: { rows?: RuleCoverageRow[] }) {
         </StatusBadge>,
         row.outcome,
         row.note,
-      ])}
-    />
-  );
-}
-
-export function LaunchGateCard() {
-  return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {launchGates.map((gate) => (
-        <section className="card p-5" key={gate.name}>
-          <div className="flex justify-between gap-3">
-            <h2 className="font-black">{gate.name}</h2>
-            <StatusBadge
-              tone={gate.state === "blocked" ? "danger" : gate.state === "ready" ? "warning" : "success"}
-            >
-              {gate.state}
-            </StatusBadge>
-          </div>
-          <p className="mt-3 text-sm text-slate-600">
-            {gate.ownerOnly
-              ? "Owner-only gate. Enable action requires all blockers cleared."
-              : "Operational gate visible to admins."}
-          </p>
-          <button className="btn btn-secondary mt-4 focus-ring" disabled={gate.state === "blocked"}>
-            {gate.state === "enabled" ? "Enabled" : "Review gate"}
-          </button>
-        </section>
-      ))}
-    </div>
-  );
-}
-
-export function AuditLogTable() {
-  return (
-    <AdminDataTable
-      columns={["Time", "Actor", "Action", "Target", "Required note"]}
-      rows={auditLogs.map((auditLog) => [
-        auditLog.time,
-        auditLog.actor,
-        auditLog.action,
-        auditLog.target,
-        auditLog.note,
       ])}
     />
   );

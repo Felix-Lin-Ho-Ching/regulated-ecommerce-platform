@@ -35,7 +35,7 @@ export async function saveHomepageMediaAction(_prev: HomepageMediaFormState, for
 
   if (isUploadFile(mediaFile) && !detectedMediaType) errors.homepageUpload = "Unsupported media file. Upload a JPEG, PNG, WebP, MP4, WebM, or MOV file.";
   if (detectedMediaType) type = detectedMediaType;
-  if (!text(formData, "homepageHeadline")) errors.homepageHeadline = "Headline is required.";
+
   if (enabled && !url && !isUploadFile(mediaFile)) errors.homepageUrl = "Media URL or uploaded media file is required when this slide is enabled.";
   if (url && !isSafeUrl(url)) errors.homepageUrl = "Enter a valid URL beginning with https://, http://, or /.";
   if (!optionalUrl(thumbnailUrl)) errors.homepageThumbnailUrl = "Enter a valid fallback image URL or leave it blank.";
@@ -54,7 +54,7 @@ export async function saveHomepageMediaAction(_prev: HomepageMediaFormState, for
     catch (error) { return { ok: false, errors: { homepageThumbnailUpload: error instanceof LocalMediaUploadError ? error.message : "Fallback image upload failed. Try again or use an image URL." } }; }
   }
 
-  const slide: HomepageSlide = { id, slot: "hero-slide", type, url, thumbnailUrl, headline: text(formData, "homepageHeadline"), subheadline: text(formData, "homepageSubheadline"), ctaLabel: text(formData, "homepageCtaLabel") || "Shop devices", ctaHref, badge1: text(formData, "homepageBadge1"), badge2: text(formData, "homepageBadge2"), badge3: text(formData, "homepageBadge3"), enabled, sortOrder: int(formData, "homepageSortOrder") };
+  const slide: HomepageSlide = { id, slot: "hero-slide", type, url, thumbnailUrl, headline: text(formData, "homepageHeadline") || "Homepage slide", subheadline: text(formData, "homepageSubheadline"), ctaLabel: text(formData, "homepageCtaLabel") || "Shop products", ctaHref, badge1: text(formData, "homepageBadge1"), badge2: text(formData, "homepageBadge2"), badge3: text(formData, "homepageBadge3"), enabled, sortOrder: int(formData, "homepageSortOrder") };
   const savedId = await upsertHomepageSlide(slide);
   await createAuditLog({ action: "UPDATE", entityType: "HomepageMedia", entityId: savedId, note: text(formData, "homepageAuditNote") || "Owner updated homepage hero slide.", metadata: { type, enabled, sortOrder: slide.sortOrder } });
   revalidatePath("/"); revalidatePath("/admin/storefront");

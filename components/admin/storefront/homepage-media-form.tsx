@@ -49,8 +49,8 @@ function SlideForm({ slide, isNew = false }: { slide: HomepageSlide; isNew?: boo
 
       <div className="md:col-span-2 flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-lg font-black">{isNew ? "Add hero slide" : slide.headline}</h3>
-          <p className="text-sm text-slate-600">Slides use media, calm sales copy, CTA, and trust badges.</p>
+          <h3 className="text-lg font-black">{isNew ? "Add slideshow media" : slide.headline}</h3>
+          <p className="text-sm text-slate-600">Slides use media plus an accessibility label. Overlay copy is not shown on the public homepage.</p>
           {state.ok ? <p className="mt-2 text-sm font-bold text-green-700">Slide saved.</p> : null}
         </div>
         <label className="flex items-center gap-2 text-sm font-bold">
@@ -103,17 +103,14 @@ function SlideForm({ slide, isNew = false }: { slide: HomepageSlide; isNew?: boo
       </div>
 
       <div className="md:col-span-2">
-        <Field label="Headline" name="homepageHeadline" value={slide.headline} error={state.errors.homepageHeadline} />
+        <Field label="Alt/accessibility label" name="homepageHeadline" value={slide.headline} error={state.errors.homepageHeadline} />
       </div>
-      <label className="grid gap-2 text-sm font-bold text-slate-800 md:col-span-2">
-        Subheadline
-        <textarea className="input min-h-24" name="homepageSubheadline" defaultValue={slide.subheadline} />
-      </label>
-      <Field label="CTA label" name="homepageCtaLabel" value={slide.ctaLabel} />
-      <Field label="CTA link" name="homepageCtaHref" value={slide.ctaHref} error={state.errors.homepageCtaHref} />
-      <Field label="Badge 1" name="homepageBadge1" value={slide.badge1} />
-      <Field label="Badge 2" name="homepageBadge2" value={slide.badge2} />
-      <Field label="Badge 3" name="homepageBadge3" value={slide.badge3} />
+      <Field label="Slide link" name="homepageCtaHref" value={slide.ctaHref} error={state.errors.homepageCtaHref} />
+      <input type="hidden" name="homepageSubheadline" value={slide.subheadline || ""} />
+      <input type="hidden" name="homepageCtaLabel" value={slide.ctaLabel || "Shop products"} />
+      <input type="hidden" name="homepageBadge1" value={slide.badge1 || ""} />
+      <input type="hidden" name="homepageBadge2" value={slide.badge2 || ""} />
+      <input type="hidden" name="homepageBadge3" value={slide.badge3 || ""} />
       <label className="grid gap-2 text-sm font-bold text-slate-800">
         Owner note
         <textarea className="input min-h-20" name="homepageAuditNote" />
@@ -142,7 +139,7 @@ export function HomepageMediaForm({ slides }: { slides: HomepageSlide[] }) {
     url: "",
     headline: "",
     subheadline: "",
-    ctaLabel: "Shop devices",
+    ctaLabel: "Shop products",
     ctaHref: "/products",
     badge1: "Responsible ownership",
     badge2: "Secure order handling",
@@ -154,8 +151,8 @@ export function HomepageMediaForm({ slides }: { slides: HomepageSlide[] }) {
   return (
     <section className="grid gap-5">
       <div>
-        <h2 className="text-xl font-black">Homepage hero slideshow</h2>
-        <p className="text-sm text-slate-600">Manage up to three active hero slides. Disabled slides may be saved without media.</p>
+        <h2 className="text-xl font-black">Homepage slideshow</h2>
+        <p className="text-sm text-slate-600">Manage image and video slides. Disabled slides may be saved without media.</p>
       </div>
       {slides.map((slide) => (
         <SlideForm key={slide.id} slide={slide} />

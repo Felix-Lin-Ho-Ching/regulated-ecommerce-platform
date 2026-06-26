@@ -1,2 +1,11 @@
-import Link from "next/link";import { AdminShell, AdminDataTable, StatusBadge } from "@/components/ui";import { orders } from "@/lib/mock-data";
-export default function Queue(){return <AdminShell title="Verification queue"><AdminDataTable columns={["Order","Customer","State","Status","Next step"]} rows={orders.filter(o=>o.payment==="not_collected").map(o=>[o.id,o.customer,o.state,<StatusBadge key={o.id} tone="warning">{o.verification}</StatusBadge>,<Link key={o.id} href={`/admin/orders/${o.id}`}>Open</Link>])}/></AdminShell>}
+import { AdminShell, AlertPanel } from "@/components/ui";
+
+export default function VerificationQueuePage() {
+  return (
+    <AdminShell title="Verification queue" currentPath="/admin/verification-queue">
+      <AlertPanel title="Verification queue is not active" tone="info">
+        Verification queue is not active in order-request mode. Restricted checkout is handled by state/ZIP rules and order review.
+      </AlertPanel>
+    </AdminShell>
+  );
+}
