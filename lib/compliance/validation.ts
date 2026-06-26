@@ -1,4 +1,4 @@
-export const ruleOutcomes = ["ALLOW", "BLOCK", "MANUAL_REVIEW"] as const;
+export const ruleOutcomes = ["ALLOW", "BLOCK"] as const;
 export const ruleReviewStatuses = ["DRAFT", "MANUAL_REVIEW", "COUNSEL_REVIEW_REQUIRED", "INACTIVE", "ARCHIVED"] as const;
 
 export type ComplianceRuleInput = {
@@ -38,7 +38,7 @@ export function parseComplianceRuleForm(formData: FormData): ComplianceRuleInput
     stateCode: text(formData, "stateCode").toUpperCase().slice(0, 2) || "UN",
     productCategory: text(formData, "productCategory") || "knuckle_stun_device",
     productId: text(formData, "productId") || undefined,
-    outcome: oneOf(text(formData, "outcome"), ruleOutcomes, "MANUAL_REVIEW"),
+    outcome: oneOf(text(formData, "outcome"), ruleOutcomes, "BLOCK"),
     reviewStatus: oneOf(text(formData, "reviewStatus"), ruleReviewStatuses, "MANUAL_REVIEW"),
     reason: text(formData, "reason") || "Manual review required until reviewed by counsel.",
     effectiveFrom: parseDate(text(formData, "effectiveFrom"), today) ?? today,

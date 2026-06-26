@@ -14,8 +14,8 @@ export function LocalRestrictionRuleForm({ products }: { products: AdminProductD
   return (
     <form action={formAction} className="card mt-6 grid gap-4 p-5 md:grid-cols-2">
       <div className="md:col-span-2">
-        <h2 className="font-black">Create ZIP/local shipping block</h2>
-        <p className="mt-1 text-sm text-slate-600">For ZIP bans, choose ZIP, enter the ZIP code, and select Block.</p>
+        <h2 className="font-black">Create ZIP/local shipping rule</h2>
+        <p className="mt-1 text-sm text-slate-600">For ZIP overrides, choose ZIP, enter the ZIP code, and select No block / allowed or Blocked.</p>
       </div>
       {state.error ? <div className="md:col-span-2"><AlertPanel title="Local rule blocked" tone="danger">{state.error}</AlertPanel></div> : null}
       {state.success ? <div className="md:col-span-2"><AlertPanel title="Local rule saved" tone="success">{state.success}</AlertPanel></div> : null}
@@ -52,7 +52,7 @@ export function LocalRestrictionRuleForm({ products }: { products: AdminProductD
       <label className="grid gap-2 text-sm font-bold text-slate-800">
         Rule
         <select className="input" name="localOutcome" defaultValue="BLOCK">
-          {ruleOutcomes.map((outcome) => <option key={outcome} value={outcome}>{outcome === "MANUAL_REVIEW" ? "Review manually" : outcome[0] + outcome.slice(1).toLowerCase()}</option>)}
+          {ruleOutcomes.map((outcome) => <option key={outcome} value={outcome}>{outcome === "ALLOW" ? "No block / allowed" : "Blocked"}</option>)}
         </select>
       </label>
       <label className="grid gap-2 text-sm font-bold text-slate-800 md:col-span-2">

@@ -62,7 +62,7 @@ export async function getComplianceRules(): Promise<ComplianceRuleRow[]> {
       productCategory: rule.category,
       productName: "All products in category",
       productId: "",
-      outcome: rule.outcome === "docs_required" ? "MANUAL_REVIEW" : rule.outcome.toUpperCase(),
+      outcome: rule.outcome === "allowed" ? "ALLOW" : "BLOCK",
       reviewStatus: "MANUAL_REVIEW",
       reason: rule.note,
       effectiveFrom: "",
