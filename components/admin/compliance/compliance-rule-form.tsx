@@ -64,10 +64,10 @@ Use this page to block or allow restricted products by shipping state and local/
       </label>
       <label className="grid gap-2 text-sm font-bold text-slate-800">
         Rule
-        <select className="input" name="outcome" defaultValue={rule?.outcome ?? "MANUAL_REVIEW"}>
+        <select className="input" name="outcome" defaultValue={rule?.outcome === "ALLOW" ? "ALLOW" : "BLOCK"}>
           {ruleOutcomes.map((outcome) => (
             <option key={outcome} value={outcome}>
-              {outcome === "MANUAL_REVIEW" ? "Review manually" : outcome[0] + outcome.slice(1).toLowerCase()}
+              {outcome === "ALLOW" ? "No block / allowed" : "Blocked"}
             </option>
           ))}
         </select>

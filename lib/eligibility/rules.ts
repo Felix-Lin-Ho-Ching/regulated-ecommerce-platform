@@ -91,9 +91,9 @@ export function evaluateEligibilityWithRules(
 
   if (!rule || normalizeOutcome(rule.coverage) === "missing" || normalizeOutcome(rule.outcome) === "missing") {
     return {
-      status: "needs_verification",
-      label: labels.needs_verification,
-      message: "Verification is required before payment."
+      status: "blocked",
+      label: labels.blocked,
+      message: "This item is not available for your shipping destination."
     };
   }
 
@@ -108,22 +108,6 @@ export function evaluateEligibilityWithRules(
     };
   }
 
-  if (outcome === "pending_document_upload" || outcome === "documents_required") {
-    return {
-      status: "documents_required",
-      label: labels.documents_required,
-      message: "Verification is required before payment."
-    };
-  }
-
-  if (outcome === "pending_admin_review" || outcome === "manual_review" || coverage === "review_needed") {
-    return {
-      status: "needs_verification",
-      label: labels.needs_verification,
-      message: "Verification is required before payment."
-    };
-  }
-
   if (outcome === "allowed" || outcome === "allow") {
     return {
       status: "available",
@@ -133,9 +117,9 @@ export function evaluateEligibilityWithRules(
   }
 
   return {
-    status: "needs_verification",
-    label: labels.needs_verification,
-    message: "Verification is required before payment."
+    status: "blocked",
+    label: labels.blocked,
+    message: "This item is not available for your shipping destination."
   };
 }
 

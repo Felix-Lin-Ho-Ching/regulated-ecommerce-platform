@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getCartSnapshot } from "@/lib/cart/cart-service";
-import { evaluateCheckoutDestination } from "@/lib/checkout/eligibility";
+import { evaluateCheckoutDestinationFromConfiguredRules } from "@/lib/checkout/eligibility";
 import { createMockOrderFromCart, saveShippingDraft } from "@/lib/orders/order-service";
 
 function required(formData: FormData, name: string) {
@@ -40,7 +40,7 @@ export async function submitCheckoutAction(formData: FormData) {
 
   const restrictedLine = cart.lines.find((line) => line.product.restricted);
   if (restrictedLine) {
-    const destination = evaluateCheckoutDestination({
+    const destination = await evaluateCheckoutDestinationFromConfiguredRules({
       hasRestrictedItems: true,
       productCategory: restrictedLine.product.category,
       state,
