@@ -10,13 +10,15 @@ export default async function Success({ searchParams }: { searchParams: Promise<
 
   return (
     <AppShell>
-      <SectionHeader eyebrow="Confirmation" title="Order request received">
-        Your order request has been received. We will contact you to complete payment if approved.
+      <SectionHeader eyebrow="Order request" title="Order request submitted">
+        Your order request was submitted. Payment has not been collected, and the order will be reviewed before any fulfillment or payment step.
       </SectionHeader>
       <section className="card mt-6 p-6">
-        <StatusBadge tone="success">Pending payment</StatusBadge>
-        <h2 className="mt-3 text-2xl font-black">Order {orderNumber}</h2>
-        <p className="text-slate-600">Status: {order?.status || "Fulfillment hold"} · Eligibility result: approved</p>
+        <StatusBadge tone="warning">Payment not collected</StatusBadge>
+        <h2 className="mt-3 text-2xl font-black">Order request {orderNumber}</h2>
+        <p className="text-slate-600">
+          Status: {order?.status || "ORDER_REQUEST_SUBMITTED"} · Review required before fulfillment/payment
+        </p>
         {order?.items?.length ? (
           <div className="mt-5 divide-y divide-stone-200 rounded-2xl border border-stone-200">
             {order.items.map((item) => (
@@ -27,7 +29,10 @@ export default async function Success({ searchParams }: { searchParams: Promise<
             ))}
           </div>
         ) : null}
-        {order ? <p className="mt-5 text-xl font-black">Total {money(order.total)}</p> : null}
+        {order ? <p className="mt-5 text-xl font-black">Request total {money(order.total)}</p> : null}
+        <p className="mt-3 text-sm text-slate-600">
+          We will review destination eligibility, age information when required, inventory reservation, and next steps before collecting payment.
+        </p>
         <Link className="btn btn-primary mt-5" href="/products">Continue shopping</Link>
       </section>
     </AppShell>
