@@ -45,7 +45,7 @@ export async function getCheckoutReadiness(
   return {
     canCollectPayment: false,
     canFulfill: false,
-    reasons: ["Payment is available after eligibility is approved.", ...decision.reasons],
+    reasons: ["Payment is not collected online during order-request checkout.", ...decision.reasons],
   };
 }
 
@@ -119,7 +119,7 @@ function buildOrderNumber() {
   return `SF-${Date.now().toString().slice(-6)}`;
 }
 
-export async function createMockOrderFromCart(): Promise<CustomerOrderSummary> {
+export async function createOrderRequestFromCart(): Promise<CustomerOrderSummary> {
   const [session, cart, shipping] = await Promise.all([
     getCustomerSession(),
     getCartSnapshot(),
@@ -221,8 +221,8 @@ export async function createMockOrderFromCart(): Promise<CustomerOrderSummary> {
       orderNumber: order.orderNumber,
       status: order.status,
       total: order.totalCents / 100,
-      payment: "order request",
-      verification: "approved",
+      payment: "Order request",
+      verification: "destination/age precheck passed",
       createdAt: order.createdAt.toISOString(),
       items: cart.lines.map((line) => ({ name: line.product.name, quantity: line.quantity, total: line.lineTotal })),
     };
@@ -232,8 +232,8 @@ export async function createMockOrderFromCart(): Promise<CustomerOrderSummary> {
     orderNumber,
     status: "ORDER_REQUEST_SUBMITTED",
     total: cart.total,
-    payment: "order request",
-    verification: "approved",
+    payment: "Order request",
+    verification: "destination/age precheck passed",
     createdAt: new Date().toISOString(),
     items: cart.lines.map((line) => ({ name: line.product.name, quantity: line.quantity, total: line.lineTotal })),
   };
@@ -269,8 +269,8 @@ export async function getCustomerOrders(): Promise<CustomerOrderSummary[]> {
       orderNumber: row.orderNumber,
       status: row.status,
       total: row.totalCents / 100,
-      payment: row.paymentAttempts[0]?.status.toLowerCase() || "not started",
-      verification: row.status === "PAID" ? "approved" : "pending",
+      payment: row.paymentAttempts[0]?.status === "ORDER_REQUEST" ? "Order request" : row.paymentAttempts[0]?.status.toLowerCase() || "not started",
+      verification: row.status === "ORDER_REQUEST_SUBMITTED" ? "destination/age precheck passed" : "pending review",
       createdAt: row.createdAt.toISOString(),
     }));
   }

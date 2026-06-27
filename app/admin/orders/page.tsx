@@ -10,15 +10,16 @@ const fmt = (date: Date) => new Intl.DateTimeFormat("en", { dateStyle: "medium",
 export default async function OrdersAdmin() {
   const result = await getAdminOrders();
   if (!result.available) {
-    return <AdminShell title="Orders" currentPath="/admin/orders"><EmptyState title="Database unavailable">Admin orders require DATABASE_URL. No mock orders are shown as real orders.</EmptyState></AdminShell>;
+    return <AdminShell title="Orders" currentPath="/admin/orders"><EmptyState title="Database unavailable">Admin order requests require DATABASE_URL. No fallback orders are shown as real orders.</EmptyState></AdminShell>;
   }
   return (
     <AdminShell title="Orders" currentPath="/admin/orders">
-      <AdminDataTable columns={["Order", "Customer", "Email", "Total", "Payment", "Status", "Restricted", "State", "ZIP", "Created", "Action"]} rows={result.orders.map((order: any) => [
+      <AdminDataTable columns={["Order", "Customer", "Email", "Total", "Mode", "Payment", "Status", "Restricted", "State", "ZIP", "Created", "Action"]} rows={result.orders.map((order: any) => [
         order.orderNumber,
         order.customerName ?? order.shippingAddress?.name ?? order.user?.name ?? "—",
         order.customerEmail ?? order.user?.email ?? "—",
         money(order.totalCents),
+        order.paymentMode ?? "order_request",
         <StatusBadge key={`${order.id}-pay`} tone={order.paymentAttempts[0]?.status === "APPROVED" ? "success" : "warning"}>{order.paymentAttempts[0]?.status ?? "NOT_STARTED"}</StatusBadge>,
         <StatusBadge key={`${order.id}-status`} tone={order.status === "BLOCKED" || order.status === "CANCELLED" ? "danger" : order.status === "FULFILLED" || order.status === "PAID" ? "success" : "warning"}>{order.status}</StatusBadge>,
         order.items.some((item: any) => item.product.restricted) ? "Yes" : "No",

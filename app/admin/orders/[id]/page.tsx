@@ -20,9 +20,10 @@ export default async function OrderAdmin({ params }: { params: Promise<{ id: str
       <section className="card p-5">
         <SectionHeader eyebrow="Order detail" title={order.orderNumber}>Created {fmt(order.createdAt)}</SectionHeader>
         <div className="grid gap-3 md:grid-cols-2 text-sm">
-          <p><b>Status:</b> <StatusBadge tone="warning">{order.status}</StatusBadge></p><p><b>Payment/order-request mode:</b> {order.paymentMode ?? "order_request"} · {order.paymentAttempts[0]?.status ?? "NOT_STARTED"}</p>
+          <p><b>Status:</b> <StatusBadge tone="warning">{order.status}</StatusBadge></p><p><b>Order-request mode:</b> {order.paymentMode ?? "order_request"}</p>
+          <p><b>Payment:</b> Not collected · {order.paymentAttempts[0]?.provider ?? "ORDER_REQUEST"}/{order.paymentAttempts[0]?.status ?? "ORDER_REQUEST"}</p><p><b>Restricted item:</b> {restricted ? "Yes" : "No"}</p>
           <p><b>Email:</b> {order.customerEmail ?? order.user?.email ?? "—"}</p><p><b>Name:</b> {order.customerName ?? address?.name ?? order.user?.name ?? "—"}</p>
-          <p><b>Phone:</b> {order.customerPhone ?? address?.phone ?? "—"}</p><p><b>Restricted:</b> {restricted ? "Yes" : "No"}</p><p><b>Eligibility result:</b> {order.eligibilityResult ?? "—"}</p><p><b>Shipment:</b> {order.shippedAt ? `Shipped ${fmt(order.shippedAt)}` : "Not shipped"} {order.trackingNumber ? `· ${order.carrier || "Carrier"} ${order.trackingNumber}` : ""}</p>
+          <p><b>Phone:</b> {order.customerPhone ?? address?.phone ?? "—"}</p><p><b>State/ZIP:</b> {address?.state ?? "—"} {address?.postalCode ?? "—"}</p><p><b>Eligibility result:</b> {order.eligibilityResult ?? "—"}</p><p><b>Shipment:</b> {order.shippedAt ? `Shipped ${fmt(order.shippedAt)}` : "Not shipped"} {order.trackingNumber ? `· ${order.carrier || "Carrier"} ${order.trackingNumber}` : ""}</p>
           <p className="md:col-span-2"><b>Shipping:</b> {[address?.name, address?.line1, address?.line2, `${address?.city ?? ""}, ${address?.state ?? ""} ${address?.postalCode ?? ""}`, address?.country].filter(Boolean).join(", ")}</p>
         </div>
       </section>

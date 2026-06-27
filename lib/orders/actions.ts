@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createMockOrderFromCart, getCheckoutEligibilitySnapshot, saveShippingDraft } from "@/lib/orders/order-service";
+import { createOrderRequestFromCart, getCheckoutEligibilitySnapshot, saveShippingDraft } from "@/lib/orders/order-service";
 
 export async function saveShippingAction(formData: FormData) {
   const state = String(formData.get("state") || "TX").trim().toUpperCase();
@@ -19,14 +19,14 @@ export async function saveShippingAction(formData: FormData) {
   redirect("/checkout/verification");
 }
 
-export async function createMockOrderAction() {
+export async function createOrderRequestAction() {
   const eligibility = await getCheckoutEligibilitySnapshot(true);
 
   if (eligibility.result.status !== "available") {
     redirect("/checkout/verification");
   }
 
-  const order = await createMockOrderFromCart();
+  const order = await createOrderRequestFromCart();
   redirect(`/checkout/success?order=${encodeURIComponent(order.orderNumber)}`);
 }
 

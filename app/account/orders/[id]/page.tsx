@@ -22,7 +22,7 @@ export default async function Order({ params }: { params: Promise<{ id: string }
           <p>Verification: {order?.verification || "pending review"}</p>
           {order ? <p className="font-black">Total: {money(order.total)}</p> : null}
           <div className="mt-5">
-            <OrderStatusTimeline paid={order?.payment.includes("approved") ?? false} />
+            <OrderStatusTimeline paymentCollected={false} />
           </div>
         </section>
         <AlertPanel title="Compliance and fulfillment shell" tone="warning">

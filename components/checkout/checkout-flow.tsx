@@ -4,7 +4,7 @@ import type { CartSnapshot } from "@/lib/cart/cart-service";
 import { AlertPanel } from "@/components/common/panels";
 import { StatusBadge } from "@/components/common/badge";
 
-const checkoutSteps = ["Cart", "Shipping", "Eligibility", "Payment", "Confirmation"];
+const checkoutSteps = ["Cart", "Shipping", "Eligibility", "Order request", "Submitted"];
 
 export function CheckoutStepper({ active = 1 }: { active?: number }) {
   return (
@@ -60,7 +60,7 @@ export function CheckoutSummary({ cart }: { cart?: CartSnapshot }) {
         </div>
       </dl>
       <p className="mt-4 text-xs text-slate-500">
-        Payment is available after checkout eligibility is complete.
+        Payment is not collected online during order-request checkout.
       </p>
     </aside>
   );
@@ -73,7 +73,7 @@ export function ComplianceResultPanel({ outcome }: { outcome: keyof typeof check
       ? "danger"
       : outcome.includes("pending")
         ? "warning"
-        : outcome === "paid" || outcome === "ready_for_payment" || outcome === "allowed"
+        : outcome === "ready_for_payment" || outcome === "allowed"
           ? "success"
           : "danger";
 
@@ -109,7 +109,7 @@ export function EligibilityChecklist() {
     "Address validation",
     "State and destination eligibility rules",
     "Document requirements",
-    "Payment readiness",
+    "Order-request readiness",
     "Risk rules and admin exceptions",
   ];
 
@@ -140,7 +140,7 @@ export function DocumentUploadCard() {
       <h2 className="text-xl font-black">Required document upload</h2>
       <p className="mt-2 text-sm text-slate-600">
         Upload Government ID and proof of residence. Payment remains unavailable until review is
-        approved.
+        reviewed.
       </p>
       <div className="mt-4 rounded-2xl border-2 border-dashed border-stone-300 bg-stone-50 p-8 text-center">
         <button className="btn btn-secondary focus-ring">Choose files</button>
@@ -153,12 +153,12 @@ export function DocumentUploadCard() {
   );
 }
 
-export function OrderStatusTimeline({ paid = false }: { paid?: boolean }) {
+export function OrderStatusTimeline({ paymentCollected = false }: { paymentCollected?: boolean }) {
   const items = [
     "Address validated",
     "Compliance checked",
     "Documents reviewed",
-    paid ? "Payment paid" : "Payment not collected",
+    paymentCollected ? "Payment collected" : "Payment not collected",
     "Fulfillment pending",
   ];
 

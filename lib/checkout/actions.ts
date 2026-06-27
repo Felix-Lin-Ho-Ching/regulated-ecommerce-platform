@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { getCartSnapshot } from "@/lib/cart/cart-service";
 import { evaluateCheckoutDestinationFromConfiguredRules } from "@/lib/checkout/eligibility";
-import { createMockOrderFromCart, saveShippingDraft } from "@/lib/orders/order-service";
+import { createOrderRequestFromCart, saveShippingDraft } from "@/lib/orders/order-service";
 
 function required(formData: FormData, name: string) {
   return String(formData.get(name) || "").trim();
@@ -56,7 +56,7 @@ export async function submitCheckoutAction(formData: FormData) {
 
   let order;
   try {
-    order = await createMockOrderFromCart();
+    order = await createOrderRequestFromCart();
   } catch (error) {
     const message = error instanceof Error ? error.message : "Checkout could not be completed.";
     if (message.startsWith("Only ")) redirect(`/checkout?error=stock&message=${encodeURIComponent(message)}`);
