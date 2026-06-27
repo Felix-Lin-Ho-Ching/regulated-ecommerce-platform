@@ -1,6 +1,7 @@
 import { brand } from "@/lib/config/brand";
 import { products as mockProducts, complianceRules } from "@/lib/mock-data";
 import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
+import { expectedRestrictedStateRuleCount, restrictedProductCategory, unsafeDestinationOutcomes, usStateAndDcCodes } from "@/lib/compliance/restricted-state-rules";
 
 export type CatalogProductMedia = {
   type: "IMAGE" | "VIDEO";
@@ -259,6 +260,61 @@ export type RuleCoverageRow = {
   note: string;
 };
 
+export type RuleCoverageSummary = {
+  expectedStates: number;
+  totalStateRulesFound: number;
+  blockCount: number;
+  allowCount: number;
+  missingCount: number;
+  unsafeOutcomeCount: number;
+  allowWithoutNotesCount: number;
+  mockFallbackActive: boolean;
+};
+
+export async function getRuleCoverageSummary(): Promise<RuleCoverageSummary> {
+  if (!isDatabaseConfigured) {
+    const blockCount = complianceRules.filter((rule) => rule.outcome === "blocked").length;
+    const allowCount = complianceRules.filter((rule) => rule.outcome === "allowed").length;
+    return {
+      expectedStates: expectedRestrictedStateRuleCount,
+      totalStateRulesFound: complianceRules.filter((rule) => rule.category === restrictedProductCategory && rule.coverage !== "missing").length,
+      blockCount,
+      allowCount,
+      missingCount: expectedRestrictedStateRuleCount,
+      unsafeOutcomeCount: 0,
+      allowWithoutNotesCount: allowCount,
+      mockFallbackActive: true,
+    };
+  }
+
+  const rules = await prisma.stateRestrictionRule.findMany({
+    where: { archivedAt: null, productCategory: restrictedProductCategory as never },
+    select: { id: true, stateCode: true, outcome: true, legalSourceNote: true },
+  }) as Array<{ id: string; stateCode: string; outcome: string; legalSourceNote?: string }>;
+  const auditLogs = (await prisma.auditLog.findMany({
+    where: { entityType: "StateRestrictionRule", entityId: { in: rules.filter((rule) => rule.outcome === "ALLOW").map((rule) => rule.id) } },
+    select: { entityId: true, note: true },
+  })) as Array<{ entityId: string; note: string }>;
+  const statesFound = new Set(rules.map((rule) => rule.stateCode));
+  const missingCount = usStateAndDcCodes.filter((state) => !statesFound.has(state)).length;
+  const allowWithoutNotesCount = rules.filter((rule) => {
+    if (rule.outcome !== "ALLOW") return false;
+    const hasAuditNote = auditLogs.some((log) => log.entityId === rule.id && log.note.trim());
+    return !rule.legalSourceNote?.trim() || !hasAuditNote;
+  }).length;
+
+  return {
+    expectedStates: expectedRestrictedStateRuleCount,
+    totalStateRulesFound: statesFound.size,
+    blockCount: rules.filter((rule) => rule.outcome === "BLOCK").length,
+    allowCount: rules.filter((rule) => rule.outcome === "ALLOW").length,
+    missingCount,
+    unsafeOutcomeCount: rules.filter((rule) => unsafeDestinationOutcomes.includes(rule.outcome as never)).length,
+    allowWithoutNotesCount,
+    mockFallbackActive: false,
+  };
+}
+
 export async function getRuleCoverageRows(): Promise<RuleCoverageRow[]> {
   if (!isDatabaseConfigured)
     return complianceRules.map((rule) => ({
@@ -272,12 +328,25 @@ export async function getRuleCoverageRows(): Promise<RuleCoverageRow[]> {
     where: { archivedAt: null },
     orderBy: [{ productCategory: "asc" }, { stateCode: "asc" }],
   });
-  return rows.map((rule: StateRestrictionRuleRow) => ({
+  const coverageRows: RuleCoverageRow[] = rows.map((rule: StateRestrictionRuleRow) => ({
     state: rule.stateCode,
     category: rule.productCategory,
     outcome: rule.outcome,
     coverage:
-      rule.reviewStatus === "MANUAL_REVIEW" ? "review_needed" : "covered",
+      unsafeDestinationOutcomes.includes(rule.outcome as never) || rule.reviewStatus === "MANUAL_REVIEW" ? "review_needed" : "covered",
     note: rule.reason,
   }));
+  const coveredStates = new Set(coverageRows.filter((row) => row.category === restrictedProductCategory).map((row) => row.state));
+  return [
+    ...coverageRows,
+    ...usStateAndDcCodes
+      .filter((state) => !coveredStates.has(state))
+      .map((state) => ({
+        state,
+        category: restrictedProductCategory,
+        outcome: "BLOCK",
+        coverage: "missing",
+        note: "Missing rule: checkout fails closed and launch gate remains blocked.",
+      })),
+  ];
 }
