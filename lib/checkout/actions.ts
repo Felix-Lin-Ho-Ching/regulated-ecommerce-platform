@@ -28,7 +28,7 @@ export async function submitCheckoutAction(formData: FormData) {
   const line1 = required(formData, "line1");
   const line2 = required(formData, "line2") || undefined;
   const city = required(formData, "city");
-  const state = required(formData, "state").toUpperCase();
+  const state = required(formData, "state").trim().toUpperCase().slice(0, 2);
   const postalCode = required(formData, "postalCode");
   const phone = required(formData, "phone") || undefined;
 
@@ -43,6 +43,7 @@ export async function submitCheckoutAction(formData: FormData) {
     const destination = await evaluateCheckoutDestinationFromConfiguredRules({
       hasRestrictedItems: true,
       productCategory: restrictedLine.product.category,
+      productId: restrictedLine.product.id,
       state,
       postalCode,
     });
