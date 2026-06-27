@@ -21,7 +21,7 @@ export default async function OrdersAdmin() {
         money(order.totalCents),
         order.paymentMode ?? "order_request",
         <StatusBadge key={`${order.id}-pay`} tone={order.paymentAttempts[0]?.status === "APPROVED" ? "success" : "warning"}>{order.paymentAttempts[0]?.status ?? "NOT_STARTED"}</StatusBadge>,
-        <StatusBadge key={`${order.id}-status`} tone={order.status === "BLOCKED" || order.status === "CANCELLED" ? "danger" : order.status === "FULFILLED" || order.status === "PAID" ? "success" : "warning"}>{order.status}</StatusBadge>,
+        <StatusBadge key={`${order.id}-status`} tone={order.status === "BLOCKED" || order.status === "CANCELLED" ? "danger" : order.status === "FULFILLED" || order.status === "PAID" ? "success" : "warning"}>{order.status === "READY_FOR_PAYMENT" ? "Ready for payment" : order.status}</StatusBadge>,
         order.items.some((item: any) => item.product.restricted) ? "Yes" : "No",
         order.shippingAddress?.state ?? "—",
         order.shippingAddress?.postalCode ?? "—",

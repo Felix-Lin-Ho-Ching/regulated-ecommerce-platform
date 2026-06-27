@@ -6,7 +6,6 @@ import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
 import { logDebugEmail } from "@/lib/email/email-log-service";
 import { buildOrderConfirmationEmail } from "@/lib/email/templates/order-confirmation";
 import { buildAdminNewOrderEmail } from "@/lib/email/templates/admin-new-order";
-import { createRawFulfillmentToken, fulfillmentTokenExpiry, hashFulfillmentToken } from "@/lib/fulfillment/tokens";
 
 export type CheckoutReadiness = {
   canCollectPayment: boolean;
@@ -146,6 +145,7 @@ export async function createOrderRequestFromCart(): Promise<CustomerOrderSummary
         orderNumber,
         userId: session?.demo ? undefined : session?.userId,
         status: "ORDER_REQUEST_SUBMITTED",
+        fulfillmentStatus: "FULFILLMENT_HOLD",
         subtotalCents: toCents(cart.subtotal),
         shippingCents: toCents(cart.shipping),
         taxCents: toCents(cart.tax),
@@ -183,7 +183,7 @@ export async function createOrderRequestFromCart(): Promise<CustomerOrderSummary
         paymentAttempts: {
           create: {
             provider: "ORDER_REQUEST",
-            providerStatus: "DISABLED",
+            providerStatus: "ORDER_REQUEST",
             status: "ORDER_REQUEST",
             amountCents: toCents(cart.total),
             livePaymentEnabled: false,
@@ -194,45 +194,50 @@ export async function createOrderRequestFromCart(): Promise<CustomerOrderSummary
       include: { items: { include: { product: { select: { restricted: true } } } }, shippingAddress: true },
     });
 
-    for (const item of order.items) {
+    await prisma.order.update({ where: { id: order.id }, data: { status: "AUTO_ELIGIBLE" } });
+    const readyOrder = await prisma.order.update({ where: { id: order.id }, data: { status: "READY_FOR_PAYMENT" }, include: { items: { include: { product: { select: { restricted: true } } } }, shippingAddress: true } });
+
+    await prisma.auditLog.createMany({ data: [
+      { action: "CREATE", entityType: "Order", entityId: order.id, note: "Order request received.", metadata: { status: "ORDER_REQUEST_SUBMITTED" } },
+      { action: "UPDATE", entityType: "Order", entityId: order.id, note: "Auto eligibility checks passed.", metadata: { status: "AUTO_ELIGIBLE" } },
+      { action: "UPDATE", entityType: "Order", entityId: order.id, note: "Order request is ready for a future payment step; fulfillment is not released.", metadata: { status: "READY_FOR_PAYMENT", paymentCollected: false, fulfillmentReleased: false } },
+    ] });
+
+    for (const item of readyOrder.items) {
       const inventory = await prisma.inventory.findUnique({ where: { variantId: item.variantId }, select: { id: true } });
       if (inventory) {
-        await prisma.inventory.update({ where: { id: inventory.id }, data: { reserved: { increment: item.quantity }, transactions: { create: { type: "RESERVATION", quantity: item.quantity, reason: `Order ${order.orderNumber} reservation` } }, reservations: { create: { orderItemId: item.id, quantity: item.quantity } } } });
+        await prisma.inventory.update({ where: { id: inventory.id }, data: { reserved: { increment: item.quantity }, transactions: { create: { type: "RESERVATION", quantity: item.quantity, reason: `Order ${readyOrder.orderNumber} reservation after READY_FOR_PAYMENT` } }, reservations: { create: { orderItemId: item.id, quantity: item.quantity } } } });
       }
     }
 
-    const confirmation = buildOrderConfirmationEmail({ orderNumber: order.orderNumber, createdAt: order.createdAt, items: order.items, totalCents: order.totalCents, shippingAddress: order.shippingAddress!, hasRestrictedItems: order.items.some((item: { product: { restricted: boolean } }) => item.product.restricted) });
-    await logDebugEmail({ type: "ORDER_REQUEST_CONFIRMATION", to: session?.email ?? "guest@stunfry.example", subject: confirmation.subject, text: confirmation.text, orderId: order.id, metadata: { orderNumber: order.orderNumber } }).catch(() => undefined);
-    const adminEmail = buildAdminNewOrderEmail({ orderNumber: order.orderNumber, customerEmail: session?.email, totalCents: order.totalCents, hasRestrictedItems: order.items.some((item: { product: { restricted: boolean } }) => item.product.restricted), shippingState: order.shippingAddress?.state, shippingPostalCode: order.shippingAddress?.postalCode, adminOrderUrl: `/admin/orders/${order.orderNumber}` });
-    await logDebugEmail({ type: "ADMIN_NEW_ORDER", to: process.env.ADMIN_ORDER_EMAIL || process.env.ADMIN_EMAIL || "linhochingfelix@gmail.com", subject: adminEmail.subject, text: adminEmail.text, orderId: order.id, metadata: { orderNumber: order.orderNumber } }).catch(() => undefined);
+    const confirmation = buildOrderConfirmationEmail({ orderNumber: readyOrder.orderNumber, createdAt: readyOrder.createdAt, items: readyOrder.items, totalCents: readyOrder.totalCents, shippingAddress: readyOrder.shippingAddress!, hasRestrictedItems: readyOrder.items.some((item: { product: { restricted: boolean } }) => item.product.restricted) });
+    await logDebugEmail({ type: "ORDER_REQUEST_CONFIRMATION", to: session?.email ?? "guest@stunfry.example", subject: confirmation.subject, text: confirmation.text, orderId: readyOrder.id, metadata: { orderNumber: readyOrder.orderNumber } }).catch(() => undefined);
+    const adminEmail = buildAdminNewOrderEmail({ orderNumber: readyOrder.orderNumber, customerEmail: session?.email, totalCents: readyOrder.totalCents, hasRestrictedItems: readyOrder.items.some((item: { product: { restricted: boolean } }) => item.product.restricted), shippingState: readyOrder.shippingAddress?.state, shippingPostalCode: readyOrder.shippingAddress?.postalCode, adminOrderUrl: `/admin/orders/${readyOrder.orderNumber}` });
+    await logDebugEmail({ type: "ADMIN_NEW_ORDER", to: process.env.ADMIN_ORDER_EMAIL || process.env.ADMIN_EMAIL || "linhochingfelix@gmail.com", subject: adminEmail.subject, text: adminEmail.text, orderId: readyOrder.id, metadata: { orderNumber: readyOrder.orderNumber } }).catch(() => undefined);
 
-    const rawFulfillmentToken = createRawFulfillmentToken();
-    const fulfillmentUrl = `/fulfillment/ship/${rawFulfillmentToken}`;
-    await prisma.fulfillmentToken.create({ data: { orderId: order.id, tokenHash: hashFulfillmentToken(rawFulfillmentToken), expiresAt: fulfillmentTokenExpiry() } });
     const recipients = await prisma.notificationRecipient.findMany({ where: { enabled: true, orderAlerts: true } });
     for (const recipient of recipients) {
-      const shippingText = recipient.shippingAlerts ? `\n\nFulfillment link: ${fulfillmentUrl}` : "";
-      await logDebugEmail({ type: recipient.shippingAlerts ? "SHIPPING_FULFILLMENT" : "INTERNAL_ORDER", to: recipient.email, subject: `Order request ${order.orderNumber}`, text: `${adminEmail.text}${shippingText}`, orderId: order.id, metadata: { orderNumber: order.orderNumber, fulfillmentUrl: recipient.shippingAlerts ? fulfillmentUrl : undefined } }).catch(() => undefined);
+      await logDebugEmail({ type: "INTERNAL_ORDER", to: recipient.email, subject: `Order request ${readyOrder.orderNumber}`, text: adminEmail.text, orderId: readyOrder.id, metadata: { orderNumber: readyOrder.orderNumber, fulfillmentReleased: false } }).catch(() => undefined);
     }
 
     await clearCart();
 
     return {
-      orderNumber: order.orderNumber,
-      status: order.status,
-      total: order.totalCents / 100,
-      payment: "Order request",
+      orderNumber: readyOrder.orderNumber,
+      status: "Ready for payment",
+      total: readyOrder.totalCents / 100,
+      payment: "Not collected",
       verification: "destination/age precheck passed",
-      createdAt: order.createdAt.toISOString(),
+      createdAt: readyOrder.createdAt.toISOString(),
       items: cart.lines.map((line) => ({ name: line.product.name, quantity: line.quantity, total: line.lineTotal })),
     };
   }
 
   const order = {
     orderNumber,
-    status: "ORDER_REQUEST_SUBMITTED",
+    status: "Ready for payment",
     total: cart.total,
-    payment: "Order request",
+    payment: "Not collected",
     verification: "destination/age precheck passed",
     createdAt: new Date().toISOString(),
     items: cart.lines.map((line) => ({ name: line.product.name, quantity: line.quantity, total: line.lineTotal })),
@@ -267,10 +272,10 @@ export async function getCustomerOrders(): Promise<CustomerOrderSummary[]> {
       paymentAttempts: Array<{ status: string }>;
     }) => ({
       orderNumber: row.orderNumber,
-      status: row.status,
+      status: row.status === "READY_FOR_PAYMENT" ? "Ready for payment" : row.status,
       total: row.totalCents / 100,
-      payment: row.paymentAttempts[0]?.status === "ORDER_REQUEST" ? "Order request" : row.paymentAttempts[0]?.status.toLowerCase() || "not started",
-      verification: row.status === "ORDER_REQUEST_SUBMITTED" ? "destination/age precheck passed" : "pending review",
+      payment: row.paymentAttempts[0]?.status === "ORDER_REQUEST" ? "Not collected" : row.paymentAttempts[0]?.status.toLowerCase() || "not started",
+      verification: row.status === "READY_FOR_PAYMENT" ? "auto eligibility passed" : "pending review",
       createdAt: row.createdAt.toISOString(),
     }));
   }

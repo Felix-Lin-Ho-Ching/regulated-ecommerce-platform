@@ -11,13 +11,13 @@ export default async function Success({ searchParams }: { searchParams: Promise<
   return (
     <AppShell>
       <SectionHeader eyebrow="Order request" title="Order request submitted">
-        Your order request was submitted. Payment has not been collected, and the order will be reviewed before any fulfillment or payment step.
+        Your order request was submitted, eligibility checks passed automatically, and payment has not been collected. The order is ready for the next payment step; fulfillment has not started.
       </SectionHeader>
       <section className="card mt-6 p-6">
         <StatusBadge tone="warning">Payment not collected</StatusBadge>
         <h2 className="mt-3 text-2xl font-black">Order request {orderNumber}</h2>
         <p className="text-slate-600">
-          Status: {order?.status || "ORDER_REQUEST_SUBMITTED"} · Review required before fulfillment/payment
+          Status: {order?.status || "READY_FOR_PAYMENT"} · Eligibility passed · Payment not collected
         </p>
         {order?.items?.length ? (
           <div className="mt-5 divide-y divide-stone-200 rounded-2xl border border-stone-200">
@@ -31,7 +31,7 @@ export default async function Success({ searchParams }: { searchParams: Promise<
         ) : null}
         {order ? <p className="mt-5 text-xl font-black">Request total {money(order.total)}</p> : null}
         <p className="mt-3 text-sm text-slate-600">
-          We will review destination eligibility, age information when required, inventory reservation, and next steps before collecting payment.
+          Destination and age checks, when required, have passed. Payment has not been collected and fulfillment is not released until a future paid status exists.
         </p>
         <Link className="btn btn-primary mt-5" href="/products">Continue shopping</Link>
       </section>

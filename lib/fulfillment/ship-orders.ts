@@ -24,6 +24,7 @@ export async function shipOrders(input: ShipOrdersInput): Promise<ShipOrdersResu
         continue;
       }
       if (order.status === "CANCELLED") { errors.push(`Order ${order.orderNumber} is cancelled.`); continue; }
+      if (order.status !== "PAID" || order.fulfillmentStatus !== "READY_TO_SHIP") { errors.push(`Order ${order.orderNumber} is not released for fulfillment because payment has not been collected.`); continue; }
       if (input.actor.role === "FULFILLMENT" && order.assignedFulfillmentUserId !== input.actor.adminId) { errors.push(`Order ${order.orderNumber} is not assigned to you.`); continue; }
 
       const itemStock: Array<{ item: any; inventory: any }> = [];
