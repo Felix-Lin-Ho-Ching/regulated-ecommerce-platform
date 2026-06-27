@@ -29,6 +29,16 @@ if(mode==='lint'){
     }
   }
   if(phraseHits.length){ console.error('Forbidden customer-facing phrases found:\n' + phraseHits.join('\n')); process.exit(1); }
+  const stateRules = readFileSync('lib/compliance/restricted-state-rules.ts', 'utf8');
+  const stateListMatch = stateRules.match(/usStateAndDcCodes = \[([\s\S]*?)\] as const/);
+  const states = stateListMatch ? [...stateListMatch[1].matchAll(/"([A-Z]{2})"/g)].map((match) => match[1]) : [];
+  const expectedStates = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC'];
+  const missingStates = expectedStates.filter((state) => !states.includes(state));
+  const extraStates = states.filter((state) => !expectedStates.includes(state));
+  if(states.length !== 51 || missingStates.length || extraStates.length){ console.error(`Restricted state list must be exactly 50 states + DC. Found ${states.length}; missing: ${missingStates.join(',')}; extra: ${extraStates.join(',')}`); process.exit(1); }
+  const seedText = readFileSync('prisma/seed.ts', 'utf8');
+  if(/outcome:\s*"ALLOW"/.test(seedText)){ console.error('Seed must not create ALLOW restricted destination rules by default.'); process.exit(1); }
+  if(!seedText.includes('Blocked by default until owner-approved legal review allows this destination.')){ console.error('Seed is missing the launch-safe default BLOCK reason.'); process.exit(1); }
   console.log(`Static lint passed for ${files.length} files.`);
 } else if(mode==='typecheck'){
   const text = files.filter(f=>/\.(tsx|ts)$/.test(f)).map(f=>readFileSync(f,'utf8')).join('\n');

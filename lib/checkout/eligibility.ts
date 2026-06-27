@@ -1,4 +1,3 @@
-import { complianceRules } from "@/lib/mock-data";
 import type { CartSnapshot } from "@/lib/cart/cart-service";
 import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
 import { evaluateEligibilityWithRules, type EligibilityRule } from "@/lib/eligibility/rules";
@@ -52,9 +51,10 @@ function chooseProductRule<T extends { productId: string | null }>(rules: T[], p
 export function evaluateCheckoutDestination({
   hasRestrictedItems,
   productCategory,
+  productId,
   state,
   postalCode,
-  rules = complianceRules,
+  rules = [],
 }: {
   hasRestrictedItems: boolean;
   productCategory?: string;
@@ -77,6 +77,7 @@ export function evaluateCheckoutDestination({
       zip: postalCode,
       isAtLeast18: true,
       productCategory,
+      productId,
       restricted: true,
     },
     rules,
@@ -110,7 +111,7 @@ export async function evaluateCheckoutDestinationFromConfiguredRules({
     if (process.env.NODE_ENV === "production") {
       return resultFromOutcome(null);
     }
-    return evaluateCheckoutDestination({ hasRestrictedItems, productCategory, productId, state, postalCode });
+    return resultFromOutcome(null);
   }
 
   const stateCode = normalizeDestinationState(state);

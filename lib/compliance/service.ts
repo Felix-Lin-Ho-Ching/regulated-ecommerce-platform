@@ -108,6 +108,7 @@ export async function getComplianceRules(): Promise<ComplianceRuleRow[]> {
 
 export async function upsertComplianceRule(input: ComplianceRuleInput): Promise<string | { error: string }> {
   if (input.outcome === "ALLOW" && !input.legalSourceNote.trim()) return { error: "ALLOW rules require a legal/source note." };
+  if (input.outcome === "ALLOW" && !input.auditNote.trim()) return { error: "ALLOW rules require an audit note." };
   if (!isDatabaseConfigured) return input.id ?? "mock-rule";
 
   const template = input.verificationTemplateId
