@@ -20,7 +20,7 @@ export async function confirmShipmentAction(_state: FulfillmentActionState, form
     if (fulfillmentToken.order.status === "SHIPPED" || fulfillmentToken.usedAt) return { alreadyShipped: true };
     if (fulfillmentToken.expiresAt < new Date()) return { error: "This fulfillment link has expired." };
     const order = fulfillmentToken.order;
-    if (!["ORDER_REQUEST_SUBMITTED", "AUTO_ELIGIBLE", "PENDING_PAYMENT", "FULFILLMENT_HOLD", "READY_FOR_PAYMENT"].includes(order.status)) return { error: "This order is not eligible for shipment confirmation." };
+    if (order.status !== "PAID" || order.fulfillmentStatus !== "READY_TO_SHIP") return { error: "This order is not released for fulfillment because payment has not been collected." };
 
     for (const item of order.items) {
       const inventory = await tx.inventory.findUnique({ where: { variantId: item.variantId } });
@@ -30,7 +30,7 @@ export async function confirmShipmentAction(_state: FulfillmentActionState, form
       await tx.inventory.update({ where: { id: inventory.id }, data: { reserved: { decrement: item.quantity }, onHand: { decrement: item.quantity }, transactions: { create: { type: "FULFILLMENT", quantity: item.quantity, reason: `Order ${order.orderNumber} shipped` } }, reservations: { updateMany: { where: { orderItemId: item.id, status: "ACTIVE" }, data: { status: "CONSUMED" } } } } });
     }
 
-    await tx.order.update({ where: { id: order.id }, data: { status: "SHIPPED", carrier, trackingNumber, shippedAt: new Date() } });
+    await tx.order.update({ where: { id: order.id }, data: { status: "SHIPPED", fulfillmentStatus: "SHIPPED", carrier, trackingNumber, shippedAt: new Date() } });
     await tx.fulfillmentToken.update({ where: { id: fulfillmentToken.id }, data: { usedAt: new Date() } });
     await tx.auditLog.create({ data: { action: "UPDATE", entityType: "Order", entityId: order.id, note: "Shipment confirmed from secure fulfillment link.", metadata: { carrier, trackingNumber } } });
     return { orderId: order.id, orderNumber: order.orderNumber, customerEmail: order.customerEmail };

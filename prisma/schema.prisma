@@ -51,6 +51,7 @@ enum InventoryReservationStatus {
 }
 
 enum FulfillmentStatus {
+  FULFILLMENT_HOLD
   READY_TO_SHIP
   PICKING
   SHIPPED
@@ -494,7 +495,7 @@ model Order {
   carrier                   String?
   trackingNumber            String?
   shippedAt                 DateTime?
-  fulfillmentStatus         FulfillmentStatus          @default(READY_TO_SHIP)
+  fulfillmentStatus         FulfillmentStatus          @default(FULFILLMENT_HOLD)
   assignedFulfillmentUserId String?
   assignedFulfillmentUser   AdminUser?                 @relation("AssignedFulfillmentOrders", fields: [assignedFulfillmentUserId], references: [id])
   assignedAt                DateTime?

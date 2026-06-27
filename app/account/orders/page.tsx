@@ -11,11 +11,11 @@ export default async function Orders() {
   return (
     <AppShell>
       <SectionHeader eyebrow="Orders" title="Order history">
-        Orders appear here with payment, verification, and fulfillment status.
+        Order requests appear here with payment and eligibility status. Payment is not collected during checkout.
       </SectionHeader>
       {orders.length === 0 ? (
         <EmptyState title="No orders yet">
-          Complete checkout review to create an order.
+          Submit checkout to create an auto-eligible order request.
           <Link className="btn btn-primary mt-5" href="/products">
             Shop products
           </Link>
