@@ -6,7 +6,7 @@ export type ComplianceInput = {
   localityName?: string;
 };
 export type ComplianceDecision = {
-  outcome: "ALLOW" | "BLOCK" | "MANUAL_REVIEW" | "DOCUMENTS_REQUIRED";
+  outcome: "ALLOW" | "BLOCK";
   reasons: string[];
   automaticFirst: boolean;
   paymentAllowed: boolean;
@@ -30,7 +30,7 @@ export async function evaluateCompliance(input: ComplianceInput): Promise<Compli
 
   if (!rule) {
     return {
-      outcome: "MANUAL_REVIEW",
+      outcome: "BLOCK",
       reasons: ["No active rule was found; restricted-product checkout cannot pass on missing rules."],
       automaticFirst: true,
       paymentAllowed: false,

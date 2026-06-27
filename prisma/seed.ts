@@ -194,29 +194,17 @@ async function main() {
   const manualTemplate = await prisma.verificationTemplate.findUniqueOrThrow({ where: { code: "MANUAL_REVIEW_DEFAULT" } });
   for (const state of states) {
     for (const category of restrictedCategories) {
-      await prisma.stateRestrictionRule.upsert({ where: { stateCode_productCategory_productId: { stateCode: state, productCategory: category, productId: "prod_knuckle" } }, update: {}, create: { id: `rule_${state}_${category}`, stateCode: state, productCategory: category, productId: "prod_knuckle", outcome: "BLOCK", reviewStatus: "DRAFT", reason: "Default blocked destination rule until owner updates it." } });
+      await prisma.stateRestrictionRule.upsert({ where: { stateCode_productCategory_productId: { stateCode: state, productCategory: category, productId: "prod_knuckle" } }, update: { outcome: "BLOCK", reviewStatus: "COUNSEL_REVIEW_REQUIRED", reason: "Blocked by default until owner-approved legal review allows this destination.", legalSourceNote: "Seeded launch-safe default: counsel review required before allowing this destination." }, create: { id: `rule_${state}_${category}`, stateCode: state, productCategory: category, productId: "prod_knuckle", outcome: "BLOCK", reviewStatus: "COUNSEL_REVIEW_REQUIRED", reason: "Blocked by default until owner-approved legal review allows this destination.", legalSourceNote: "Seeded launch-safe default: counsel review required before allowing this destination." } });
       await prisma.stateVerificationRule.upsert({ where: { stateCode_productCategory: { stateCode: state, productCategory: category } }, update: {}, create: { id: `vrule_${state}_${category}`, stateCode: state, productCategory: category, templateId: manualTemplate.id, reviewStatus: "MANUAL_REVIEW", reason: "Default verification review; automatic-first but exceptions stay in admin review." } });
     }
   }
 
-  const ageIdTemplate = await prisma.verificationTemplate.findUniqueOrThrow({ where: { code: "AGE_18_ID_VERIFICATION" } });
   const blockedTemplate = await prisma.verificationTemplate.findUniqueOrThrow({ where: { code: "BLOCKED" } });
-  const permitTemplate = await prisma.verificationTemplate.findUniqueOrThrow({ where: { code: "FOID_OR_PERMIT_REQUIRED" } });
-  const reviewedExamples = [
-    { stateCode: "CA", outcome: "ALLOW", templateId: ageIdTemplate.id, reason: "Example: CA has no destination block; age verification remains separate." },
-    { stateCode: "HI", outcome: "BLOCK", templateId: blockedTemplate.id, reason: "Example: HI blocked until counsel-approved rules say otherwise; not final legal advice." },
-    { stateCode: "IL", outcome: "BLOCK", templateId: permitTemplate.id, reason: "Example: IL blocked until owner updates destination rules." },
-  ] as const;
-  for (const example of reviewedExamples) {
-    await prisma.stateRestrictionRule.upsert({
-      where: { stateCode_productCategory_productId: { stateCode: example.stateCode, productCategory: "knuckle_stun_device", productId: "prod_knuckle" } },
-      update: { outcome: example.outcome, reviewStatus: "COUNSEL_REVIEW_REQUIRED", reason: example.reason },
-      create: { stateCode: example.stateCode, productCategory: "knuckle_stun_device", productId: "prod_knuckle", outcome: example.outcome, reviewStatus: "COUNSEL_REVIEW_REQUIRED", reason: example.reason },
-    });
+  for (const state of states) {
     await prisma.stateVerificationRule.upsert({
-      where: { stateCode_productCategory: { stateCode: example.stateCode, productCategory: "knuckle_stun_device" } },
-      update: { templateId: example.templateId, reviewStatus: "COUNSEL_REVIEW_REQUIRED", reason: example.reason },
-      create: { stateCode: example.stateCode, productCategory: "knuckle_stun_device", templateId: example.templateId, reviewStatus: "COUNSEL_REVIEW_REQUIRED", reason: example.reason },
+      where: { stateCode_productCategory: { stateCode: state, productCategory: "knuckle_stun_device" } },
+      update: { templateId: blockedTemplate.id, reviewStatus: "COUNSEL_REVIEW_REQUIRED", reason: "Default blocked verification posture until counsel-approved destination rules change." },
+      create: { stateCode: state, productCategory: "knuckle_stun_device", templateId: blockedTemplate.id, reviewStatus: "COUNSEL_REVIEW_REQUIRED", reason: "Default blocked verification posture until counsel-approved destination rules change." },
     });
   }
 

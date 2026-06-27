@@ -11,6 +11,7 @@ export type ComplianceRuleRow = {
   outcome: string;
   reviewStatus: string;
   reason: string;
+  legalSourceNote: string;
   effectiveFrom: string;
   effectiveTo: string;
   verificationTemplateId: string;
@@ -65,6 +66,7 @@ export async function getComplianceRules(): Promise<ComplianceRuleRow[]> {
       outcome: rule.outcome === "allowed" ? "ALLOW" : "BLOCK",
       reviewStatus: "DRAFT",
       reason: rule.note,
+      legalSourceNote: "Mock fallback rule; not valid for production checkout.",
       effectiveFrom: "",
       effectiveTo: "",
       verificationTemplateId: "",
@@ -95,6 +97,7 @@ export async function getComplianceRules(): Promise<ComplianceRuleRow[]> {
       outcome: rule.outcome,
       reviewStatus: rule.reviewStatus,
       reason: rule.reason,
+      legalSourceNote: rule.legalSourceNote ?? "",
       effectiveFrom: rule.effectiveFrom?.toISOString().slice(0, 10) ?? "",
       effectiveTo: rule.effectiveTo?.toISOString().slice(0, 10) ?? "",
       verificationTemplateId: verificationRule?.templateId ?? "",
@@ -104,6 +107,7 @@ export async function getComplianceRules(): Promise<ComplianceRuleRow[]> {
 }
 
 export async function upsertComplianceRule(input: ComplianceRuleInput): Promise<string | { error: string }> {
+  if (input.outcome === "ALLOW" && !input.legalSourceNote.trim()) return { error: "ALLOW rules require a legal/source note." };
   if (!isDatabaseConfigured) return input.id ?? "mock-rule";
 
   const template = input.verificationTemplateId
@@ -122,6 +126,7 @@ export async function upsertComplianceRule(input: ComplianceRuleInput): Promise<
           outcome: input.outcome,
           reviewStatus: input.reviewStatus,
           reason: input.reason,
+          legalSourceNote: input.legalSourceNote,
           effectiveFrom: input.effectiveFrom,
           effectiveTo: input.effectiveTo,
         },
@@ -134,6 +139,7 @@ export async function upsertComplianceRule(input: ComplianceRuleInput): Promise<
           outcome: input.outcome,
           reviewStatus: input.reviewStatus,
           reason: input.reason,
+          legalSourceNote: input.legalSourceNote,
           effectiveFrom: input.effectiveFrom,
           effectiveTo: input.effectiveTo,
         },

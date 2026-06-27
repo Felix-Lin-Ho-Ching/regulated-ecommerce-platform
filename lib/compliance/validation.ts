@@ -13,6 +13,7 @@ export type ComplianceRuleInput = {
   effectiveTo?: Date;
   verificationTemplateId: string;
   auditNote: string;
+  legalSourceNote: string;
 };
 
 function text(formData: FormData, key: string): string {
@@ -45,6 +46,7 @@ export function parseComplianceRuleForm(formData: FormData): ComplianceRuleInput
     effectiveTo: parseDate(text(formData, "effectiveTo")),
     verificationTemplateId: text(formData, "verificationTemplateId"),
     auditNote: text(formData, "auditNote"),
+    legalSourceNote: text(formData, "legalSourceNote"),
   };
 }
 

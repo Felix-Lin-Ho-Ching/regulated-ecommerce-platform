@@ -107,6 +107,9 @@ export async function evaluateCheckoutDestinationFromConfiguredRules({
   }
 
   if (!isDatabaseConfigured) {
+    if (process.env.NODE_ENV === "production") {
+      return resultFromOutcome(null);
+    }
     return evaluateCheckoutDestination({ hasRestrictedItems, productCategory, productId, state, postalCode });
   }
 

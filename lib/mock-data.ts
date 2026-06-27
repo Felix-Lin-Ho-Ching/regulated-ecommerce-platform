@@ -19,9 +19,9 @@ export const checkoutCases: Record<CheckoutOutcome, { title:string; reason:strin
 export const orders = Object.values(checkoutCases).map((o,i)=>({ ...o, id:o.orderId, customer:["Maya Chen","Jordan Lee","Avery Smith","Sam Rivera","Taylor Brooks","Chris Morgan","Pat Nguyen"][i], total:171.84 }));
 export const adminUsers = [{name:"Felix Lin",role:"Owner",status:"active"},{name:"Riley Reviewer",role:"Compliance reviewer",status:"active"},{name:"Morgan Ops",role:"Operations",status:"active"}];
 export const complianceRules = [
- {id:"R-001", state:"TX", category:"knuckle_stun_device", outcome:"allowed", coverage:"covered", note:"Age + address verification required."},
+ {id:"R-001", state:"TX", category:"knuckle_stun_device", outcome:"blocked", coverage:"covered", note:"Mock blocked-by-default launch-safe rule."},
  {id:"R-002", state:"NY", category:"knuckle_stun_device", outcome:"blocked", coverage:"covered", note:"Blocked by restricted device rule."},
- {id:"R-003", state:"CA", category:"knuckle_stun_device", outcome:"allowed", coverage:"covered", note:"No destination block configured in local mock data."},
+ {id:"R-003", state:"CA", category:"knuckle_stun_device", outcome:"blocked", coverage:"covered", note:"Mock blocked-by-default launch-safe rule."},
  {id:"R-004", state:"IL", category:"knuckle_stun_device", outcome:"blocked", coverage:"covered", note:"Blocked by local mock destination rule."},
  {id:"R-005", state:"OR", category:"knuckle_stun_device", outcome:"missing", coverage:"missing", note:"Owner launch blocker."}
 ];

@@ -72,13 +72,17 @@ Use this page to block or allow restricted products by shipping state and local/
           ))}
         </select>
       </label>
-      <input type="hidden" name="reviewStatus" value={rule?.reviewStatus ?? "MANUAL_REVIEW"} />
+      <input type="hidden" name="reviewStatus" value={rule?.reviewStatus ?? "COUNSEL_REVIEW_REQUIRED"} />
       <input type="hidden" name="verificationTemplateId" value={rule?.verificationTemplateId ?? templates[0]?.id ?? ""} />
       <input type="hidden" name="effectiveFrom" value={rule?.effectiveFrom ?? ""} />
       <input type="hidden" name="effectiveTo" value={rule?.effectiveTo ?? ""} />
       <label className="grid gap-2 text-sm font-bold text-slate-800 md:col-span-2">
         Rule reason
         <textarea className="input min-h-24" name="reason" defaultValue={rule?.reason} />
+      </label>
+      <label className="grid gap-2 text-sm font-bold text-slate-800 md:col-span-2">
+        Required legal/source note for ALLOW rules
+        <textarea className="input min-h-24" name="legalSourceNote" defaultValue={rule?.legalSourceNote} placeholder="Citation, counsel summary, or official source supporting an ALLOW change." />
       </label>
       <label className="grid gap-2 text-sm font-bold text-slate-800 md:col-span-2">
         Required audit note for this rule change *

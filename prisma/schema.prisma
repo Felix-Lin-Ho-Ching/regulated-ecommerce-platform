@@ -121,8 +121,6 @@ enum RefundStatus {
 enum RuleOutcome {
   ALLOW
   BLOCK
-  MANUAL_REVIEW
-  DOCUMENTS_REQUIRED
 }
 
 enum RuleReviewStatus {
@@ -580,9 +578,10 @@ model StateRestrictionRule {
   productCategory ProductCategory
   productId       String?
   product         Product?         @relation(fields: [productId], references: [id])
-  outcome         RuleOutcome      @default(MANUAL_REVIEW)
-  reviewStatus    RuleReviewStatus @default(MANUAL_REVIEW)
+  outcome         RuleOutcome      @default(BLOCK)
+  reviewStatus    RuleReviewStatus @default(COUNSEL_REVIEW_REQUIRED)
   reason          String
+  legalSourceNote String            @default("")
   effectiveFrom   DateTime         @default(now())
   effectiveTo     DateTime?
   createdAt       DateTime         @default(now())
@@ -600,8 +599,8 @@ model LocalRestrictionRule {
   productCategory ProductCategory
   productId       String?
   product         Product?         @relation(fields: [productId], references: [id])
-  outcome         RuleOutcome      @default(MANUAL_REVIEW)
-  reviewStatus    RuleReviewStatus @default(MANUAL_REVIEW)
+  outcome         RuleOutcome      @default(BLOCK)
+  reviewStatus    RuleReviewStatus @default(COUNSEL_REVIEW_REQUIRED)
   reason          String
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -613,8 +612,8 @@ model ProductFeatureRestrictionRule {
   productId    String
   product      Product          @relation(fields: [productId], references: [id])
   featureCode  String
-  outcome      RuleOutcome      @default(MANUAL_REVIEW)
-  reviewStatus RuleReviewStatus @default(MANUAL_REVIEW)
+  outcome      RuleOutcome      @default(BLOCK)
+  reviewStatus RuleReviewStatus @default(COUNSEL_REVIEW_REQUIRED)
   reason       String
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
