@@ -63,12 +63,12 @@ export async function getComplianceRules(): Promise<ComplianceRuleRow[]> {
       productName: "All products in category",
       productId: "",
       outcome: rule.outcome === "allowed" ? "ALLOW" : "BLOCK",
-      reviewStatus: "MANUAL_REVIEW",
+      reviewStatus: "DRAFT",
       reason: rule.note,
       effectiveFrom: "",
       effectiveTo: "",
       verificationTemplateId: "",
-      verificationTemplateName: "Manual review default",
+      verificationTemplateName: "Destination rule only",
     }));
   }
 
@@ -98,7 +98,7 @@ export async function getComplianceRules(): Promise<ComplianceRuleRow[]> {
       effectiveFrom: rule.effectiveFrom?.toISOString().slice(0, 10) ?? "",
       effectiveTo: rule.effectiveTo?.toISOString().slice(0, 10) ?? "",
       verificationTemplateId: verificationRule?.templateId ?? "",
-      verificationTemplateName: verificationRule?.template?.name ?? "Manual review default",
+      verificationTemplateName: verificationRule?.template?.name ?? "Destination rule only",
     };
   });
 }
@@ -118,7 +118,7 @@ export async function upsertComplianceRule(input: ComplianceRuleInput): Promise<
         data: {
           stateCode: input.stateCode,
           productCategory: input.productCategory,
-          productId: input.productId,
+          productId: input.productId ?? null,
           outcome: input.outcome,
           reviewStatus: input.reviewStatus,
           reason: input.reason,
@@ -130,7 +130,7 @@ export async function upsertComplianceRule(input: ComplianceRuleInput): Promise<
         data: {
           stateCode: input.stateCode,
           productCategory: input.productCategory,
-          productId: input.productId,
+          productId: input.productId ?? null,
           outcome: input.outcome,
           reviewStatus: input.reviewStatus,
           reason: input.reason,
@@ -224,9 +224,9 @@ export async function createLocalRestrictionRule(input: import("@/lib/compliance
       localityType: input.localityType,
       localityName: input.localityName,
       productCategory: input.productCategory,
-      productId: input.productId,
+      productId: input.productId ?? null,
       outcome: input.outcome,
-      reviewStatus: "MANUAL_REVIEW",
+      reviewStatus: "DRAFT",
       reason: input.reason,
     },
   });

@@ -181,7 +181,7 @@ async function main() {
     ["knuckle_form_factor", "Knuckle form factor", "Knuckle-style grip profile"],
   ] as const) {
     await prisma.productFeature.upsert({ where: { productId_code: { productId: "prod_knuckle", code: feature[0] } }, update: { label: feature[1], value: feature[2], restrictedRelevant: true }, create: { productId: "prod_knuckle", code: feature[0], label: feature[1], value: feature[2], restrictedRelevant: true } });
-    await prisma.productFeatureRestrictionRule.create({ data: { id: `feature_rule_${feature[0]}`, productId: "prod_knuckle", featureCode: feature[0], outcome: "MANUAL_REVIEW", reviewStatus: "MANUAL_REVIEW", reason: "Default manual review; not attorney-reviewed or provider-approved." } }).catch(() => undefined);
+    await prisma.productFeatureRestrictionRule.create({ data: { id: `feature_rule_${feature[0]}`, productId: "prod_knuckle", featureCode: feature[0], outcome: "BLOCK", reviewStatus: "DRAFT", reason: "Default blocked feature rule; not attorney-reviewed or provider-approved." } }).catch(() => undefined);
   }
 
   for (const [code, name, requirements] of templates) {
@@ -194,7 +194,7 @@ async function main() {
   const manualTemplate = await prisma.verificationTemplate.findUniqueOrThrow({ where: { code: "MANUAL_REVIEW_DEFAULT" } });
   for (const state of states) {
     for (const category of restrictedCategories) {
-      await prisma.stateRestrictionRule.upsert({ where: { stateCode_productCategory_productId: { stateCode: state, productCategory: category, productId: "prod_knuckle" } }, update: {}, create: { id: `rule_${state}_${category}`, stateCode: state, productCategory: category, productId: "prod_knuckle", outcome: "MANUAL_REVIEW", reviewStatus: "MANUAL_REVIEW", reason: "Default manual_review until final counsel-approved rules are added." } });
+      await prisma.stateRestrictionRule.upsert({ where: { stateCode_productCategory_productId: { stateCode: state, productCategory: category, productId: "prod_knuckle" } }, update: {}, create: { id: `rule_${state}_${category}`, stateCode: state, productCategory: category, productId: "prod_knuckle", outcome: "BLOCK", reviewStatus: "DRAFT", reason: "Default blocked destination rule until owner updates it." } });
       await prisma.stateVerificationRule.upsert({ where: { stateCode_productCategory: { stateCode: state, productCategory: category } }, update: {}, create: { id: `vrule_${state}_${category}`, stateCode: state, productCategory: category, templateId: manualTemplate.id, reviewStatus: "MANUAL_REVIEW", reason: "Default verification review; automatic-first but exceptions stay in admin review." } });
     }
   }
@@ -203,9 +203,9 @@ async function main() {
   const blockedTemplate = await prisma.verificationTemplate.findUniqueOrThrow({ where: { code: "BLOCKED" } });
   const permitTemplate = await prisma.verificationTemplate.findUniqueOrThrow({ where: { code: "FOID_OR_PERMIT_REQUIRED" } });
   const reviewedExamples = [
-    { stateCode: "CA", outcome: "MANUAL_REVIEW", templateId: ageIdTemplate.id, reason: "Example: CA requires ID verification workflow review; not final legal advice." },
+    { stateCode: "CA", outcome: "ALLOW", templateId: ageIdTemplate.id, reason: "Example: CA has no destination block; age verification remains separate." },
     { stateCode: "HI", outcome: "BLOCK", templateId: blockedTemplate.id, reason: "Example: HI blocked until counsel-approved rules say otherwise; not final legal advice." },
-    { stateCode: "IL", outcome: "MANUAL_REVIEW", templateId: permitTemplate.id, reason: "Example: IL requires permit/FOID-style manual review; not final legal advice." },
+    { stateCode: "IL", outcome: "BLOCK", templateId: permitTemplate.id, reason: "Example: IL blocked until owner updates destination rules." },
   ] as const;
   for (const example of reviewedExamples) {
     await prisma.stateRestrictionRule.upsert({

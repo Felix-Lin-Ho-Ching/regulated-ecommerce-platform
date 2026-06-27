@@ -318,6 +318,7 @@ export async function getCheckoutEligibilitySnapshot(
       zip: shipping.postalCode,
       isAtLeast18,
       productCategory: restrictedLine.product.category,
+      productId: restrictedLine.product.id,
       restricted: true,
     }),
     hasRestrictedItems: true,

@@ -8,6 +8,7 @@ export type EligibilityInput = {
   zip?: string;
   isAtLeast18?: boolean;
   productCategory?: string;
+  productId?: string;
   restricted?: boolean;
 };
 
@@ -17,6 +18,7 @@ type ConfiguredRuleRow = {
   outcome: string;
   reviewStatus: string;
   reason: string;
+  productId: string | null;
 };
 
 export type EligibilityRule = {
@@ -24,6 +26,7 @@ export type EligibilityRule = {
   category: string;
   outcome: string;
   coverage: string;
+  productId?: string | null;
   note?: string;
 };
 
@@ -56,6 +59,7 @@ export function evaluateEligibilityWithRules(
     state,
     isAtLeast18,
     productCategory = "knuckle_stun_device",
+    productId,
     restricted = true,
   } = input;
 
@@ -85,9 +89,12 @@ export function evaluateEligibilityWithRules(
     };
   }
 
-  const rule = rules.find(
+  const matchingRules = rules.filter(
     (candidate) => candidate.state === stateCode && candidate.category === productCategory,
   );
+  const rule =
+    matchingRules.find((candidate) => productId && candidate.productId === productId) ??
+    matchingRules.find((candidate) => !candidate.productId);
 
   if (!rule || normalizeOutcome(rule.coverage) === "missing" || normalizeOutcome(rule.outcome) === "missing") {
     return {
@@ -98,7 +105,6 @@ export function evaluateEligibilityWithRules(
   }
 
   const outcome = normalizeOutcome(rule.outcome);
-  const coverage = normalizeOutcome(rule.coverage);
 
   if (outcome === "blocked" || outcome === "block") {
     return {
@@ -142,6 +148,7 @@ export async function evaluateEligibilityFromConfiguredRules(
       outcome: true,
       reviewStatus: true,
       reason: true,
+      productId: true,
     },
   })) as ConfiguredRuleRow[];
 
@@ -151,7 +158,8 @@ export async function evaluateEligibilityFromConfiguredRules(
       state: rule.stateCode,
       category: rule.productCategory,
       outcome: rule.outcome,
-      coverage: rule.reviewStatus === "MANUAL_REVIEW" ? "review_needed" : "covered",
+      coverage: "covered",
+      productId: rule.productId,
       note: rule.reason,
     })),
   );

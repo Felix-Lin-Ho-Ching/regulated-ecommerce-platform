@@ -21,8 +21,8 @@ export const adminUsers = [{name:"Felix Lin",role:"Owner",status:"active"},{name
 export const complianceRules = [
  {id:"R-001", state:"TX", category:"knuckle_stun_device", outcome:"allowed", coverage:"covered", note:"Age + address verification required."},
  {id:"R-002", state:"NY", category:"knuckle_stun_device", outcome:"blocked", coverage:"covered", note:"Blocked by restricted device rule."},
- {id:"R-003", state:"CA", category:"knuckle_stun_device", outcome:"pending_document_upload", coverage:"covered", note:"ID and residence proof required."},
- {id:"R-004", state:"IL", category:"knuckle_stun_device", outcome:"pending_admin_review", coverage:"review_needed", note:"County exception review."},
+ {id:"R-003", state:"CA", category:"knuckle_stun_device", outcome:"allowed", coverage:"covered", note:"No destination block configured in local mock data."},
+ {id:"R-004", state:"IL", category:"knuckle_stun_device", outcome:"blocked", coverage:"covered", note:"Blocked by local mock destination rule."},
  {id:"R-005", state:"OR", category:"knuckle_stun_device", outcome:"missing", coverage:"missing", note:"Owner launch blocker."}
 ];
 export const verificationTemplates = [{id:"VT-1", name:"Restricted device attestation", category:"knuckle_stun_device", requirements:["18+ attestation","Destination address confirmation","Restricted-product acknowledgement"]},{id:"VT-2",name:"Document review package",category:"knuckle_stun_device",requirements:["Government ID","Proof of residence","Reviewer note"]}];

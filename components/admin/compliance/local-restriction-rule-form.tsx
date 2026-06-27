@@ -60,7 +60,7 @@ export function LocalRestrictionRuleForm({ products }: { products: AdminProductD
         <textarea className="input min-h-24" name="localReason" />
       </label>
       <label className="grid gap-2 text-sm font-bold text-slate-800 md:col-span-2">
-        Audit note
+        Required audit note for this rule change *
         <textarea className="input min-h-24" name="localAuditNote" />
       </label>
       <button className="btn btn-primary md:w-fit" type="submit">Save local rule</button>

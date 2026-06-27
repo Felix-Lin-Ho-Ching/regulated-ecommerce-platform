@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { CartSnapshot } from "@/lib/cart/cart-service";
 import { submitCheckoutAction } from "@/lib/checkout/actions";
-import { evaluateCheckoutDestination, getRestrictedCategory } from "@/lib/checkout/eligibility";
+import { evaluateCheckoutDestination, getRestrictedCategory, getRestrictedProductId } from "@/lib/checkout/eligibility";
 import { money } from "@/lib/utils";
 
 type AddressState = {
@@ -32,11 +32,11 @@ export function OnePageCheckout({ cart, error, message }: { cart: CartSnapshot; 
   const hasRestricted = cart.hasRestrictedItems;
   const addressComplete = Boolean(address.email && address.firstName && address.lastName && address.line1 && address.city && address.state && address.postalCode);
   const destination = useMemo(
-    () => evaluateCheckoutDestination({ hasRestrictedItems: hasRestricted, productCategory: getRestrictedCategory(cart), state: address.state, postalCode: address.postalCode }),
+    () => evaluateCheckoutDestination({ hasRestrictedItems: hasRestricted, productCategory: getRestrictedCategory(cart), productId: getRestrictedProductId(cart), state: address.state, postalCode: address.postalCode }),
     [address.state, address.postalCode, cart, hasRestricted],
   );
   const ageComplete = !hasRestricted || (age.verified && age.attested);
-  const blocked = destination.status === "blocked" || destination.status === "uncertain";
+  const blocked = destination.status === "blocked";
   const canSubmit = addressComplete && destination.status === "allowed" && ageComplete;
 
   function updateAddress(field: keyof AddressState, value: string) {
