@@ -30,7 +30,9 @@ export function FeaturedProducts({ products }: { products: CatalogProduct[] }) {
             <ProductImage product={product} />
             <h3 className="mt-4 font-black">{product.name}</h3>
             <p className="mt-2 text-sm text-slate-600">{product.description}</p>
-            <p className="mt-3 text-xs font-black uppercase tracking-wide text-teal-900">Restricted item · verified at checkout</p>
+            {product.restricted ? (
+              <p className="mt-3 text-xs font-black uppercase tracking-wide text-teal-900">Restricted item · verified at checkout</p>
+            ) : null}
             <div className="mt-auto flex items-center justify-between gap-3 pt-4">
               <div>
                 <strong>{money(product.price)}</strong>
