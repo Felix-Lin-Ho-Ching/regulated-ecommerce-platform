@@ -20,8 +20,8 @@ export function OrderStatusForm({ orderId, orderNumber, currentStatus, statuses 
         <select name="status" className="input" defaultValue={currentStatus}>{statuses.map((s) => <option key={s} value={s}>{s}</option>)}</select>
       </label>
       <label className="grid gap-2 text-sm font-bold text-slate-800">
-        Owner note <span className="font-normal text-slate-500">(optional except CANCELLED or BLOCKED)</span>
-        <textarea name="note" className="input min-h-24" placeholder="Required for CANCELLED or BLOCKED" />
+        Owner note <span className="font-normal text-slate-500">(optional)</span>
+        <textarea name="note" className="input min-h-24" placeholder="Optional context for this status change" />
       </label>
       <button className="btn btn-primary">Save status</button>
     </form>
