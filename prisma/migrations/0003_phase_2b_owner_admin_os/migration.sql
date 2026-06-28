@@ -1,5 +1,5 @@
 -- Phase 2B Owner Admin Operating System: owner-editable homepage settings.
-CREATE TABLE "StorefrontSettings" (
+CREATE TABLE IF NOT EXISTS "StorefrontSettings" (
   "id" TEXT NOT NULL,
   "key" TEXT NOT NULL,
   "heroEyebrow" TEXT NOT NULL,
@@ -22,4 +22,4 @@ CREATE TABLE "StorefrontSettings" (
   CONSTRAINT "StorefrontSettings_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "StorefrontSettings_key_key" ON "StorefrontSettings"("key");
+CREATE UNIQUE INDEX IF NOT EXISTS "StorefrontSettings_key_key" ON "StorefrontSettings"("key");
