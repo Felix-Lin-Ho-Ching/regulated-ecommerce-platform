@@ -64,7 +64,7 @@ async function main() {
       eligibilityResult: "AUTO_ELIGIBLE",
       shippingAddress: { create: { name: "Pipeline Buyer", line1: "1 Test Way", city: "Austin", state: "TX", postalCode: "78701", normalized: true, deliverable: true } },
       items: { create: { productId: product.id, variantId: variant.id, name: product.name, sku, quantity: 1, unitPriceCents: 2500 } },
-      paymentAttempts: { create: { provider: "ORDER_REQUEST", providerStatus: "ORDER_REQUEST", status: "ORDER_REQUEST", amountCents: 2500, livePaymentEnabled: false, providerReference: `${orderNumber}-request` } },
+      paymentAttempts: { create: { provider: "ORDER_REQUEST", providerStatus: "DISABLED", status: "ORDER_REQUEST", amountCents: 2500, livePaymentEnabled: false, providerReference: `${orderNumber}-request` } },
     },
     include: { items: true, paymentAttempts: true },
   });
