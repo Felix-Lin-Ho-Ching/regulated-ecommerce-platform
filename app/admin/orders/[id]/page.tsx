@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AdminShell, EmptyState, SectionHeader, StatusBadge } from "@/components/ui";
-import { adminOrderStatuses, getAdminOrder } from "@/lib/admin/orders/service";
+import { adminOrderStatuses, getAdminOrder, isTerminalAdminOrderStatus } from "@/lib/admin/orders/service";
 import { OrderStatusForm } from "@/components/admin/orders/order-status-form";
 import { CancelOrderForm } from "@/components/admin/orders/cancel-order-form";
 import { InternalNoteForm } from "@/components/admin/orders/internal-note-form";
@@ -20,6 +20,8 @@ export default async function OrderAdmin({ params }: { params: Promise<{ id: str
   const address = order.shippingAddress;
   const restricted = order.items.some((item: any) => item.product.restricted);
   const notes = result.auditLogs.filter((log: any) => log.metadata && typeof log.metadata === "object" && "internalNote" in log.metadata);
+  const isTerminalOrder = isTerminalAdminOrderStatus(order.status);
+  const canUpdateStatus = !isTerminalOrder && order.fulfillmentStatus !== "SHIPPED" && !order.shippedAt;
   const canCancel = order.status !== "SHIPPED" && order.fulfillmentStatus !== "SHIPPED" && order.status !== "FULFILLED" && order.status !== "CANCELLED" && !order.shippedAt;
   const timeline = [...result.auditLogs.map((log: any) => ({ id: log.id, when: log.createdAt, title: log.metadata?.status ? label(String(log.metadata.status)) : label(log.action), detail: log.note })), ...order.emailLogs.map((log: any) => ({ id: log.id, when: log.createdAt, title: `${label(log.type)} logged`, detail: `${log.to} · ${log.subject}` }))].sort((a, b) => a.when.getTime() - b.when.getTime());
   return <AdminShell title={`Order ${order.orderNumber}`}>
@@ -35,7 +37,7 @@ export default async function OrderAdmin({ params }: { params: Promise<{ id: str
           <p className="md:col-span-2"><b>Shipping address:</b> {[address?.name, address?.line1, address?.line2, `${address?.city ?? ""}, ${address?.state ?? ""} ${address?.postalCode ?? ""}`, address?.country].filter(Boolean).join(", ")}</p>
         </div>
       </section>
-      <div><OrderStatusForm orderId={order.id} orderNumber={order.orderNumber} currentStatus={order.status} statuses={adminOrderStatuses.filter((s) => !["PAID", "FULFILLED", "SHIPPED", "CANCELLED", "BLOCKED"].includes(s))} />{canCancel ? <CancelOrderForm orderId={order.id} /> : null}<InternalNoteForm orderId={order.id} /><EmailActionsForm orderId={order.id} cancelled={order.status === "CANCELLED"} /></div>
+      <div>{canUpdateStatus ? <OrderStatusForm orderId={order.id} orderNumber={order.orderNumber} currentStatus={order.status} statuses={adminOrderStatuses.filter((s) => !["PAID", "FULFILLED", "SHIPPED", "CANCELLED", "BLOCKED"].includes(s))} /> : <section className="card p-5"><h2 className="font-black">Update status</h2><p className="mt-2 text-sm text-slate-600">Generic status updates are unavailable for terminal or shipped orders. Internal notes and eligible email log actions remain available.</p></section>}{canCancel ? <CancelOrderForm orderId={order.id} /> : null}<InternalNoteForm orderId={order.id} /><EmailActionsForm orderId={order.id} cancelled={order.status === "CANCELLED"} /></div>
     </div>
     <section className="card mt-4 p-5"><h2 className="mb-3 font-black">Items / inventory reservation state</h2><p className="mb-3 text-sm text-slate-600">Payment has not been collected, so fulfillment remains unreleased. Cancellation releases active reservations instead of deleting the order.</p><table className="table"><thead><tr><th>Item</th><th>SKU</th><th>Qty</th><th>Reservation</th><th>Total</th></tr></thead><tbody>{order.items.map((item: any) => { const reservations = item.variant?.inventory?.reservations?.filter((r: any) => r.orderItemId === item.id) ?? []; return <tr key={item.id}><td>{item.name}</td><td>{item.sku}</td><td>{item.quantity}</td><td>{reservations.length ? reservations.map((r: any) => `${r.status} x${r.quantity}`).join(", ") : "No reservation"}</td><td>{money(item.unitPriceCents * item.quantity)}</td></tr>; })}</tbody></table><div className="mt-4 text-right text-sm"><p>Subtotal {money(order.subtotalCents)}</p><p>Shipping {money(order.shippingCents)}</p><p>Tax {money(order.taxCents)}</p><p className="font-black">Total {money(order.totalCents)}</p></div></section>
     <section className="card mt-4 p-5"><h2 className="mb-3 font-black">Internal notes</h2>{notes.length ? <ul className="grid gap-2 text-sm">{notes.map((log: any) => <li key={log.id}><b>{fmt(log.createdAt)}:</b> {log.note}</li>)}</ul> : <p className="text-sm text-slate-600">No internal notes.</p>}</section>
