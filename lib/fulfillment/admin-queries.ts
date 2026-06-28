@@ -5,8 +5,12 @@ export type FulfillmentOrderForAdmin = {
   id: string;
   orderNumber: string;
   createdAt: Date;
+  shippedAt: Date | null;
+  carrier: string | null;
+  trackingNumber: string | null;
   customerName: string | null;
   customerEmail: string | null;
+  status: string;
   fulfillmentStatus: string;
   assignedFulfillmentUserId: string | null;
   assignedFulfillmentUser?: {
@@ -16,6 +20,12 @@ export type FulfillmentOrderForAdmin = {
   shippingAddress?: {
     state: string;
     postalCode: string;
+    line1?: string;
+    line2?: string | null;
+    city?: string;
+    country?: string | null;
+    name?: string | null;
+    phone?: string | null;
   } | null;
   items: Array<{
     id: string;
@@ -30,12 +40,16 @@ type OrderWithFulfillmentRelations = {
   id: string;
   orderNumber: string;
   createdAt: Date;
+  shippedAt: Date | null;
+  carrier: string | null;
+  trackingNumber: string | null;
   customerName: string | null;
   customerEmail: string | null;
+  status: string;
   fulfillmentStatus: string;
   assignedFulfillmentUserId: string | null;
   assignedFulfillmentUser: { name: string | null; email: string } | null;
-  shippingAddress: { state: string; postalCode: string } | null;
+  shippingAddress: { state: string; postalCode: string; line1?: string; line2?: string | null; city?: string; country?: string | null; name?: string | null; phone?: string | null } | null;
   items: Array<{
     id: string;
     name: string;
@@ -48,6 +62,8 @@ type OrderWithFulfillmentRelations = {
 function getFulfillmentOrderWhere(admin: AdminSession) {
   if (admin.role === "FULFILLMENT") {
     return {
+      status: "PAID",
+      fulfillmentStatus: { in: ["READY_TO_SHIP", "PICKING"] },
       OR: [
         { assignedFulfillmentUserId: admin.adminId },
         { assignedFulfillmentUserId: null, fulfillmentStatus: "READY_TO_SHIP" },
@@ -60,8 +76,8 @@ function getFulfillmentOrderWhere(admin: AdminSession) {
 
   return {
     OR: [
-      { fulfillmentStatus: { in: ["READY_TO_SHIP", "PICKING", "BLOCKED"] } },
-      { shippedAt: { gte: todayStart } },
+      { status: "PAID", fulfillmentStatus: { in: ["READY_TO_SHIP", "PICKING", "BLOCKED"] } },
+      { status: "SHIPPED", fulfillmentStatus: "SHIPPED", shippedAt: { gte: todayStart } },
     ],
   };
 }
@@ -71,8 +87,12 @@ function mapFulfillmentOrder(order: OrderWithFulfillmentRelations): FulfillmentO
     id: order.id,
     orderNumber: order.orderNumber,
     createdAt: order.createdAt,
+    shippedAt: order.shippedAt,
+    carrier: order.carrier,
+    trackingNumber: order.trackingNumber,
     customerName: order.customerName,
     customerEmail: order.customerEmail,
+    status: order.status,
     fulfillmentStatus: order.fulfillmentStatus,
     assignedFulfillmentUserId: order.assignedFulfillmentUserId,
     assignedFulfillmentUser: order.assignedFulfillmentUser,
@@ -98,7 +118,7 @@ export async function getFulfillmentOrdersForAdmin(
     orderBy: { createdAt: "desc" },
     take: 50,
     include: {
-      shippingAddress: { select: { state: true, postalCode: true } },
+      shippingAddress: { select: { name: true, phone: true, line1: true, line2: true, city: true, state: true, postalCode: true, country: true } },
       assignedFulfillmentUser: { select: { name: true, email: true } },
       items: {
         include: {
