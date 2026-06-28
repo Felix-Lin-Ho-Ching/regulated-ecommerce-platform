@@ -16,11 +16,11 @@ export function ShipSelectedForm({ children }: ShipSelectedFormProps) {
       <FulfillmentMessage state={state} />
       {children}
       <div className="card flex flex-wrap gap-2 p-4">
-        <input className="input max-w-40" name="carrier" placeholder="Carrier" />
+        <input className="input max-w-40" name="carrier" placeholder="Carrier (required)" required />
         <input
           className="input max-w-56"
           name="trackingNumber"
-          placeholder="Tracking number"
+          placeholder="Tracking number (required)" required minLength={6}
         />
         <button className="btn btn-primary" disabled={pending}>
           Mark selected as shipped

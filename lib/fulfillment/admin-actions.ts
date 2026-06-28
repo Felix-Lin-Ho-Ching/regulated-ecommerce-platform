@@ -35,11 +35,11 @@ export async function claimBatchAction(_s: FulfillmentFormState, fd: FormData): 
   const requested = fd.get("claimSize") ? Number(fd.get("claimSize")) : settings.defaultBatchSize;
   const claimSize = settings.allowCustomClaim ? Math.min(Math.max(1, requested || settings.defaultBatchSize), settings.maxBatchSize) : settings.defaultBatchSize;
   const claimed = await (prisma as any).$transaction(async (tx: any) => {
-    const rows: Array<{ id: string }> = await tx.$queryRawUnsafe(`SELECT o.id FROM "Order" o WHERE o."assignedFulfillmentUserId" IS NULL AND o."fulfillmentStatus" = 'READY_TO_SHIP' AND o.status NOT IN ('CANCELLED','SHIPPED') AND o."shippedAt" IS NULL AND EXISTS (SELECT 1 FROM "OrderItem" i JOIN "InventoryReservation" r ON r."orderItemId" = i.id AND r.status = 'ACTIVE' WHERE i."orderId" = o.id) ORDER BY o."createdAt" ASC LIMIT $1 FOR UPDATE SKIP LOCKED`, claimSize);
+    const rows: Array<{ id: string }> = await tx.$queryRawUnsafe(`SELECT o.id FROM "Order" o WHERE o."assignedFulfillmentUserId" IS NULL AND o."fulfillmentStatus" = 'READY_TO_SHIP' AND o.status = 'PAID' AND o."shippedAt" IS NULL AND EXISTS (SELECT 1 FROM "OrderItem" i JOIN "InventoryReservation" r ON r."orderItemId" = i.id AND r.status = 'ACTIVE' WHERE i."orderId" = o.id) ORDER BY o."createdAt" ASC LIMIT $1 FOR UPDATE SKIP LOCKED`, claimSize);
     const ids = rows.map((r) => r.id);
     if (!ids.length) return [];
     await tx.order.updateMany({ where: { id: { in: ids }, assignedFulfillmentUserId: null, fulfillmentStatus: "READY_TO_SHIP" }, data: { assignedFulfillmentUserId: actor.adminId, fulfillmentStatus: "PICKING", assignedAt: new Date() } });
-    await Promise.all(ids.map((id: string) => tx.auditLog.create({ data: { actorAdminId: actor.demo ? null : actor.adminId, action: "ORDER_ASSIGNED", entityType: "Order", entityId: id, note: "Order assigned by automatic fulfillment claim.", metadata: { actingUserEmail: actor.email, actingRole: actor.role, orderIds: [id], batchSize: claimSize } } })));
+    await Promise.all(ids.map((id: string) => tx.auditLog.create({ data: { actorAdminId: actor.demo ? null : actor.adminId, action: "ORDER_ASSIGNED", entityType: "Order", entityId: id, note: "Order assigned by automatic fulfillment claim.", metadata: { actingUserEmail: actor.email, actingRole: actor.role, claimedBy: actor.email, claimedOrderId: id, orderIds: [id], batchSize: claimSize } } })));
     await tx.auditLog.create({ data: { actorAdminId: actor.demo ? null : actor.adminId, action: "FULFILLMENT_BATCH_CLAIMED", entityType: "Order", entityId: ids[0], note: "Fulfillment batch claimed.", metadata: { actingUserEmail: actor.email, actingRole: actor.role, orderIds: ids, batchSize: claimSize } } });
     return ids;
   });
@@ -49,7 +49,7 @@ export async function claimBatchAction(_s: FulfillmentFormState, fd: FormData): 
 export async function markSelectedShippedAction(_s: FulfillmentFormState, fd: FormData): Promise<FulfillmentFormState> {
   const actor = await requireAdminSession("/admin/fulfillment");
   const orderIds = fd.getAll("orderIds").map(String);
-  const result = await shipOrders({ orderIds, actor, carrier: String(fd.get("carrier") || "") || undefined, trackingNumber: String(fd.get("trackingNumber") || "") || undefined });
+  const result = await shipOrders({ orderIds, actor, carrier: String(fd.get("carrier") || "").trim() || undefined, trackingNumber: String(fd.get("trackingNumber") || "").trim() || undefined });
   revalidatePath("/admin/fulfillment");
   if (result.errors.length && !result.shipped.length) return { error: result.errors.join(" ") };
   return { success: `Shipped ${result.shipped.length} order(s). Skipped ${result.skipped.length}. ${result.errors.join(" ")}`.trim() };
