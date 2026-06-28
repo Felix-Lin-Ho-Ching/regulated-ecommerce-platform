@@ -17,7 +17,7 @@ export default async function Success({ searchParams }: { searchParams: Promise<
         <StatusBadge tone="warning">Payment not collected</StatusBadge>
         <h2 className="mt-3 text-2xl font-black">Order request {orderNumber}</h2>
         <p className="text-slate-600">
-          Status: {order?.status || "READY_FOR_PAYMENT"} · Eligibility passed · Payment not collected
+          Status: {order?.status || "Ready for payment"} · Eligibility checks passed · Payment not collected
         </p>
         {order?.items?.length ? (
           <div className="mt-5 divide-y divide-stone-200 rounded-2xl border border-stone-200">
@@ -31,7 +31,7 @@ export default async function Success({ searchParams }: { searchParams: Promise<
         ) : null}
         {order ? <p className="mt-5 text-xl font-black">Request total {money(order.total)}</p> : null}
         <p className="mt-3 text-sm text-slate-600">
-          Destination and age checks, when required, have passed. Payment has not been collected and fulfillment is not released until a future paid status exists.
+          Destination and age checks, when required, have passed. Payment has not been collected and fulfillment has not started. The order request is ready for a future payment step.
         </p>
         <Link className="btn btn-primary mt-5" href="/products">Continue shopping</Link>
       </section>
