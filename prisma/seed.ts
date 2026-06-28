@@ -192,9 +192,32 @@ async function main() {
   }
 
   const manualTemplate = await prisma.verificationTemplate.findUniqueOrThrow({ where: { code: "MANUAL_REVIEW_DEFAULT" } });
+  const stunGunBlockedStates = new Set(["DC", "HI", "MA"]);
+  const stunGunLegalSourceNote =
+    "Development rule based on Self Defense Mall stun-gun laws reference; counsel review required before production.";
+  const stunGunAllowReason =
+    "Allowed by development stun-gun state reference; counsel review required before production.";
+  const stunGunBlockReason = "Blocked by development stun-gun state reference.";
+
   for (const state of states) {
     for (const category of restrictedCategories) {
-      await prisma.stateRestrictionRule.upsert({ where: { stateCode_productCategory_productId: { stateCode: state, productCategory: category, productId: "prod_knuckle" } }, update: { outcome: "BLOCK", reviewStatus: "COUNSEL_REVIEW_REQUIRED", reason: "Blocked by default until owner-approved legal review allows this destination.", legalSourceNote: "Seeded launch-safe default: counsel review required before allowing this destination." }, create: { id: `rule_${state}_${category}`, stateCode: state, productCategory: category, productId: "prod_knuckle", outcome: "BLOCK", reviewStatus: "COUNSEL_REVIEW_REQUIRED", reason: "Blocked by default until owner-approved legal review allows this destination.", legalSourceNote: "Seeded launch-safe default: counsel review required before allowing this destination." } });
+      const outcome = stunGunBlockedStates.has(state) ? "BLOCK" : "ALLOW";
+      const reason = outcome === "BLOCK" ? stunGunBlockReason : stunGunAllowReason;
+
+      await prisma.stateRestrictionRule.upsert({
+        where: { stateCode_productCategory_productId: { stateCode: state, productCategory: category, productId: "prod_knuckle" } },
+        update: { outcome, reviewStatus: "COUNSEL_REVIEW_REQUIRED", reason, legalSourceNote: stunGunLegalSourceNote },
+        create: {
+          id: `rule_${state}_${category}`,
+          stateCode: state,
+          productCategory: category,
+          productId: "prod_knuckle",
+          outcome,
+          reviewStatus: "COUNSEL_REVIEW_REQUIRED",
+          reason,
+          legalSourceNote: stunGunLegalSourceNote,
+        },
+      });
       await prisma.stateVerificationRule.upsert({ where: { stateCode_productCategory: { stateCode: state, productCategory: category } }, update: {}, create: { id: `vrule_${state}_${category}`, stateCode: state, productCategory: category, templateId: manualTemplate.id, reviewStatus: "MANUAL_REVIEW", reason: "Default verification review; automatic-first but exceptions stay in admin review." } });
     }
   }
