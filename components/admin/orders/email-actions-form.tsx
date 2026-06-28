@@ -1,0 +1,6 @@
+"use client";
+import { useActionState } from "react";
+import { AlertPanel } from "@/components/common/panels";
+import { logOrderNotificationAction } from "@/lib/admin/orders/actions";
+import type { AdminActionState } from "@/lib/admin/action-state";
+export function EmailActionsForm({ orderId, cancelled }: { orderId: string; cancelled: boolean }) { const [state, action] = useActionState<AdminActionState, FormData>(logOrderNotificationAction, {}); return <form action={action} className="card mt-4 grid gap-3 p-5"><h2 className="font-black">Regenerate debug email log</h2><input type="hidden" name="orderId" value={orderId} />{state.error ? <AlertPanel title="Email log blocked" tone="danger">{state.error}</AlertPanel> : null}{state.success ? <AlertPanel title="Email logged" tone="success">{state.success}</AlertPanel> : null}<select className="input" name="type" defaultValue="customer_confirmation"><option value="customer_confirmation">Customer order-request confirmation</option><option value="admin_new_order">Admin new-order notification</option>{cancelled ? <option value="customer_cancellation">Customer cancellation notice</option> : null}</select><button className="btn btn-secondary">Create debug email log</button></form>; }
