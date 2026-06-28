@@ -8,6 +8,8 @@ import { buildAdminNewOrderEmail } from "@/lib/email/templates/admin-new-order";
 
 export const adminOrderStatuses = ["ORDER_REQUEST_SUBMITTED", "AUTO_ELIGIBLE", "PENDING_PAYMENT", "FULFILLMENT_HOLD", "PENDING_ELIGIBILITY", "READY_FOR_PAYMENT", "PAID", "FULFILLED", "SHIPPED", "CANCELLED", "BLOCKED"] as const;
 export type AdminOrderStatus = (typeof adminOrderStatuses)[number];
+export const terminalAdminOrderStatuses = ["CANCELLED", "SHIPPED", "FULFILLED", "BLOCKED"] as const;
+export function isTerminalAdminOrderStatus(status: string) { return (terminalAdminOrderStatuses as readonly string[]).includes(status); }
 export type AdminOrderFilters = { orderNumber?: string; customerEmail?: string; customerName?: string; status?: string; payment?: string; restricted?: string; state?: string; postalCode?: string; createdFrom?: string; createdTo?: string };
 
 function clean(value?: string) { return value?.trim() || undefined; }
@@ -52,8 +54,10 @@ export async function updateAdminOrderStatus(orderId: string, status: string, no
   if (status === "BLOCKED") return { error: "Unsafe action blocked: blocked checkout must stop before order creation and cannot be applied through the generic status form." };
   if (!adminOrderStatuses.includes(status as AdminOrderStatus)) return { error: "Invalid order status." };
   const noteResult = { note: optionalAuditNote(note, `Owner changed order status to ${status}.`) };
-  const order = await prisma.order.findUnique({ where: { id: orderId }, select: { id: true, orderNumber: true } });
+  const order = await prisma.order.findUnique({ where: { id: orderId }, select: { id: true, orderNumber: true, status: true, fulfillmentStatus: true, shippedAt: true } });
   if (!order) return { error: "Order was not found." };
+  if (isTerminalAdminOrderStatus(order.status)) return { error: "Generic status updates are blocked for terminal orders. Use the appropriate dedicated workflow instead." };
+  if (order.fulfillmentStatus === "SHIPPED" || order.shippedAt) return { error: "Generic status updates are blocked for orders that have shipped. Return/refund workflow is separate." };
   await prisma.order.update({ where: { id: orderId }, data: { status }, select: { id: true } });
   await createAuditLog({ action: "UPDATE", entityType: "Order", entityId: order.id, note: noteResult.note, metadata: { status } });
   revalidatePath("/admin/orders"); revalidatePath(`/admin/orders/${order.orderNumber}`); return {};
