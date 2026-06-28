@@ -48,10 +48,10 @@ export async function updateAdminOrderStatus(orderId: string, status: string, no
   if (!isDatabaseConfigured) return { error: "Database is not configured." };
   if (!orderId) return { error: "Missing order id." };
   if (["SHIPPED", "PAID", "FULFILLED"].includes(status)) return { error: "Unsafe action blocked: unpaid order requests cannot be marked paid, shipped, or fulfilled manually." };
+  if (status === "CANCELLED") return { error: "Unsafe action blocked: use the dedicated cancellation form so inventory reservations and cancellation notices are handled safely." };
+  if (status === "BLOCKED") return { error: "Unsafe action blocked: blocked checkout must stop before order creation and cannot be applied through the generic status form." };
   if (!adminOrderStatuses.includes(status as AdminOrderStatus)) return { error: "Invalid order status." };
-  const highRisk = status === "CANCELLED" || status === "BLOCKED";
-  const noteResult = highRisk ? validateManualReason(note) : { note: optionalAuditNote(note, `Owner changed order status to ${status}.`) };
-  if ("error" in noteResult) return { error: reasonRequiredMessage };
+  const noteResult = { note: optionalAuditNote(note, `Owner changed order status to ${status}.`) };
   const order = await prisma.order.findUnique({ where: { id: orderId }, select: { id: true, orderNumber: true } });
   if (!order) return { error: "Order was not found." };
   await prisma.order.update({ where: { id: orderId }, data: { status }, select: { id: true } });
