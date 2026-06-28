@@ -37,8 +37,16 @@ if(mode==='lint'){
   const extraStates = states.filter((state) => !expectedStates.includes(state));
   if(states.length !== 51 || missingStates.length || extraStates.length){ console.error(`Restricted state list must be exactly 50 states + DC. Found ${states.length}; missing: ${missingStates.join(',')}; extra: ${extraStates.join(',')}`); process.exit(1); }
   const seedText = readFileSync('prisma/seed.ts', 'utf8');
-  if(/outcome:\s*"ALLOW"/.test(seedText)){ console.error('Seed must not create ALLOW restricted destination rules by default.'); process.exit(1); }
-  if(!seedText.includes('Blocked by default until owner-approved legal review allows this destination.')){ console.error('Seed is missing the launch-safe default BLOCK reason.'); process.exit(1); }
+  const requiredSeedPhrases = [
+    'Development rule based on Self Defense Mall stun-gun laws reference; counsel review required before production.',
+    'Allowed by development stun-gun state reference; counsel review required before production.',
+    'Blocked by development stun-gun state reference.',
+  ];
+  const missingSeedPhrases = requiredSeedPhrases.filter((phrase) => !seedText.includes(phrase));
+  if(missingSeedPhrases.length){ console.error('Seed is missing required stun-gun development rule text:\n' + missingSeedPhrases.join('\n')); process.exit(1); }
+  for (const state of ['DC', 'HI', 'MA']) {
+    if(!seedText.includes(state)){ console.error(`Seed is missing required blocked stun-gun state ${state}.`); process.exit(1); }
+  }
   console.log(`Static lint passed for ${files.length} files.`);
 } else if(mode==='typecheck'){
   const text = files.filter(f=>/\.(tsx|ts)$/.test(f)).map(f=>readFileSync(f,'utf8')).join('\n');
