@@ -3,6 +3,7 @@ ALTER TABLE "StateRestrictionRule" ADD COLUMN IF NOT EXISTS "legalSourceNote" TE
 UPDATE "StateRestrictionRule" SET "outcome" = 'BLOCK' WHERE "outcome" IN ('MANUAL_REVIEW', 'DOCUMENTS_REQUIRED');
 UPDATE "LocalRestrictionRule" SET "outcome" = 'BLOCK' WHERE "outcome" IN ('MANUAL_REVIEW', 'DOCUMENTS_REQUIRED');
 UPDATE "ProductFeatureRestrictionRule" SET "outcome" = 'BLOCK' WHERE "outcome" IN ('MANUAL_REVIEW', 'DOCUMENTS_REQUIRED');
+UPDATE "OrderVerificationSnapshot" SET "outcome" = 'BLOCK' WHERE "outcome" IN ('MANUAL_REVIEW', 'DOCUMENTS_REQUIRED');
 DO $$
 BEGIN
   IF to_regclass('public."VerificationDecision"') IS NOT NULL THEN
@@ -20,6 +21,7 @@ CREATE TYPE "RuleOutcome" AS ENUM ('ALLOW', 'BLOCK');
 ALTER TABLE "StateRestrictionRule" ALTER COLUMN "outcome" TYPE "RuleOutcome" USING "outcome"::text::"RuleOutcome";
 ALTER TABLE "LocalRestrictionRule" ALTER COLUMN "outcome" TYPE "RuleOutcome" USING "outcome"::text::"RuleOutcome";
 ALTER TABLE "ProductFeatureRestrictionRule" ALTER COLUMN "outcome" TYPE "RuleOutcome" USING "outcome"::text::"RuleOutcome";
+ALTER TABLE "OrderVerificationSnapshot" ALTER COLUMN "outcome" TYPE "RuleOutcome" USING "outcome"::text::"RuleOutcome";
 ALTER TABLE IF EXISTS "VerificationDecision" ALTER COLUMN "outcome" TYPE "RuleOutcome" USING "outcome"::text::"RuleOutcome";
 DROP TYPE "RuleOutcome_old";
 
