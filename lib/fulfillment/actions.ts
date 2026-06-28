@@ -43,7 +43,7 @@ export async function confirmShipmentAction(_state: FulfillmentActionState, form
 
   if (result.error) return { error: result.error };
   if (result.alreadyShipped) return { alreadyShipped: true, success: "Already shipped" };
-  if (result.customerEmail) await logDebugEmail({ type: "CUSTOMER_SHIPMENT", to: result.customerEmail, subject: `Order ${result.orderNumber} shipped`, text: `Your order ${result.orderNumber} has been marked shipped. Carrier: ${tracking.carrier}. Tracking: ${tracking.trackingNumber}.`, orderId: result.orderId, metadata: { orderNumber: result.orderNumber, carrier: tracking.carrier, trackingNumber: tracking.trackingNumber } }).catch(() => undefined);
+  if (result.customerEmail) await logDebugEmail({ type: "CUSTOMER_SHIPMENT", to: result.customerEmail, subject: `Order ${result.orderNumber} shipped`, text: `Your order ${result.orderNumber} has shipped. Carrier: ${tracking.carrier}. Tracking number: ${tracking.trackingNumber}.`, orderId: result.orderId, metadata: { orderNumber: result.orderNumber, carrier: tracking.carrier, trackingNumber: tracking.trackingNumber } }).catch(() => undefined);
   revalidatePath(`/fulfillment/ship/${token}`);
   return { success: "Shipment confirmed." };
 }

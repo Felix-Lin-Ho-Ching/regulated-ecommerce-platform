@@ -30,8 +30,53 @@ export type CustomerOrderSummary = {
   payment: string;
   verification: string;
   createdAt: string;
-  items?: Array<{ name: string; quantity: number; total: number }>;
+  hasRestrictedItems?: boolean;
+  fulfillment: string;
+  shipmentStatus: string;
+  shippedAt?: string | null;
 };
+
+export type CustomerOrderDetail = CustomerOrderSummary & {
+  subtotal: number;
+  shipping: number;
+  tax: number;
+  items: Array<{ name: string; sku: string; quantity: number; unitPrice: number; total: number }>;
+  shippingAddress?: ShippingDraft & { country?: string | null };
+  carrier?: string | null;
+  trackingNumber?: string | null;
+};
+
+export function customerOrderStatusLabel(status?: string | null) {
+  const labels: Record<string, string> = {
+    ORDER_REQUEST_SUBMITTED: "Order request submitted",
+    AUTO_ELIGIBLE: "Eligibility checks passed",
+    READY_FOR_PAYMENT: "Ready for payment",
+    SHIPPED: "Shipped",
+    CANCELLED: "Cancelled",
+    PAID: "Paid",
+    FULFILLED: "Fulfilled",
+    BLOCKED: "Blocked",
+    PENDING_PAYMENT: "Pending payment",
+    FULFILLMENT_HOLD: "Fulfillment not released",
+    PENDING_ELIGIBILITY: "Eligibility pending",
+  };
+  return status ? labels[status] ?? status.replaceAll("_", " ").toLowerCase().replace(/^./, (c) => c.toUpperCase()) : "Order request submitted";
+}
+
+export function customerPaymentStatusLabel(status?: string | null) {
+  if (!status || status === "ORDER_REQUEST") return "Payment not collected";
+  if (status === "APPROVED") return "Payment collected";
+  return customerOrderStatusLabel(status);
+}
+
+export function customerFulfillmentStatusLabel(status?: string | null, orderStatus?: string | null) {
+  if (orderStatus === "SHIPPED" || status === "SHIPPED") return "Shipped";
+  return "Fulfillment not released";
+}
+
+function customerShipmentStatus(order: { status?: string | null; fulfillmentStatus?: string | null; shippedAt?: Date | string | null }) {
+  return order.status === "SHIPPED" || order.fulfillmentStatus === "SHIPPED" || order.shippedAt ? "Shipped" : "Not shipped";
+}
 
 const shippingCookieName = "stun_fry_shipping";
 const ordersCookieName = "stun_fry_orders";
@@ -226,10 +271,12 @@ export async function createOrderRequestFromCart(): Promise<CustomerOrderSummary
       orderNumber: readyOrder.orderNumber,
       status: "Ready for payment",
       total: readyOrder.totalCents / 100,
-      payment: "Not collected",
-      verification: "destination/age precheck passed",
+      payment: "Payment not collected",
+      verification: "Eligibility checks passed",
       createdAt: readyOrder.createdAt.toISOString(),
-      items: cart.lines.map((line) => ({ name: line.product.name, quantity: line.quantity, total: line.lineTotal })),
+      hasRestrictedItems: readyOrder.items.some((item: { product: { restricted: boolean } }) => item.product.restricted),
+      fulfillment: "Fulfillment not released",
+      shipmentStatus: "Not shipped",
     };
   }
 
@@ -237,10 +284,12 @@ export async function createOrderRequestFromCart(): Promise<CustomerOrderSummary
     orderNumber,
     status: "Ready for payment",
     total: cart.total,
-    payment: "Not collected",
-    verification: "destination/age precheck passed",
+    payment: "Payment not collected",
+    verification: "Eligibility checks passed",
     createdAt: new Date().toISOString(),
-    items: cart.lines.map((line) => ({ name: line.product.name, quantity: line.quantity, total: line.lineTotal })),
+    hasRestrictedItems: cart.lines.some((line) => line.product.restricted),
+    fulfillment: "Fulfillment not released",
+    shipmentStatus: "Not shipped",
   };
 
   await saveCookieOrder(order);
@@ -260,6 +309,9 @@ export async function getCustomerOrders(): Promise<CustomerOrderSummary[]> {
         status: true,
         totalCents: true,
         createdAt: true,
+        fulfillmentStatus: true,
+        shippedAt: true,
+        items: { select: { product: { select: { restricted: true } } } },
         paymentAttempts: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true } },
       },
     });
@@ -269,23 +321,66 @@ export async function getCustomerOrders(): Promise<CustomerOrderSummary[]> {
       status: string;
       totalCents: number;
       createdAt: Date;
+      fulfillmentStatus: string;
+      shippedAt: Date | null;
+      items: Array<{ product: { restricted: boolean } }>;
       paymentAttempts: Array<{ status: string }>;
     }) => ({
       orderNumber: row.orderNumber,
-      status: row.status === "READY_FOR_PAYMENT" ? "Ready for payment" : row.status,
+      status: customerOrderStatusLabel(row.status),
       total: row.totalCents / 100,
-      payment: row.paymentAttempts[0]?.status === "ORDER_REQUEST" ? "Not collected" : row.paymentAttempts[0]?.status.toLowerCase() || "not started",
-      verification: row.status === "READY_FOR_PAYMENT" ? "auto eligibility passed" : "pending review",
+      payment: customerPaymentStatusLabel(row.paymentAttempts[0]?.status),
+      verification: row.status === "READY_FOR_PAYMENT" ? "Eligibility checks passed" : customerOrderStatusLabel(row.status),
       createdAt: row.createdAt.toISOString(),
+      hasRestrictedItems: row.items.some((item: { product: { restricted: boolean } }) => item.product.restricted),
+      fulfillment: customerFulfillmentStatusLabel(row.fulfillmentStatus, row.status),
+      shipmentStatus: customerShipmentStatus(row),
+      shippedAt: row.shippedAt?.toISOString() ?? null,
     }));
   }
 
   return getCookieOrders();
 }
 
-export async function getOrderByNumber(orderNumber: string) {
-  const orders = await getCustomerOrders();
-  return orders.find((order) => order.orderNumber === orderNumber) || null;
+export async function getOrderByNumber(orderNumber: string): Promise<CustomerOrderDetail | null> {
+  const session = await getCustomerSession();
+  if (isDatabaseConfigured && session && !session.demo) {
+    const row = await prisma.order.findFirst({
+      where: { orderNumber, userId: session.userId, archivedAt: null },
+      select: {
+        orderNumber: true, status: true, subtotalCents: true, shippingCents: true, taxCents: true, totalCents: true, createdAt: true,
+        fulfillmentStatus: true, carrier: true, trackingNumber: true, shippedAt: true,
+        shippingAddress: { select: { name: true, line1: true, line2: true, city: true, state: true, postalCode: true, country: true, phone: true } },
+        items: { select: { name: true, sku: true, quantity: true, unitPriceCents: true, product: { select: { restricted: true } } } },
+        paymentAttempts: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true } },
+      },
+    });
+    if (!row) return null;
+    const shipped = customerShipmentStatus(row) === "Shipped";
+    return {
+      orderNumber: row.orderNumber,
+      status: customerOrderStatusLabel(row.status),
+      subtotal: row.subtotalCents / 100,
+      shipping: row.shippingCents / 100,
+      tax: row.taxCents / 100,
+      total: row.totalCents / 100,
+      payment: customerPaymentStatusLabel(row.paymentAttempts[0]?.status),
+      verification: row.status === "READY_FOR_PAYMENT" || row.status === "SHIPPED" ? "Eligibility checks passed" : customerOrderStatusLabel(row.status),
+      createdAt: row.createdAt.toISOString(),
+      hasRestrictedItems: row.items.some((item: { product: { restricted: boolean } }) => item.product.restricted),
+      fulfillment: customerFulfillmentStatusLabel(row.fulfillmentStatus, row.status),
+      shipmentStatus: customerShipmentStatus(row),
+      shippedAt: row.shippedAt?.toISOString() ?? null,
+      carrier: shipped ? row.carrier : null,
+      trackingNumber: shipped ? row.trackingNumber : null,
+      shippingAddress: row.shippingAddress ?? undefined,
+      items: row.items.map((item: { name: string; sku: string; quantity: number; unitPriceCents: number }) => ({ name: item.name, sku: item.sku, quantity: item.quantity, unitPrice: item.unitPriceCents / 100, total: (item.unitPriceCents * item.quantity) / 100 })),
+    };
+  }
+  const orders = await getCookieOrders();
+  const order = orders.find((candidate) => candidate.orderNumber === orderNumber);
+  if (!order) return null;
+  return { ...order, subtotal: order.total, shipping: 0, tax: 0, items: [] };
 }
 
 export function getCartLineCount(cart: CartSnapshot) {
