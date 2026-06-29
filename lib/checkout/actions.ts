@@ -17,6 +17,28 @@ function isAdult(year: string, month: string, day: string) {
   return adultDate <= today;
 }
 
+export async function evaluateCheckoutDestinationAction({ state, postalCode }: { state?: string; postalCode?: string }) {
+  const cart = await getCartSnapshot();
+  const restrictedLines = cart.lines.filter((line) => line.product.restricted);
+
+  if (restrictedLines.length === 0) {
+    return evaluateCheckoutDestinationFromConfiguredRules({ hasRestrictedItems: false, state, postalCode });
+  }
+
+  for (const line of restrictedLines) {
+    const destination = await evaluateCheckoutDestinationFromConfiguredRules({
+      hasRestrictedItems: true,
+      productCategory: line.product.category,
+      productId: line.product.id,
+      state,
+      postalCode,
+    });
+    if (destination.status !== "allowed") return destination;
+  }
+
+  return { status: "allowed" as const, message: "Standard shipping is available." };
+}
+
 export async function submitCheckoutAction(formData: FormData) {
   const cart = await getCartSnapshot();
   if (cart.lines.length === 0) redirect("/cart");
@@ -38,16 +60,18 @@ export async function submitCheckoutAction(formData: FormData) {
 
   await saveShippingDraft({ name, line1, line2, city, state, postalCode, phone });
 
-  const restrictedLine = cart.lines.find((line) => line.product.restricted);
-  if (restrictedLine) {
-    const destination = await evaluateCheckoutDestinationFromConfiguredRules({
-      hasRestrictedItems: true,
-      productCategory: restrictedLine.product.category,
-      productId: restrictedLine.product.id,
-      state,
-      postalCode,
-    });
-    if (destination.status !== "allowed") redirect("/checkout?error=blocked");
+  const restrictedLines = cart.lines.filter((line) => line.product.restricted);
+  if (restrictedLines.length > 0) {
+    for (const restrictedLine of restrictedLines) {
+      const destination = await evaluateCheckoutDestinationFromConfiguredRules({
+        hasRestrictedItems: true,
+        productCategory: restrictedLine.product.category,
+        productId: restrictedLine.product.id,
+        state,
+        postalCode,
+      });
+      if (destination.status !== "allowed") redirect("/checkout?error=blocked");
+    }
 
     const adult = isAdult(required(formData, "dobYear"), required(formData, "dobMonth"), required(formData, "dobDay"));
     const attested = formData.get("ageAttestation") === "on";

@@ -224,10 +224,25 @@ async function main() {
 
   const blockedTemplate = await prisma.verificationTemplate.findUniqueOrThrow({ where: { code: "BLOCKED" } });
   for (const state of states) {
+    const blocked = stunGunBlockedStates.has(state);
     await prisma.stateVerificationRule.upsert({
       where: { stateCode_productCategory: { stateCode: state, productCategory: "knuckle_stun_device" } },
-      update: { templateId: blockedTemplate.id, reviewStatus: "COUNSEL_REVIEW_REQUIRED", reason: "Default blocked verification posture until counsel-approved destination rules change." },
-      create: { stateCode: state, productCategory: "knuckle_stun_device", templateId: blockedTemplate.id, reviewStatus: "COUNSEL_REVIEW_REQUIRED", reason: "Default blocked verification posture until counsel-approved destination rules change." },
+      update: {
+        templateId: blocked ? blockedTemplate.id : manualTemplate.id,
+        reviewStatus: blocked ? "COUNSEL_REVIEW_REQUIRED" : "MANUAL_REVIEW",
+        reason: blocked
+          ? "Blocked by development stun-gun state reference."
+          : "Allowed by development state restriction matrix; verification/manual counsel review remains required before payment release.",
+      },
+      create: {
+        stateCode: state,
+        productCategory: "knuckle_stun_device",
+        templateId: blocked ? blockedTemplate.id : manualTemplate.id,
+        reviewStatus: blocked ? "COUNSEL_REVIEW_REQUIRED" : "MANUAL_REVIEW",
+        reason: blocked
+          ? "Blocked by development stun-gun state reference."
+          : "Allowed by development state restriction matrix; verification/manual counsel review remains required before payment release.",
+      },
     });
   }
 

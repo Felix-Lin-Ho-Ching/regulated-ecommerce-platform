@@ -228,7 +228,7 @@ export async function createOrderRequestFromCart(): Promise<CustomerOrderSummary
         paymentAttempts: {
           create: {
             provider: "ORDER_REQUEST",
-            providerStatus: "ORDER_REQUEST",
+            providerStatus: "DISABLED",
             status: "ORDER_REQUEST",
             amountCents: toCents(cart.total),
             livePaymentEnabled: false,

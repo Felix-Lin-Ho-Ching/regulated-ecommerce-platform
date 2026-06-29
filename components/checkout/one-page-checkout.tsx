@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { CartSnapshot } from "@/lib/cart/cart-service";
-import { submitCheckoutAction } from "@/lib/checkout/actions";
-import { evaluateCheckoutDestination, getRestrictedCategory, getRestrictedProductId } from "@/lib/checkout/eligibility";
+import { evaluateCheckoutDestinationAction, submitCheckoutAction } from "@/lib/checkout/actions";
+import type { CheckoutDestinationResult } from "@/lib/checkout/eligibility";
 import { money } from "@/lib/utils";
 
 type AddressState = {
@@ -29,15 +29,35 @@ function isAdult({ year, month, day }: AgeState) {
 export function OnePageCheckout({ cart, error, message }: { cart: CartSnapshot; error?: string; message?: string }) {
   const [address, setAddress] = useState<AddressState>({ email: "", firstName: "", lastName: "", line1: "", city: "", state: "", postalCode: "" });
   const [age, setAge] = useState<AgeState>({ month: "", day: "", year: "", verified: false, attested: false });
+  const [destination, setDestination] = useState<CheckoutDestinationResult>({ status: "pending", message: "Enter your shipping address to view available shipping methods." });
+  const [isDestinationPending, setIsDestinationPending] = useState(false);
   const hasRestricted = cart.hasRestrictedItems;
   const addressComplete = Boolean(address.email && address.firstName && address.lastName && address.line1 && address.city && address.state && address.postalCode);
-  const destination = useMemo(
-    () => evaluateCheckoutDestination({ hasRestrictedItems: hasRestricted, productCategory: getRestrictedCategory(cart), productId: getRestrictedProductId(cart), state: address.state, postalCode: address.postalCode }),
-    [address.state, address.postalCode, cart, hasRestricted],
-  );
+
+  useEffect(() => {
+    if (!address.state || !address.postalCode) {
+      setIsDestinationPending(false);
+      setDestination({ status: "pending", message: "Enter your shipping address to view available shipping methods." });
+      return;
+    }
+
+    let current = true;
+    setIsDestinationPending(true);
+    void evaluateCheckoutDestinationAction({ state: address.state, postalCode: address.postalCode })
+      .then((result) => {
+        if (current) setDestination(result);
+      })
+      .finally(() => {
+        if (current) setIsDestinationPending(false);
+      });
+
+    return () => {
+      current = false;
+    };
+  }, [address.state, address.postalCode]);
   const ageComplete = !hasRestricted || (age.verified && age.attested);
   const blocked = destination.status === "blocked";
-  const canSubmit = addressComplete && destination.status === "allowed" && ageComplete;
+  const canSubmit = addressComplete && !isDestinationPending && destination.status === "allowed" && ageComplete;
 
   function updateAddress(field: keyof AddressState, value: string) {
     setAddress((current) => ({ ...current, [field]: value }));
@@ -83,7 +103,7 @@ export function OnePageCheckout({ cart, error, message }: { cart: CartSnapshot; 
           <label className="mt-4 flex gap-3 text-sm text-slate-700"><input name="saveInfo" type="checkbox" /> Save this information for next time</label>
         </section>
 
-        <section className="card p-5"><h2 className="text-xl font-black">Shipping method</h2><ShippingMethod addressComplete={addressComplete} destination={destination} shipping={cart.shipping} /></section>
+        <section className="card p-5"><h2 className="text-xl font-black">Shipping method</h2><ShippingMethod addressComplete={addressComplete} destination={destination} shipping={cart.shipping} pending={isDestinationPending} /></section>
         <section className="card p-5"><h2 className="text-xl font-black">Order request</h2><PaymentBlock disabled={blocked} /></section>
 
         {hasRestricted ? (
@@ -104,8 +124,9 @@ export function OnePageCheckout({ cart, error, message }: { cart: CartSnapshot; 
   );
 }
 
-function ShippingMethod({ addressComplete, destination, shipping }: { addressComplete: boolean; destination: { status: string; message: string }; shipping: number }) {
+function ShippingMethod({ addressComplete, destination, shipping, pending }: { addressComplete: boolean; destination: { status: string; message: string }; shipping: number; pending: boolean }) {
   if (!addressComplete) return <p className="mt-2 text-sm text-slate-600">Enter your shipping address to view available shipping methods.</p>;
+  if (pending) return <p className="mt-2 text-sm text-slate-600">Checking configured destination rules…</p>;
   if (destination.status === "allowed") return <label className="mt-4 flex items-center justify-between rounded-2xl border border-teal-700 bg-teal-50 p-4 font-bold"><span>Standard shipping</span><span>{money(shipping)}</span></label>;
   return <p className="mt-2 text-sm font-bold text-amber-900">{destination.message}</p>;
 }
