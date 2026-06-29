@@ -75,10 +75,8 @@ function getFulfillmentOrderWhere(admin: AdminSession) {
   todayStart.setHours(0, 0, 0, 0);
 
   return {
-    OR: [
-      { status: "PAID", fulfillmentStatus: { in: ["READY_TO_SHIP", "PICKING", "BLOCKED"] } },
-      { status: "SHIPPED", fulfillmentStatus: "SHIPPED", shippedAt: { gte: todayStart } },
-    ],
+    status: "PAID",
+    fulfillmentStatus: { in: ["READY_TO_SHIP", "PICKING"] },
   };
 }
 

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { AdminSession } from "@/lib/admin/auth";
 import type { FulfillmentOrderForAdmin } from "@/lib/fulfillment/admin-queries";
 import { StatusBadge } from "@/components/ui";
+import { claimOrderFormAction } from "@/lib/fulfillment/admin-actions";
 
 function formatDate(date: Date | null) {
   if (!date) return "—";
@@ -15,7 +16,8 @@ function getStatusTone(status: string) {
 }
 
 export function FulfillmentOrderRow({ admin, order }: { admin: AdminSession; order: FulfillmentOrderForAdmin }) {
-  const canShip = order.status === "PAID" && order.fulfillmentStatus !== "SHIPPED" && (admin.role !== "FULFILLMENT" || order.assignedFulfillmentUserId === admin.adminId);
+  const canClaim = order.status === "PAID" && order.fulfillmentStatus === "READY_TO_SHIP" && !order.assignedFulfillmentUserId;
+  const canShip = order.status === "PAID" && order.fulfillmentStatus === "PICKING" && (admin.role !== "FULFILLMENT" || order.assignedFulfillmentUserId === admin.adminId);
   const customerName = order.customerName || order.shippingAddress?.name || "—";
   const customerEmail = order.customerEmail || "—";
   const shipTo = order.shippingAddress ? `${order.shippingAddress.state} ${order.shippingAddress.postalCode}` : "—";
@@ -35,7 +37,7 @@ export function FulfillmentOrderRow({ admin, order }: { admin: AdminSession; ord
       <td className="max-w-xs text-xs">{skuList || "—"}</td>
       <td>{quantityTotal}</td>
       <td><StatusBadge tone={getStatusTone(order.fulfillmentStatus)}>{order.fulfillmentStatus}</StatusBadge></td>
-      <td>{assignedEmployee}</td>
+      <td>{assignedEmployee}{canClaim ? <form action={claimOrderFormAction} className="mt-2"><input type="hidden" name="orderId" value={order.id} /><button className="btn btn-secondary text-xs">Claim</button></form> : null}</td>
       <td>{formatDate(order.createdAt)}</td>
       <td>{formatDate(order.shippedAt)}</td>
       <td>{order.carrier || order.trackingNumber ? `${order.carrier || "—"} / ${order.trackingNumber || "—"}` : "—"}</td>

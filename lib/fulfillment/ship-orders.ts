@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { logDebugEmail } from "@/lib/email/email-log-service";
 import type { AdminSession } from "@/lib/admin/auth";
+import { buildTrackingUrl } from "@/lib/orders/order-service";
 
 export type ShipOrdersInput = { orderIds: string[]; actor: AdminSession; carrier?: string; trackingNumber?: string };
 export type ShipOrdersResult = { shipped: string[]; skipped: string[]; errors: string[] };
@@ -38,8 +39,8 @@ export async function shipOrders(input: ShipOrdersInput): Promise<ShipOrdersResu
       }
       if (order.status === "CANCELLED" || order.fulfillmentStatus === "BLOCKED") { errors.push(`Order ${order.orderNumber} is cancelled or blocked and cannot be shipped.`); continue; }
       if (order.status !== "PAID") { errors.push(`Order ${order.orderNumber} is unpaid and cannot be shipped. Payment must be collected before fulfillment release.`); continue; }
-      if (!["READY_TO_SHIP", "PICKING"].includes(order.fulfillmentStatus)) { errors.push(`Order ${order.orderNumber} is not in a shippable fulfillment state.`); continue; }
-      if (input.actor.role === "FULFILLMENT" && order.assignedFulfillmentUserId !== input.actor.adminId) { errors.push(`Order ${order.orderNumber} is not assigned to you.`); continue; }
+      if (order.fulfillmentStatus !== "PICKING") { errors.push(`Order ${order.orderNumber} must be claimed and picking before shipment.`); continue; }
+      if (order.assignedFulfillmentUserId !== input.actor.adminId) { errors.push(`Order ${order.orderNumber} is not assigned to you.`); continue; }
 
       const itemStock: Array<{ item: any; inventory: any; reservation: any }> = [];
       for (const item of order.items) {
@@ -65,14 +66,8 @@ export async function shipOrders(input: ShipOrdersInput): Promise<ShipOrdersResu
   });
 
   if (result.shipped.length) {
-    const [orders, recipients] = await Promise.all([
-      (prisma as any).order.findMany({ where: { id: { in: result.shipped } }, select: { id: true, orderNumber: true, customerEmail: true } }),
-      (prisma as any).notificationRecipient.findMany({ where: { enabled: true, shippingAlerts: true }, select: { email: true } }).catch(() => []),
-    ]);
-    await Promise.all([
-      ...orders.filter((o: any) => o.customerEmail).map((o: any) => logDebugEmail({ type: "CUSTOMER_SHIPMENT", to: o.customerEmail, subject: `Order ${o.orderNumber} shipped`, text: `Your order ${o.orderNumber} has shipped. Carrier: ${tracking.carrier}. Tracking number: ${tracking.trackingNumber}.`, orderId: o.id, metadata: { orderNumber: o.orderNumber, carrier: tracking.carrier, trackingNumber: tracking.trackingNumber } }).catch(() => undefined)),
-      ...recipients.map((r: any) => logDebugEmail({ type: "INTERNAL_SHIPMENT", to: r.email, subject: `Shipment confirmed for ${result.shipped.length} order(s)`, text: `Internal shipment notice: shipment confirmed by ${input.actor.email} (${input.actor.role}). Carrier: ${tracking.carrier}. Tracking number: ${tracking.trackingNumber}. Order IDs: ${result.shipped.join(", ")}.`, metadata: { orderIds: result.shipped, carrier: tracking.carrier, trackingNumber: tracking.trackingNumber, actingUserEmail: input.actor.email, actingRole: input.actor.role } }).catch(() => undefined)),
-    ]);
+    const orders = await (prisma as any).order.findMany({ where: { id: { in: result.shipped } }, select: { id: true, orderNumber: true, customerEmail: true } });
+    await Promise.all(orders.filter((o: any) => o.customerEmail).map((o: any) => logDebugEmail({ type: "CUSTOMER_SHIPMENT", to: o.customerEmail, subject: `Order ${o.orderNumber} shipped`, text: `Your order ${o.orderNumber} has shipped. Carrier: ${tracking.carrier}. Tracking number: ${tracking.trackingNumber}.${buildTrackingUrl(tracking.carrier, tracking.trackingNumber) ? ` Track: ${buildTrackingUrl(tracking.carrier, tracking.trackingNumber)}.` : ""}`, orderId: o.id, metadata: { orderNumber: o.orderNumber, carrier: tracking.carrier, trackingNumber: tracking.trackingNumber, trackingUrl: buildTrackingUrl(tracking.carrier, tracking.trackingNumber) } }).catch(() => undefined)));
   }
   return result;
 }
