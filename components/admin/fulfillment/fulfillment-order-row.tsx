@@ -28,7 +28,7 @@ export function FulfillmentOrderRow({ admin, order }: { admin: AdminSession; ord
 
   return (
     <tr>
-      <td>{canShip ? <input type="checkbox" name="orderIds" value={order.id} /> : null}</td>
+      <td>{canShip ? <Link className="btn btn-primary text-xs" href={`/admin/fulfillment/${order.id}/pick-pack`}>Ship order</Link> : canClaim ? <span className="text-xs text-slate-600">Ready</span> : "—"}</td>
       <td className="font-bold"><Link className="text-teal-900 underline" href={`/admin/orders/${order.orderNumber}`}>{order.orderNumber}</Link><br /><Link className="text-xs font-bold text-slate-600 underline" href={`/admin/fulfillment/${order.id}/pick-pack`}>Pick/pack</Link></td>
       <td>{customerName}<br /><span className="text-xs text-slate-600">{customerEmail}</span></td>
       <td>{shipTo}</td>

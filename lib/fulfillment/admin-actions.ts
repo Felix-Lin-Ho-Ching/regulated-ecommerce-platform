@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdminSession } from "@/lib/admin/auth";
 import { prisma } from "@/lib/db/prisma";
-import { shipOrders } from "@/lib/fulfillment/ship-orders";
+import { shipOrders, shipSingleOrder } from "@/lib/fulfillment/ship-orders";
 
 export type FulfillmentFormState = { error?: string; success?: string };
 export type FulfillmentSettingsForAdmin = {
@@ -77,4 +77,21 @@ export async function markSelectedShippedAction(_s: FulfillmentFormState, fd: Fo
   revalidatePath("/admin/fulfillment");
   if (result.errors.length && !result.shipped.length) return { error: result.errors.join(" ") };
   return { success: `Shipped ${result.shipped.length} order(s). Skipped ${result.skipped.length}. ${result.errors.join(" ")}`.trim() };
+}
+
+
+export async function confirmSingleShipmentAction(_s: FulfillmentFormState, fd: FormData): Promise<FulfillmentFormState> {
+  const actor = await requireAdminSession("/admin/fulfillment");
+  if (!["OWNER", "ADMIN", "FULFILLMENT"].includes(actor.role)) return { error: "You cannot confirm shipments." };
+  const orderId = String(fd.get("orderId") || "").trim();
+  const result = await shipSingleOrder({
+    orderId,
+    actor,
+    carrier: String(fd.get("carrier") || "").trim() || undefined,
+    trackingNumber: String(fd.get("trackingNumber") || "").trim() || undefined,
+  });
+  revalidatePath("/admin/fulfillment");
+  if (orderId) revalidatePath(`/admin/fulfillment/${orderId}/pick-pack`);
+  if (!result.shipped) return { error: result.error || "Shipment could not be confirmed." };
+  return { success: `Shipment confirmed for ${result.orderNumber || "order"}.` };
 }
