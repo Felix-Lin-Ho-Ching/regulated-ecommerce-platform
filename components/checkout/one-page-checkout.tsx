@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { type FormEvent, useEffect, useState } from "react";
 import type { CartSnapshot } from "@/lib/cart/cart-service";
 import { evaluateCheckoutDestinationAction, submitCheckoutAction } from "@/lib/checkout/actions";
 import type { CheckoutDestinationResult } from "@/lib/checkout/eligibility";
@@ -19,6 +18,11 @@ type AddressState = {
 
 type AgeState = { month: string; day: string; year: string; verified: boolean; attested: boolean };
 
+const ADDRESS_WARNING = "Complete your contact and shipping address before submitting.";
+const BLOCKED_DESTINATION_WARNING = "This item is not available for your shipping destination. Change shipping address or remove restricted item.";
+const PENDING_DESTINATION_WARNING = "Checking configured destination rules. Try again in a moment.";
+const AGE_WARNING = "Age verification is required for restricted items.";
+
 function isAdult({ year, month, day }: AgeState) {
   const dob = new Date(Number(year), Number(month) - 1, Number(day));
   if (Number.isNaN(dob.getTime())) return false;
@@ -31,6 +35,8 @@ export function OnePageCheckout({ cart, error, message }: { cart: CartSnapshot; 
   const [age, setAge] = useState<AgeState>({ month: "", day: "", year: "", verified: false, attested: false });
   const [destination, setDestination] = useState<CheckoutDestinationResult>({ status: "pending", message: "Enter your shipping address to view available shipping methods." });
   const [isDestinationPending, setIsDestinationPending] = useState(false);
+  const [checkoutWarning, setCheckoutWarning] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const hasRestricted = cart.hasRestrictedItems;
   const addressComplete = Boolean(address.email && address.firstName && address.lastName && address.line1 && address.city && address.state && address.postalCode);
 
@@ -57,22 +63,43 @@ export function OnePageCheckout({ cart, error, message }: { cart: CartSnapshot; 
   }, [address.state, address.postalCode]);
   const ageComplete = !hasRestricted || (age.verified && age.attested);
   const blocked = destination.status === "blocked";
-  const canSubmit = addressComplete && !isDestinationPending && destination.status === "allowed" && ageComplete;
 
   function updateAddress(field: keyof AddressState, value: string) {
+    setCheckoutWarning(null);
     setAddress((current) => ({ ...current, [field]: value }));
   }
 
   function updateAge(field: keyof AgeState, value: string | boolean) {
+    setCheckoutWarning(null);
     setAge((current) => ({ ...current, verified: field === "attested" ? current.verified : false, [field]: value }));
   }
 
+  function getCheckoutWarning() {
+    if (!addressComplete) return ADDRESS_WARNING;
+    if (isDestinationPending) return PENDING_DESTINATION_WARNING;
+    if (blocked) return BLOCKED_DESTINATION_WARNING;
+    if (!ageComplete) return AGE_WARNING;
+    return null;
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    const warning = getCheckoutWarning();
+    if (warning) {
+      event.preventDefault();
+      setCheckoutWarning(warning);
+      return;
+    }
+
+    setCheckoutWarning(null);
+    setIsSubmitting(true);
+  }
+
   return (
-    <form action={submitCheckoutAction} className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_400px]">
+    <form action={submitCheckoutAction} className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_400px]" noValidate onSubmit={handleSubmit}>
       <div className="space-y-5">
-        {error === "address" ? <CheckoutNotice tone="warning">Complete your shipping address to continue.</CheckoutNotice> : null}
+        {error === "address" ? <CheckoutNotice tone="warning">{ADDRESS_WARNING}</CheckoutNotice> : null}
         {error === "blocked" ? <BlockedNotice /> : null}
-        {error === "verification" ? <CheckoutNotice tone="warning">Age verification is required for restricted items.</CheckoutNotice> : null}
+        {error === "verification" ? <CheckoutNotice tone="warning">{AGE_WARNING}</CheckoutNotice> : null}
         {error === "stock" ? <CheckoutNotice tone="danger">{getSafeStockMessage(message)}</CheckoutNotice> : null}
 
         <section className="card p-5">
@@ -117,7 +144,8 @@ export function OnePageCheckout({ cart, error, message }: { cart: CartSnapshot; 
         ) : null}
 
         {blocked ? <BlockedNotice /> : null}
-        <button className="btn btn-primary w-full" disabled={!canSubmit} type="submit">Submit order request</button>
+        {checkoutWarning ? <CheckoutNotice tone={checkoutWarning === BLOCKED_DESTINATION_WARNING ? "danger" : "warning"}>{checkoutWarning}</CheckoutNotice> : null}
+        <button className="btn btn-primary w-full" disabled={isSubmitting} type="submit">Submit order request</button>
       </div>
       <OrderSummary cart={cart} />
     </form>
@@ -137,7 +165,7 @@ function PaymentBlock({ disabled }: { disabled: boolean }) {
 
 function OrderSummary({ cart }: { cart: CartSnapshot }) { return <aside className="card h-fit p-5 lg:sticky lg:top-4"><h2 className="text-xl font-black">Order summary</h2><div className="mt-4 divide-y divide-stone-200">{cart.lines.map((line) => <div className="flex gap-3 py-3" key={line.product.slug}><div className="h-16 w-16 rounded-xl bg-gradient-to-br from-amber-100 to-teal-100" /><div className="flex-1"><p className="font-black">{line.product.name}</p><p className="text-sm text-slate-600">Qty {line.quantity}</p></div><strong>{money(line.lineTotal)}</strong></div>)}</div><label className="mt-4 flex gap-2"><input className="input" placeholder="Discount code" /><button className="btn btn-secondary" type="button">Apply</button></label><dl className="mt-4 space-y-2 text-sm"><Row label="Subtotal" value={money(cart.subtotal)} /><Row label="Shipping" value={money(cart.shipping)} /><Row label="Estimated tax" value={money(cart.tax)} /><div className="flex justify-between border-t pt-3 text-lg font-black"><dt>Total</dt><dd>{money(cart.total)}</dd></div></dl></aside>; }
 function Row({ label, value }: { label: string; value: string }) { return <div className="flex justify-between"><dt>{label}</dt><dd>{value}</dd></div>; }
-function BlockedNotice() { return <CheckoutNotice tone="danger">This item is not available for your shipping destination. <button className="underline" type="button">Change shipping address</button> or <Link className="underline" href="/cart">Remove restricted item</Link>.</CheckoutNotice>; }
+function BlockedNotice() { return <CheckoutNotice tone="danger">{BLOCKED_DESTINATION_WARNING}</CheckoutNotice>; }
 function CheckoutNotice({ children, tone }: { children: React.ReactNode; tone: "warning" | "danger" }) { return <div className={`rounded-2xl border p-4 text-sm font-bold ${tone === "danger" ? "border-red-200 bg-red-50 text-red-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>{children}</div>; }
 
 function getSafeStockMessage(message?: string) {
