@@ -75,7 +75,7 @@ async function main() {
   assert(blockedShip.shipped.length === 0, "Unpaid order unexpectedly shipped.");
   assert(blockedShip.errors.some((error) => error.includes("unpaid")), "Unpaid shipment gate did not return the expected error.");
 
-  await prisma.order.update({ where: { id: order.id }, data: { status: "PAID", fulfillmentStatus: "READY_TO_SHIP", assignedFulfillmentUserId: admin.id, assignedAt: new Date() } });
+  await prisma.order.update({ where: { id: order.id }, data: { status: "PAID", fulfillmentStatus: "PICKING", assignedFulfillmentUserId: admin.id, assignedAt: new Date() } });
   await prisma.paymentAttempt.create({ data: { orderId: order.id, provider: "MOCK", providerStatus: "DEVELOPMENT_APPROVED", status: "APPROVED", amountCents: 2500, livePaymentEnabled: false, providerReference: `${orderNumber}-approved` } });
 
   const shipped = await shipOrders({ orderIds: [order.id], actor, carrier: "UPS", trackingNumber: "1ZPIPE0002" });

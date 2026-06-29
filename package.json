@@ -14,7 +14,9 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "lint:static": "node scripts/static-check.mjs lint",
-    "pipeline:test": "tsx scripts/pipeline-smoke.ts"
+    "pipeline:test": "tsx scripts/pipeline-smoke.ts",
+    "order:release": "tsx scripts/release-order.ts",
+    "concurrency:test": "tsx scripts/concurrency-test.ts"
   },
   "dependencies": {
     "next": "^15.5.6",

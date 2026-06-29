@@ -46,6 +46,30 @@ export async function claimBatchAction(_s: FulfillmentFormState, fd: FormData): 
   revalidatePath("/admin/fulfillment");
   return { success: claimed.length ? `Claimed ${claimed.length} order(s).` : "No ready-to-ship orders are available." };
 }
+
+export async function claimOrderFormAction(fd: FormData): Promise<void> {
+  await claimOrderAction({}, fd);
+}
+
+export async function claimOrderAction(_s: FulfillmentFormState, fd: FormData): Promise<FulfillmentFormState> {
+  const actor = await requireAdminSession("/admin/fulfillment");
+  if (!["OWNER", "ADMIN", "FULFILLMENT"].includes(actor.role)) return { error: "You cannot claim fulfillment orders." };
+  const orderId = String(fd.get("orderId") || "");
+  if (!orderId) return { error: "Select an order to claim." };
+  const claimed = await (prisma as any).$transaction(async (tx: any) => {
+    await tx.$queryRawUnsafe('SELECT id FROM "Order" WHERE id = $1 FOR UPDATE', orderId);
+    const order = await tx.order.findUnique({ where: { id: orderId }, select: { id: true, orderNumber: true, status: true, fulfillmentStatus: true, assignedFulfillmentUserId: true, shippedAt: true } });
+    if (!order) return { error: "Order not found." };
+    if (order.status !== "PAID" || order.fulfillmentStatus !== "READY_TO_SHIP" || order.shippedAt) return { error: `Order ${order.orderNumber} is not ready to claim.` };
+    if (order.assignedFulfillmentUserId && order.assignedFulfillmentUserId !== actor.adminId) return { error: `Order ${order.orderNumber} is already claimed by another staff user.` };
+    await tx.order.update({ where: { id: order.id }, data: { fulfillmentStatus: "PICKING", assignedFulfillmentUserId: actor.adminId, assignedAt: new Date() } });
+    await tx.auditLog.create({ data: { actorAdminId: actor.demo ? null : actor.adminId, action: "UPDATE", entityType: "Order", entityId: order.id, note: `Fulfillment claimed for order ${order.orderNumber}.`, metadata: { action: "FULFILLMENT_CLAIMED", orderNumber: order.orderNumber, staffUserId: actor.adminId, actingUserEmail: actor.email, actingRole: actor.role } } });
+    return { success: `Claimed ${order.orderNumber}.` };
+  });
+  revalidatePath("/admin/fulfillment");
+  return claimed;
+}
+
 export async function markSelectedShippedAction(_s: FulfillmentFormState, fd: FormData): Promise<FulfillmentFormState> {
   const actor = await requireAdminSession("/admin/fulfillment");
   const orderIds = fd.getAll("orderIds").map(String);
