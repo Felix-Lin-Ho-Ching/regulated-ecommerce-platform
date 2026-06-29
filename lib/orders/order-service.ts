@@ -6,11 +6,10 @@ import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
 import { logDebugEmail } from "@/lib/email/email-log-service";
 import { buildOrderConfirmationEmail } from "@/lib/email/templates/order-confirmation";
 import { buildAdminNewOrderEmail } from "@/lib/email/templates/admin-new-order";
-
-const approvedPaymentModes = new Set(["mock_approved", "mock-approved", "production", "live"]);
+import { createApprovedMockPaymentAttemptIfNeeded, isMockApprovedPaymentMode, normalizePaymentMode, processOrderPayment } from "@/lib/payments/payment-service";
 
 export function isApprovedPaymentMode(paymentMode = process.env.PAYMENT_MODE || "order_request") {
-  return approvedPaymentModes.has(paymentMode);
+  return isMockApprovedPaymentMode(paymentMode);
 }
 
 export function buildTrackingUrl(carrier?: string | null, trackingNumber?: string | null) {
@@ -47,9 +46,9 @@ export async function releaseOrderAfterPaymentApproval(orderId: string, actor?: 
     if (!["READY_FOR_PAYMENT", "FULFILLMENT_HOLD", "ORDER_REQUEST_SUBMITTED", "AUTO_ELIGIBLE", "PENDING_PAYMENT"].includes(order.status) || order.fulfillmentStatus !== "FULFILLMENT_HOLD") throw new Error("Order is not eligible for payment approval release.");
     const activeReservations = await tx.inventoryReservation.count({ where: { orderItemId: { in: order.items.map((item: any) => item.id) }, status: "ACTIVE" } });
     if (!activeReservations) await reserveOrderInventory(tx, order);
-    await tx.paymentAttempt.create({ data: { orderId: order.id, provider: "MOCK", providerStatus: "DEVELOPMENT_APPROVED", status: "APPROVED", amountCents: order.totalCents, livePaymentEnabled: order.paymentMode !== "order_request", providerReference: `approved-release-${order.orderNumber}-${Date.now()}` } });
+    await createApprovedMockPaymentAttemptIfNeeded(tx, order);
     const updated = await tx.order.update({ where: { id: order.id }, data: { status: "PAID", fulfillmentStatus: "READY_TO_SHIP", liveFulfillmentEnabled: true } });
-    await tx.auditLog.create({ data: { actorAdminId: actor?.demo ? null : actor?.adminId ?? null, action: "PAYMENT", entityType: "Order", entityId: order.id, note: "Payment approved and order released to fulfillment.", metadata: { orderNumber: order.orderNumber, actingUserEmail: actor?.email, actingRole: actor?.role, paymentStatus: "APPROVED", fulfillmentStatus: "READY_TO_SHIP" } } });
+    await tx.auditLog.create({ data: { actorAdminId: actor?.demo ? null : actor?.adminId ?? null, action: "PAYMENT", entityType: "Order", entityId: order.id, note: "Mock Authorize.net payment approved.", metadata: { orderNumber: order.orderNumber, actingUserEmail: actor?.email, actingRole: actor?.role, paymentStatus: "APPROVED", fulfillmentStatus: "READY_TO_SHIP", provider: "AUTHORIZE_NET_MOCK" } } });
     return updated;
   });
   await logDebugEmail({ type: "PAYMENT_APPROVED", to: result.customerEmail || "debug@stunfry.example", subject: `Payment approved for ${result.orderNumber}`, text: `Payment approved for order ${result.orderNumber}; fulfillment released to READY_TO_SHIP.`, orderId: result.id, metadata: { orderNumber: result.orderNumber, status: "PAID", fulfillmentStatus: "READY_TO_SHIP" } }).catch(() => undefined);
@@ -106,6 +105,8 @@ export function customerOrderStatusLabel(status?: string | null) {
     FULFILLED: "Fulfilled",
     BLOCKED: "Blocked",
     PENDING_PAYMENT: "Pending payment",
+    PAYMENT_FAILED: "Payment failed",
+    MANUAL_REVIEW: "Manual review",
     FULFILLMENT_HOLD: "Fulfillment not released",
     PENDING_ELIGIBILITY: "Eligibility pending",
   };
@@ -274,40 +275,33 @@ export async function createOrderRequestFromCart(): Promise<CustomerOrderSummary
             unitPriceCents: toCents(line.product.price),
           })),
         },
-        paymentAttempts: {
-          create: {
-            provider: "ORDER_REQUEST",
-            providerStatus: "DISABLED",
-            status: "ORDER_REQUEST",
-            amountCents: toCents(cart.total),
-            livePaymentEnabled: false,
-            providerReference: `order-request-${orderNumber}`,
-          },
-        },
       },
       include: { items: { include: { product: { select: { restricted: true } } } }, shippingAddress: true },
     });
 
     await prisma.order.update({ where: { id: order.id }, data: { status: "AUTO_ELIGIBLE" } });
-    const selectedPaymentMode = process.env.PAYMENT_MODE || "order_request";
-    const readyOrder = await prisma.order.update({ where: { id: order.id }, data: { status: isApprovedPaymentMode(selectedPaymentMode) ? "PENDING_PAYMENT" : "READY_FOR_PAYMENT" }, include: { items: { include: { product: { select: { restricted: true } } } }, shippingAddress: true } });
+    const selectedPaymentMode = normalizePaymentMode(process.env.PAYMENT_MODE || "order_request");
+    let readyOrder = await prisma.order.update({ where: { id: order.id }, data: { status: selectedPaymentMode === "order_request" ? "READY_FOR_PAYMENT" : "PENDING_PAYMENT" }, include: { items: { include: { product: { select: { restricted: true } } } }, shippingAddress: true } });
+    const paymentResult = await (prisma as any).$transaction(async (tx: any) => processOrderPayment(tx, { id: readyOrder.id, orderNumber: readyOrder.orderNumber, totalCents: readyOrder.totalCents }, selectedPaymentMode));
 
     await prisma.auditLog.createMany({ data: [
       { action: "CREATE", entityType: "Order", entityId: order.id, note: "Order request received.", metadata: { status: "ORDER_REQUEST_SUBMITTED" } },
       { action: "UPDATE", entityType: "Order", entityId: order.id, note: "Auto eligibility checks passed.", metadata: { status: "AUTO_ELIGIBLE" } },
-      { action: "UPDATE", entityType: "Order", entityId: order.id, note: "Order request is ready for a future payment step; fulfillment is not released.", metadata: { status: "READY_FOR_PAYMENT", paymentCollected: false, fulfillmentReleased: false } },
+      { action: "UPDATE", entityType: "Order", entityId: order.id, note: selectedPaymentMode === "order_request" ? "Order request is ready for a future payment step; fulfillment is not released." : "Mock Authorize.net payment processed.", metadata: { status: readyOrder.status, paymentMode: selectedPaymentMode, paymentStatus: paymentResult.paymentAttempt.status, paymentCollected: paymentResult.paymentAttempt.status === "APPROVED", fulfillmentReleased: false } },
     ] });
 
-    if (isApprovedPaymentMode(selectedPaymentMode)) {
+    if (selectedPaymentMode === "mock_approved") {
       await releaseOrderAfterPaymentApproval(readyOrder.id, { email: "checkout", role: "SYSTEM" });
-      (readyOrder as any).status = "PAID";
-      (readyOrder as any).fulfillmentStatus = "READY_TO_SHIP";
+      readyOrder = await prisma.order.findUniqueOrThrow({ where: { id: order.id }, include: { items: { include: { product: { select: { restricted: true } } } }, shippingAddress: true } });
     } else {
       for (const item of readyOrder.items) {
         const inventory = await prisma.inventory.findUnique({ where: { variantId: item.variantId }, select: { id: true } });
         if (inventory) {
           await prisma.inventory.update({ where: { id: inventory.id }, data: { reserved: { increment: item.quantity }, transactions: { create: { type: "RESERVATION", quantity: item.quantity, reason: `Order ${readyOrder.orderNumber} reservation after READY_FOR_PAYMENT` } }, reservations: { create: { orderItemId: item.id, quantity: item.quantity } } } });
         }
+      }
+      if (selectedPaymentMode === "mock_declined") {
+        readyOrder = await prisma.order.update({ where: { id: readyOrder.id }, data: { status: "PAYMENT_FAILED", fulfillmentStatus: "FULFILLMENT_HOLD", liveFulfillmentEnabled: false }, include: { items: { include: { product: { select: { restricted: true } } } }, shippingAddress: true } });
       }
     }
 
@@ -325,13 +319,13 @@ export async function createOrderRequestFromCart(): Promise<CustomerOrderSummary
 
     return {
       orderNumber: readyOrder.orderNumber,
-      status: isApprovedPaymentMode(selectedPaymentMode) ? "Paid" : "Ready for payment",
+      status: selectedPaymentMode === "mock_approved" ? "Paid" : selectedPaymentMode === "mock_declined" ? "Payment failed" : selectedPaymentMode === "mock_review" ? "Pending payment" : "Ready for payment",
       total: readyOrder.totalCents / 100,
-      payment: isApprovedPaymentMode(selectedPaymentMode) ? "Payment collected" : "Payment not collected",
+      payment: selectedPaymentMode === "mock_approved" ? "Payment collected" : selectedPaymentMode === "order_request" ? "Payment not collected" : customerPaymentStatusLabel(paymentResult.paymentAttempt.status),
       verification: "Eligibility checks passed",
       createdAt: readyOrder.createdAt.toISOString(),
       hasRestrictedItems: readyOrder.items.some((item: { product: { restricted: boolean } }) => item.product.restricted),
-      fulfillment: isApprovedPaymentMode(selectedPaymentMode) ? "Ready to ship" : "Fulfillment not released",
+      fulfillment: selectedPaymentMode === "mock_approved" ? "Ready to ship" : "Fulfillment not released",
       shipmentStatus: "Not shipped",
     };
   }

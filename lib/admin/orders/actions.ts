@@ -1,6 +1,6 @@
 "use server";
 
-import { addInternalOrderNote, cancelOrderBeforeShipment, logOrderNotification, updateAdminOrderStatus } from "@/lib/admin/orders/service";
+import { addInternalOrderNote, cancelOrderBeforeShipment, logOrderNotification, simulateAdminPaymentApproved, updateAdminOrderStatus } from "@/lib/admin/orders/service";
 import type { AdminActionState } from "@/lib/admin/action-state";
 
 export async function updateOrderStatusAction(_state: AdminActionState, formData: FormData): Promise<AdminActionState> {
@@ -25,4 +25,10 @@ export async function logOrderNotificationAction(_state: AdminActionState, formD
   const result = await logOrderNotification(String(formData.get("orderId") || ""), String(formData.get("type") || "customer_confirmation") as any);
   if (result.error) return { error: result.error };
   return { ok: true, success: "Debug email log created." };
+}
+
+export async function simulatePaymentApprovedAction(_state: AdminActionState, formData: FormData): Promise<AdminActionState> {
+  const result = await simulateAdminPaymentApproved(String(formData.get("orderId") || ""));
+  if (result.error) return { error: result.error };
+  return { ok: true, success: "Mock Authorize.net payment approved and fulfillment released." };
 }

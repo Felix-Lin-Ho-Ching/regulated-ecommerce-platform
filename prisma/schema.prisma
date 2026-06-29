@@ -93,6 +93,7 @@ enum PaymentProviderKind {
   MOCK
   NMI
   ORDER_REQUEST
+  AUTHORIZE_NET_MOCK
 }
 
 enum PaymentProviderStatus {

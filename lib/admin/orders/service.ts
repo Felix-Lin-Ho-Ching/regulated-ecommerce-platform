@@ -5,6 +5,7 @@ import { optionalAuditNote, reasonRequiredMessage, validateManualReason } from "
 import { logDebugEmail } from "@/lib/email/email-log-service";
 import { buildOrderConfirmationEmail } from "@/lib/email/templates/order-confirmation";
 import { buildAdminNewOrderEmail } from "@/lib/email/templates/admin-new-order";
+import { releaseOrderAfterPaymentApproval } from "@/lib/orders/order-service";
 
 export const adminOrderStatuses = ["ORDER_REQUEST_SUBMITTED", "AUTO_ELIGIBLE", "PENDING_PAYMENT", "FULFILLMENT_HOLD", "PENDING_ELIGIBILITY", "READY_FOR_PAYMENT", "PAID", "FULFILLED", "SHIPPED", "CANCELLED", "BLOCKED"] as const;
 export type AdminOrderStatus = (typeof adminOrderStatuses)[number];
@@ -111,4 +112,17 @@ export async function cancelOrderBeforeShipment(orderId: string, note: string): 
   await logDebugEmail({ type: "CUSTOMER_CANCELLATION", to: customerEmail(order), subject: `Order request ${order.orderNumber} cancelled`, text: `Your order request ${order.orderNumber} has been cancelled. Payment not collected. Fulfillment not released. No shipment has started.`, orderId: order.id, metadata: { orderNumber: order.orderNumber } }).catch(() => undefined);
   await logDebugEmail({ type: "ADMIN_CANCELLATION", to: process.env.ADMIN_ORDER_EMAIL || process.env.ADMIN_EMAIL || "linhochingfelix@gmail.com", subject: `Order request ${order.orderNumber} cancelled`, text: `Order request ${order.orderNumber} was cancelled by admin. Payment not collected. Fulfillment not released. Active inventory reservations were released internally.`, orderId: order.id, metadata: { orderNumber: order.orderNumber } }).catch(() => undefined);
   revalidatePath("/admin/orders"); revalidatePath(`/admin/orders/${order.orderNumber}`); return {};
+}
+
+export async function simulateAdminPaymentApproved(orderId: string): Promise<{ error?: string }> {
+  if (!isDatabaseConfigured) return { error: "Database is not configured." };
+  const order = await prisma.order.findUnique({ where: { id: orderId }, select: { id: true, orderNumber: true, status: true, fulfillmentStatus: true, shippedAt: true } });
+  if (!order) return { error: "Order was not found." };
+  if (order.shippedAt || order.fulfillmentStatus === "SHIPPED") return { error: "Shipped orders cannot be payment-simulated." };
+  if (!["READY_FOR_PAYMENT", "PENDING_PAYMENT", "PAYMENT_FAILED", "ORDER_REQUEST_SUBMITTED", "AUTO_ELIGIBLE"].includes(order.status) || order.fulfillmentStatus !== "FULFILLMENT_HOLD") {
+    return { error: "Only unreleased READY_FOR_PAYMENT / FULFILLMENT_HOLD order-request orders can be simulated." };
+  }
+  await releaseOrderAfterPaymentApproval(order.id, { email: "admin-payment-simulator", role: "ADMIN" });
+  revalidatePath("/admin/orders"); revalidatePath(`/admin/orders/${order.orderNumber}`); revalidatePath("/admin/fulfillment");
+  return {};
 }
