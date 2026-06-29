@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { shipOrders } from "../lib/fulfillment/ship-orders";
+import { shipOrders, shipSingleOrder } from "../lib/fulfillment/ship-orders";
 import { getFulfillmentOrdersForAdmin } from "../lib/fulfillment/admin-queries";
 import { processOrderPayment } from "../lib/payments/payment-service";
 import { releaseOrderAfterPaymentApproval } from "../lib/orders/order-service";
@@ -75,12 +75,23 @@ async function main() {
   const dashboard = await getFulfillmentOrdersForAdmin(actor);
   assert(dashboard.some((order) => order.id === approved.id), "Paid ready-to-ship order did not appear in fulfillment dashboard.");
   await prisma.order.update({ where: { id: approved.id }, data: { fulfillmentStatus: "PICKING", assignedFulfillmentUserId: admin.id, assignedAt: new Date() } });
-  assert((await shipOrders({ orderIds: [approved.id], actor, carrier: "UPS" })).errors.some((error) => error.includes("Tracking number is required")), "Shipment tracking gate did not require a tracking number.");
-  const shipped = await shipOrders({ orderIds: [approved.id], actor, carrier: "UPS", trackingNumber: "1ZPIPE0002" });
-  assert(shipped.shipped.includes(approved.id), `Paid order did not ship: ${shipped.errors.join(" ")}`);
-  const finalOrder = await prisma.order.findUniqueOrThrow({ where: { id: approved.id }, include: { emailLogs: true } });
+  const claimedOrder = await prisma.order.findUniqueOrThrow({ where: { id: approved.id } });
+  assert(claimedOrder.fulfillmentStatus === "PICKING" && claimedOrder.assignedFulfillmentUserId === admin.id, "Claim did not move READY_TO_SHIP to PICKING with assignment.");
+  const missingTracking = await shipSingleOrder({ orderId: approved.id, actor, carrier: "UPS" });
+  assert(!missingTracking.shipped && missingTracking.error?.includes("Tracking number is required"), "Shipment tracking gate did not require a tracking number.");
+  const shipped = await shipSingleOrder({ orderId: approved.id, actor, carrier: "UPS", trackingNumber: "1ZPIPE0002" });
+  assert(shipped.shipped && shipped.orderId === approved.id, `Paid order did not ship: ${shipped.error || "unknown error"}`);
+  const finalOrder = await prisma.order.findUniqueOrThrow({ where: { id: approved.id }, include: { emailLogs: true, items: { include: { reservations: true } } } });
   assert(finalOrder.status === "SHIPPED" && finalOrder.fulfillmentStatus === "SHIPPED", "Final order did not reach shipped state.");
+  assert(finalOrder.carrier === "UPS" && finalOrder.trackingNumber === "1ZPIPE0002" && finalOrder.shippedAt, "Carrier, tracking number, or shippedAt was not saved.");
   assert(finalOrder.emailLogs.some((email: { type: string }) => email.type === "CUSTOMER_SHIPMENT"), "Buyer shipment debug email was not created.");
+  assert(finalOrder.items.every((item: any) => item.reservations.every((reservation: any) => reservation.status === "CONSUMED")), "Inventory reservation was not consumed.");
+  assert(!(await getFulfillmentOrdersForAdmin(actor)).some((order) => order.id === approved.id), "Shipped order appeared in active fulfillment dashboard.");
+
+  const batchA = await createOrder(product, variant, "PAID", "batch_guard");
+  const batchB = await createOrder(product, variant, "PAID", "batch_guard");
+  const batchRejected = await shipOrders({ orderIds: [batchA.id, batchB.id], actor, carrier: "UPS", trackingNumber: "1ZSHARED" });
+  assert(batchRejected.errors.some((error) => error.includes("Batch shipping with one shared tracking number is disabled")), "Batch shipping with one shared tracking number was not rejected.");
 
   const declined = await createOrder(product, variant, "PENDING_PAYMENT", "mock_declined");
   await reserve(declined, variant.inventory.id);

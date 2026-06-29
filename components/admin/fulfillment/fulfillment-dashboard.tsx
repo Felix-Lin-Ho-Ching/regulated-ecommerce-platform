@@ -5,7 +5,6 @@ import { SectionHeader } from "@/components/ui";
 import { ClaimBatchForm } from "@/components/admin/fulfillment/claim-batch-form";
 import { FulfillmentSettingsForm } from "@/components/admin/fulfillment/fulfillment-settings-form";
 import { FulfillmentOrdersTable } from "@/components/admin/fulfillment/fulfillment-orders-table";
-import { ShipSelectedForm } from "@/components/admin/fulfillment/ship-selected-form";
 
 type FulfillmentDashboardProps = {
   admin: AdminSession;
@@ -50,10 +49,8 @@ export function FulfillmentDashboard({
       </div>
 
       <div className="mt-6">
-        <ShipSelectedForm>
-          <FulfillmentOrdersTable admin={admin} orders={orders} />
-        </ShipSelectedForm>
-        <p className="mt-2 text-sm text-slate-600">Showing up to 50 orders.</p>
+        <FulfillmentOrdersTable admin={admin} orders={orders} />
+        <p className="mt-2 text-sm text-slate-600">Showing up to 50 orders. Shipping confirmation is production-safe and must be completed one order at a time from the pick/pack page.</p>
       </div>
     </>
   );
