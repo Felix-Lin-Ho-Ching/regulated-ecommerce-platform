@@ -17,10 +17,10 @@ type VerificationRuleRow = {
 
 export async function getVerificationPlan(
   stateCode: string,
-  productCategory: string,
+  restrictedClass: string,
 ): Promise<VerificationPlan> {
   const rule = (await prisma.stateVerificationRule.findUnique({
-    where: { stateCode_productCategory: { stateCode, productCategory: productCategory as never } },
+    where: { stateCode_restrictedClass: { stateCode, restrictedClass: restrictedClass as never } },
     include: { template: { include: { requirements: { orderBy: { sortOrder: "asc" } } } } },
   })) as VerificationRuleRow;
 

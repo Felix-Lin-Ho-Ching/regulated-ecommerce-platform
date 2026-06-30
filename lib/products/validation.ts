@@ -1,12 +1,12 @@
 import { detectMediaKindFromUpload, isUploadFile } from "@/lib/media/upload-detection";
 
 export const productStatuses = ["DRAFT", "ACTIVE", "INACTIVE", "ARCHIVED", "RESTRICTED_REVIEW"] as const;
-export const productCategories = ["personal_safety_alarm", "training", "knuckle_stun_device", "visibility"] as const;
+export const restrictedClassOptions = ["STUN_GUN"] as const;
 export const productMediaTypes = ["IMAGE", "VIDEO"] as const;
 export const maxProductMediaRows = 6;
 
 type ProductStatus = (typeof productStatuses)[number];
-type ProductCategory = (typeof productCategories)[number];
+export type RestrictedClass = (typeof restrictedClassOptions)[number];
 export type ProductMediaType = (typeof productMediaTypes)[number];
 
 export type ProductFeatureInput = {
@@ -30,7 +30,8 @@ export type ProductFormInput = {
   name: string;
   slug: string;
   brand: string;
-  category: ProductCategory;
+  categoryId?: string;
+  restrictedClass?: RestrictedClass;
   description: string;
   status: ProductStatus;
   restricted: boolean;
@@ -146,7 +147,8 @@ export async function parseProductForm(formData: FormData, resolveUpload?: Media
     name,
     slug: slugify(text(formData, "slug") || name),
     brand: text(formData, "brand") || "Stun Fry",
-    category: oneOf(text(formData, "category"), productCategories, "personal_safety_alarm"),
+    categoryId: text(formData, "categoryId") || undefined,
+    restrictedClass: restricted ? oneOf(text(formData, "restrictedClass"), restrictedClassOptions, "STUN_GUN") : undefined,
     description: text(formData, "description") || "Owner-managed product description pending.",
     status: oneOf(text(formData, "status"), productStatuses, "DRAFT"),
     restricted,

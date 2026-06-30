@@ -6,7 +6,7 @@ Production launch still needs counsel review before these rules are used for liv
 
 ## Development stun-gun category
 
-For this project, `knuckle_stun_device` is treated as the store's stun-gun product category, including `prod_knuckle`.
+For this project, restricted class `STUN_GUN` is treated as the legal/compliance key for stun-gun products; storefront category names remain editable taxonomy.
 
 Current blocked states for the seeded development stun-gun category:
 

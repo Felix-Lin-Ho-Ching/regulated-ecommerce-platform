@@ -14,7 +14,8 @@ type AdminProductRow = {
   slug: string;
   brand: string;
   name: string;
-  category: string;
+  category: { id: string; slug: string; name: string } | null;
+  restrictedClass?: string | null;
   description: string;
   status: string;
   restricted: boolean;
@@ -31,7 +32,10 @@ function toAdminProductDetail(product: AdminProductRow): AdminProductDetail {
     slug: product.slug,
     brand: product.brand,
     name: product.name,
-    category: product.category,
+    category: product.category?.name ?? "Uncategorized",
+    categoryId: product.category?.id ?? null,
+    categorySlug: product.category?.slug ?? null,
+    restrictedClass: product.restrictedClass ?? null,
     description: product.description,
     status: product.status,
     restricted: product.restricted,
@@ -56,7 +60,7 @@ export async function getAdminProducts(filter: AdminProductListFilter = "active"
   const where = filter === "active" ? { archivedAt: null } : filter === "archived" ? { archivedAt: { not: null } } : undefined;
   const products = await prisma.product.findMany({
     where,
-    include: { variants: { include: { inventory: true } }, features: true, media: { orderBy: { sortOrder: "asc" } } },
+    include: { variants: { include: { inventory: true } }, features: true, media: { orderBy: { sortOrder: "asc" } }, category: true },
     orderBy: { createdAt: "asc" },
   });
   return (products as AdminProductRow[]).map((product: AdminProductRow) => toAdminProductDetail(product));
@@ -70,7 +74,7 @@ export async function getAdminProductById(id: string): Promise<AdminProductDetai
 
   const product = await prisma.product.findFirst({
     where: { OR: [{ id }, { variants: { some: { id } } }] },
-    include: { variants: { include: { inventory: true } }, features: true, media: { orderBy: { sortOrder: "asc" } } },
+    include: { variants: { include: { inventory: true } }, features: true, media: { orderBy: { sortOrder: "asc" } }, category: true },
   });
 
   return product ? toAdminProductDetail(product as AdminProductRow) : undefined;
@@ -118,7 +122,8 @@ export async function createProduct(input: ProductFormInput): Promise<string> {
       slug: input.slug,
       brand: input.brand,
       name: input.name,
-      category: input.category,
+      categoryId: input.categoryId,
+      restrictedClass: input.restricted ? input.restrictedClass ?? "STUN_GUN" : null,
       description: input.description,
       status: input.status,
       restricted: input.restricted,
@@ -154,7 +159,8 @@ export async function updateProduct(input: ProductFormInput) {
       slug: input.slug,
       brand: input.brand,
       name: input.name,
-      category: input.category,
+      categoryId: input.categoryId,
+      restrictedClass: input.restricted ? input.restrictedClass ?? "STUN_GUN" : null,
       description: input.description,
       status: input.status,
       restricted: input.restricted,

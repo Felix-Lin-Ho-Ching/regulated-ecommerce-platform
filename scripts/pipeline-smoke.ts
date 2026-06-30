@@ -60,7 +60,8 @@ async function main() {
 
   const role = await prisma.adminRole.upsert({ where: { code: "FULFILLMENT" }, update: {}, create: { code: "FULFILLMENT", name: "Fulfillment" } });
   const admin = await prisma.adminUser.create({ data: { email: `${runId}@pipeline-smoke.local`, name: "Pipeline Smoke Fulfillment", passwordHash: "not-used", roleId: role.id } });
-  const product = await prisma.product.create({ data: { slug: `pipeline-smoke-${runId}`, brand: "Smoke", name: "Pipeline Smoke Stun Device", category: "stun_gun", description: "Ephemeral restricted product for backend pipeline smoke tests.", status: "ACTIVE", restricted: true } });
+  const category = await prisma.productCategory.upsert({ where: { slug: "stun-guns" }, update: {}, create: { slug: "stun-guns", name: "Stun Guns" } });
+  const product = await prisma.product.create({ data: { slug: `pipeline-smoke-${runId}`, brand: "Smoke", name: "Pipeline Smoke Stun Device", categoryId: category.id, restrictedClass: "STUN_GUN", description: "Ephemeral restricted product for backend pipeline smoke tests.", status: "ACTIVE", restricted: true } });
   const variant = await prisma.productVariant.create({ data: { productId: product.id, sku, name: "Default", priceCents: 2500, status: "ACTIVE", inventory: { create: { onHand: 6, reserved: 0, reorderThreshold: 1 } } }, include: { inventory: true } });
   assert(variant.inventory, "Seed inventory was not created.");
   const actor: AdminSession = { adminId: admin.id, email: admin.email, name: admin.name, role: "FULFILLMENT", demo: false };

@@ -3,7 +3,7 @@ export type StatusTone = "neutral" | "success" | "warning" | "danger" | "info";
 export const products = [
  { id:"p1", slug:"guardian-rescue-alarm", name:"Guardian Rescue Alarm", category:"personal_safety_alarm", price:29, status:"active", restricted:false, stock:144, sku:"GRA-100", description:"Compact audible alarm for emergency signaling without aggressive claims." },
  { id:"p2", slug:"securewalk-training-kit", name:"SecureWalk Training Kit", category:"training", price:49, status:"active", restricted:false, stock:61, sku:"SWT-200", description:"Scenario cards and safety planning tools for responsible preparedness." },
- { id:"p3", slug:"arcguard-knuckle-stun-device", name:"ArcGuard Restricted Knuckle Stun Device", category:"knuckle_stun_device", price:119, status:"restricted_review", restricted:true, stock:18, sku:"AKS-310", description:"Restricted self-defense device. Availability depends on destination laws and buyer verification." },
+ { id:"p3", slug:"arcguard-knuckle-stun-device", name:"ArcGuard Restricted Knuckle Stun Device", category:"Stun Guns", price:119, status:"restricted_review", restricted:true, stock:18, sku:"AKS-310", description:"Restricted self-defense device. Availability depends on destination laws and buyer verification." },
  { id:"p4", slug:"civicshield-safety-light", name:"FryBeam Safety Light", category:"visibility", price:39, status:"active", restricted:false, stock:92, sku:"CSL-400", description:"High-visibility light and whistle bundle for commuting and travel." }
 ] as const;
 export const cart = { items: [{ productId:"p3", qty:1 }, { productId:"p1", qty:1 }], subtotal:148, shipping:12, tax:11.84, total:171.84 };
@@ -19,13 +19,13 @@ export const checkoutCases: Record<CheckoutOutcome, { title:string; reason:strin
 export const orders = Object.values(checkoutCases).map((o,i)=>({ ...o, id:o.orderId, customer:["Maya Chen","Jordan Lee","Avery Smith","Sam Rivera","Taylor Brooks","Chris Morgan","Pat Nguyen"][i], total:171.84 }));
 export const adminUsers = [{name:"Felix Lin",role:"Owner",status:"active"},{name:"Riley Reviewer",role:"Compliance reviewer",status:"active"},{name:"Morgan Ops",role:"Operations",status:"active"}];
 export const complianceRules = [
- {id:"R-001", state:"TX", category:"knuckle_stun_device", outcome:"blocked", coverage:"covered", note:"Mock blocked-by-default launch-safe rule."},
- {id:"R-002", state:"NY", category:"knuckle_stun_device", outcome:"blocked", coverage:"covered", note:"Blocked by restricted device rule."},
- {id:"R-003", state:"CA", category:"knuckle_stun_device", outcome:"blocked", coverage:"covered", note:"Mock blocked-by-default launch-safe rule."},
- {id:"R-004", state:"IL", category:"knuckle_stun_device", outcome:"blocked", coverage:"covered", note:"Blocked by local mock destination rule."},
- {id:"R-005", state:"OR", category:"knuckle_stun_device", outcome:"missing", coverage:"missing", note:"Owner launch blocker."}
+ {id:"R-001", state:"TX", category:"STUN_GUN", outcome:"allowed", coverage:"covered", note:"Mock blocked-by-default launch-safe rule."},
+ {id:"R-002", state:"HI", category:"STUN_GUN", outcome:"blocked", coverage:"covered", note:"Blocked by restricted device rule."},
+ {id:"R-003", state:"CA", category:"STUN_GUN", outcome:"blocked", coverage:"covered", note:"Mock blocked-by-default launch-safe rule."},
+ {id:"R-004", state:"IL", category:"STUN_GUN", outcome:"blocked", coverage:"covered", note:"Blocked by local mock destination rule."},
+ {id:"R-005", state:"OR", category:"STUN_GUN", outcome:"missing", coverage:"missing", note:"Owner launch blocker."}
 ];
-export const verificationTemplates = [{id:"VT-1", name:"Restricted device attestation", category:"knuckle_stun_device", requirements:["18+ attestation","Destination address confirmation","Restricted-product acknowledgement"]},{id:"VT-2",name:"Document review package",category:"knuckle_stun_device",requirements:["Government ID","Proof of residence","Reviewer note"]}];
+export const verificationTemplates = [{id:"VT-1", name:"Restricted device attestation", category:"STUN_GUN", requirements:["18+ attestation","Destination address confirmation","Restricted-product acknowledgement"]},{id:"VT-2",name:"Document review package",category:"STUN_GUN",requirements:["Government ID","Proof of residence","Reviewer note"]}];
 export const documentReviews = [{id:"DOC-91", order:"SF-1004", customer:"Sam Rivera", type:"Government ID", status:"pending", age:"2h"},{id:"DOC-92",order:"SF-1004",customer:"Sam Rivera",type:"Proof of residence",status:"pending",age:"2h"}];
 export const launchGates = [{name:"Restricted product catalog",state:"ready",ownerOnly:false},{name:"Rule coverage for launch states",state:"blocked",ownerOnly:true},{name:"Mock payment settings",state:"ready",ownerOnly:true},{name:"Legal policies published",state:"enabled",ownerOnly:false},{name:"Backup/export configured",state:"blocked",ownerOnly:true}];
 export const auditLogs = [{time:"2026-06-10 14:22 UTC", actor:"Riley Reviewer", action:"Rejected document", target:"DOC-88", note:"Address mismatch noted."},{time:"2026-06-10 16:04 UTC", actor:"Felix Lin", action:"Updated launch gate", target:"Rule coverage", note:"OR remains missing."},{time:"2026-06-11 09:10 UTC", actor:"Morgan Ops", action:"Adjusted stock", target:"AKS-310", note:"Cycle count correction +2."}];

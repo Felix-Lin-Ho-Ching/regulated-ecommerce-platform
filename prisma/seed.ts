@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 const states = [
   "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC",
 ];
-const restrictedCategories = ["knuckle_stun_device"] as const;
+const restrictedClasses = ["STUN_GUN"] as const;
 const templates = [
   ["AGE_18_ATTESTATION_ONLY", "Age 18+ attestation only", [["ATTESTATION", "Buyer attests they are at least 18 years old"]]],
   ["AGE_18_ID_VERIFICATION", "Age 18+ ID verification", [["ID_DOCUMENT", "Government ID confirms buyer is at least 18"]]],
@@ -130,11 +130,23 @@ async function main() {
     await prisma.membershipTier.upsert({ where: { code: tier[0] }, update: {}, create: { id: `tier_${tier[0].toLowerCase()}`, code: tier[0], name: tier[1], discountBps: tier[2], description: `${tier[1]} membership tier.` } });
   }
 
+
+  const categoryRows = [
+    { id: "cat_stun_guns", slug: "stun-guns", name: "Stun Guns", sortOrder: 10 },
+    { id: "cat_personal_safety_alarms", slug: "personal-safety-alarms", name: "Personal Safety Alarms", sortOrder: 20 },
+    { id: "cat_training", slug: "training", name: "Training", sortOrder: 30 },
+    { id: "cat_visibility", slug: "visibility", name: "Visibility", sortOrder: 40 },
+  ] as const;
+  for (const category of categoryRows) {
+    await prisma.productCategory.upsert({ where: { slug: category.slug }, update: { name: category.name, sortOrder: category.sortOrder, status: "ACTIVE", archivedAt: null }, create: { ...category, status: "ACTIVE" } });
+  }
+  const categoryBySlug = Object.fromEntries((await prisma.productCategory.findMany()).map((category: { slug: string; id: string }) => [category.slug, category.id]));
+
   const products = [
-    { id: "prod_alarm", slug: "guardian-rescue-alarm", brand: "Stun Fry", name: "Guardian Rescue Alarm", category: "personal_safety_alarm", description: "Compact audible alarm for emergency signaling without aggressive claims.", sku: "GRA-100", priceCents: 2900, stock: 144, restricted: false, status: "ACTIVE" },
-    { id: "prod_training", slug: "securewalk-training-kit", brand: "Stun Fry", name: "SecureWalk Training Kit", category: "training", description: "Scenario cards and safety planning tools for responsible preparedness.", sku: "SWT-200", priceCents: 4900, stock: 61, restricted: false, status: "ACTIVE" },
-    { id: "prod_knuckle", slug: "arcguard-knuckle-stun-device", brand: "Stun Fry", name: "ArcGuard Restricted Knuckle Stun Device", category: "knuckle_stun_device", description: "Restricted Stun Fry self-defense device. Availability depends on destination laws and buyer verification.", sku: "AKS-310", priceCents: 11900, stock: 18, restricted: true, status: "RESTRICTED_REVIEW" },
-    { id: "prod_light", slug: "civicshield-safety-light", brand: "Stun Fry", name: "CivicShield Safety Light", category: "visibility", description: "High-visibility light and whistle bundle for commuting and travel.", sku: "CSL-400", priceCents: 3900, stock: 92, restricted: false, status: "ACTIVE" },
+    { id: "prod_alarm", slug: "guardian-rescue-alarm", brand: "Stun Fry", name: "Guardian Rescue Alarm", categorySlug: "personal-safety-alarms", description: "Compact audible alarm for emergency signaling without aggressive claims.", sku: "GRA-100", priceCents: 2900, stock: 144, restricted: false, restrictedClass: null, status: "ACTIVE" },
+    { id: "prod_training", slug: "securewalk-training-kit", brand: "Stun Fry", name: "SecureWalk Training Kit", categorySlug: "training", description: "Scenario cards and safety planning tools for responsible preparedness.", sku: "SWT-200", priceCents: 4900, stock: 61, restricted: false, restrictedClass: null, status: "ACTIVE" },
+    { id: "prod_knuckle", slug: "arcguard-knuckle-stun-device", brand: "Stun Fry", name: "ArcGuard Restricted Knuckle Stun Device", categorySlug: "stun-guns", description: "Restricted Stun Fry self-defense device. Availability depends on destination laws and buyer verification.", sku: "AKS-310", priceCents: 11900, stock: 18, restricted: true, restrictedClass: "STUN_GUN", status: "RESTRICTED_REVIEW" },
+    { id: "prod_light", slug: "civicshield-safety-light", brand: "Stun Fry", name: "CivicShield Safety Light", categorySlug: "visibility", description: "High-visibility light and whistle bundle for commuting and travel.", sku: "CSL-400", priceCents: 3900, stock: 92, restricted: false, restrictedClass: null, status: "ACTIVE" },
   ] as const;
   for (const product of products) {
     await prisma.product.upsert({
@@ -142,13 +154,15 @@ async function main() {
       update: {
         brand: product.brand,
         name: product.name,
-        category: product.category,
+        categoryId: categoryBySlug[product.categorySlug],
+        restrictedClass: product.restrictedClass,
         description: product.description,
         restricted: product.restricted,
         status: product.status,
         archivedAt: null,
       },
-      create: { id: product.id, slug: product.slug, brand: product.brand, name: product.name, category: product.category, description: product.description, restricted: product.restricted, status: product.status, archivedAt: null },
+      create: { id: product.id, slug: product.slug, brand: product.brand, name: product.name, categoryId: categoryBySlug[product.categorySlug],
+        restrictedClass: product.restrictedClass, description: product.description, restricted: product.restricted, status: product.status, archivedAt: null },
     });
     const variantStatus = product.status === "RESTRICTED_REVIEW" ? "RESTRICTED_REVIEW" : "ACTIVE";
     const variant = await prisma.productVariant.upsert({
@@ -200,17 +214,17 @@ async function main() {
   const stunGunBlockReason = "Blocked by development stun-gun state reference.";
 
   for (const state of states) {
-    for (const category of restrictedCategories) {
+    for (const restrictedClass of restrictedClasses) {
       const outcome = stunGunBlockedStates.has(state) ? "BLOCK" : "ALLOW";
       const reason = outcome === "BLOCK" ? stunGunBlockReason : stunGunAllowReason;
 
       await prisma.stateRestrictionRule.upsert({
-        where: { stateCode_productCategory_productId: { stateCode: state, productCategory: category, productId: "prod_knuckle" } },
+        where: { stateCode_restrictedClass_productId: { stateCode: state, restrictedClass, productId: "prod_knuckle" } },
         update: { outcome, reviewStatus: "COUNSEL_REVIEW_REQUIRED", reason, legalSourceNote: stunGunLegalSourceNote },
         create: {
-          id: `rule_${state}_${category}`,
+          id: `rule_${state}_${restrictedClass}`,
           stateCode: state,
-          productCategory: category,
+          restrictedClass,
           productId: "prod_knuckle",
           outcome,
           reviewStatus: "COUNSEL_REVIEW_REQUIRED",
@@ -218,7 +232,7 @@ async function main() {
           legalSourceNote: stunGunLegalSourceNote,
         },
       });
-      await prisma.stateVerificationRule.upsert({ where: { stateCode_productCategory: { stateCode: state, productCategory: category } }, update: {}, create: { id: `vrule_${state}_${category}`, stateCode: state, productCategory: category, templateId: manualTemplate.id, reviewStatus: "MANUAL_REVIEW", reason: "Default verification review; automatic-first but exceptions stay in admin review." } });
+      await prisma.stateVerificationRule.upsert({ where: { stateCode_restrictedClass: { stateCode: state, restrictedClass } }, update: {}, create: { id: `vrule_${state}_${restrictedClass}`, stateCode: state, restrictedClass, templateId: manualTemplate.id, reviewStatus: "MANUAL_REVIEW", reason: "Default verification review; automatic-first but exceptions stay in admin review." } });
     }
   }
 
@@ -226,7 +240,7 @@ async function main() {
   for (const state of states) {
     const blocked = stunGunBlockedStates.has(state);
     await prisma.stateVerificationRule.upsert({
-      where: { stateCode_productCategory: { stateCode: state, productCategory: "knuckle_stun_device" } },
+      where: { stateCode_restrictedClass: { stateCode: state, restrictedClass: "STUN_GUN" } },
       update: {
         templateId: blocked ? blockedTemplate.id : manualTemplate.id,
         reviewStatus: blocked ? "COUNSEL_REVIEW_REQUIRED" : "MANUAL_REVIEW",
@@ -236,7 +250,7 @@ async function main() {
       },
       create: {
         stateCode: state,
-        productCategory: "knuckle_stun_device",
+        restrictedClass: "STUN_GUN",
         templateId: blocked ? blockedTemplate.id : manualTemplate.id,
         reviewStatus: blocked ? "COUNSEL_REVIEW_REQUIRED" : "MANUAL_REVIEW",
         reason: blocked

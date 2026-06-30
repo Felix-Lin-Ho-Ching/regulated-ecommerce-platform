@@ -50,14 +50,14 @@ function chooseProductRule<T extends { productId: string | null }>(rules: T[], p
 
 export function evaluateCheckoutDestination({
   hasRestrictedItems,
-  productCategory,
+  restrictedClass,
   productId,
   state,
   postalCode,
   rules = [],
 }: {
   hasRestrictedItems: boolean;
-  productCategory?: string;
+  restrictedClass?: string;
   productId?: string;
   state?: string;
   postalCode?: string;
@@ -76,7 +76,7 @@ export function evaluateCheckoutDestination({
       state,
       zip: postalCode,
       isAtLeast18: true,
-      productCategory,
+      restrictedClass,
       productId,
       restricted: true,
     },
@@ -88,13 +88,13 @@ export function evaluateCheckoutDestination({
 
 export async function evaluateCheckoutDestinationFromConfiguredRules({
   hasRestrictedItems,
-  productCategory = "knuckle_stun_device",
+  restrictedClass,
   productId,
   state,
   postalCode,
 }: {
   hasRestrictedItems: boolean;
-  productCategory?: string;
+  restrictedClass?: string;
   productId?: string;
   state?: string;
   postalCode?: string;
@@ -105,6 +105,10 @@ export async function evaluateCheckoutDestinationFromConfiguredRules({
 
   if (!hasRestrictedItems) {
     return { status: "allowed", message: "Standard shipping is available." };
+  }
+
+  if (!restrictedClass) {
+    return resultFromOutcome(null);
   }
 
   if (!isDatabaseConfigured) {
@@ -122,7 +126,7 @@ export async function evaluateCheckoutDestinationFromConfiguredRules({
     where: {
       archivedAt: null,
       stateCode,
-      productCategory: productCategory as never,
+      restrictedClass: restrictedClass as never,
       localityType: "ZIP",
       OR: productScope,
     },
@@ -138,7 +142,7 @@ export async function evaluateCheckoutDestinationFromConfiguredRules({
     where: {
       archivedAt: null,
       stateCode,
-      productCategory: productCategory as never,
+      restrictedClass: restrictedClass as never,
       OR: productScope,
     },
     orderBy: { createdAt: "desc" },
@@ -148,8 +152,8 @@ export async function evaluateCheckoutDestinationFromConfiguredRules({
   return resultFromOutcome(chooseProductRule(stateRules, productId));
 }
 
-export function getRestrictedCategory(cart: CartSnapshot) {
-  return cart.lines.find((line) => line.product.restricted)?.product.category;
+export function getRestrictedClass(cart: CartSnapshot) {
+  return cart.lines.find((line) => line.product.restricted)?.product.restrictedClass ?? undefined;
 }
 
 export function getRestrictedProductId(cart: CartSnapshot) {

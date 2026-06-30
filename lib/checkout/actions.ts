@@ -28,7 +28,7 @@ export async function evaluateCheckoutDestinationAction({ state, postalCode }: {
   for (const line of restrictedLines) {
     const destination = await evaluateCheckoutDestinationFromConfiguredRules({
       hasRestrictedItems: true,
-      productCategory: line.product.category,
+      restrictedClass: line.product.restrictedClass ?? undefined,
       productId: line.product.id,
       state,
       postalCode,
@@ -65,7 +65,7 @@ export async function submitCheckoutAction(formData: FormData) {
     for (const restrictedLine of restrictedLines) {
       const destination = await evaluateCheckoutDestinationFromConfiguredRules({
         hasRestrictedItems: true,
-        productCategory: restrictedLine.product.category,
+        restrictedClass: restrictedLine.product.restrictedClass ?? undefined,
         productId: restrictedLine.product.id,
         state,
         postalCode,

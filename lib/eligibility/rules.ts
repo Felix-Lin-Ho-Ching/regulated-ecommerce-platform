@@ -7,14 +7,14 @@ export type EligibilityInput = {
   state?: string;
   zip?: string;
   isAtLeast18?: boolean;
-  productCategory?: string;
+  restrictedClass?: string;
   productId?: string;
   restricted?: boolean;
 };
 
 type ConfiguredRuleRow = {
   stateCode: string;
-  productCategory: string;
+  restrictedClass: string;
   outcome: string;
   reviewStatus: string;
   reason: string;
@@ -58,7 +58,7 @@ export function evaluateEligibilityWithRules(
   const {
     state,
     isAtLeast18,
-    productCategory = "knuckle_stun_device",
+    restrictedClass,
     productId,
     restricted = true,
   } = input;
@@ -79,6 +79,14 @@ export function evaluateEligibilityWithRules(
     };
   }
 
+  if (!restrictedClass) {
+    return {
+      status: "blocked",
+      label: labels.blocked,
+      message: "This item is not available because restricted classification is missing."
+    };
+  }
+
   const stateCode = normalizeState(state);
 
   if (!stateCode) {
@@ -90,7 +98,7 @@ export function evaluateEligibilityWithRules(
   }
 
   const matchingRules = rules.filter(
-    (candidate) => candidate.state === stateCode && candidate.category === productCategory,
+    (candidate) => candidate.state === stateCode && candidate.category === restrictedClass,
   );
   const rule =
     matchingRules.find((candidate) => productId && candidate.productId === productId) ??
@@ -144,7 +152,7 @@ export async function evaluateEligibilityFromConfiguredRules(
     where: { archivedAt: null },
     select: {
       stateCode: true,
-      productCategory: true,
+      restrictedClass: true,
       outcome: true,
       reviewStatus: true,
       reason: true,
@@ -156,7 +164,7 @@ export async function evaluateEligibilityFromConfiguredRules(
     input,
     rows.map((rule) => ({
       state: rule.stateCode,
-      category: rule.productCategory,
+      category: rule.restrictedClass,
       outcome: rule.outcome,
       coverage: "covered",
       productId: rule.productId,

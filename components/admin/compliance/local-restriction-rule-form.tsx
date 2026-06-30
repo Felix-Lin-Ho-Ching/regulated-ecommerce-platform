@@ -6,7 +6,7 @@ import type { AdminActionState } from "@/lib/admin/action-state";
 import { saveLocalRestrictionRuleAction } from "@/lib/compliance/actions";
 import { ruleOutcomes } from "@/lib/compliance/validation";
 import type { AdminProductDetail } from "@/lib/products/service";
-import { productCategories } from "@/lib/products/validation";
+import { restrictedClassOptions } from "@/lib/products/validation";
 
 export function LocalRestrictionRuleForm({ products }: { products: AdminProductDetail[] }) {
   const [state, formAction] = useActionState<AdminActionState, FormData>(saveLocalRestrictionRuleAction, {});
@@ -38,8 +38,8 @@ export function LocalRestrictionRuleForm({ products }: { products: AdminProductD
       </label>
       <label className="grid gap-2 text-sm font-bold text-slate-800">
         Restricted product category
-        <select className="input" name="localProductCategory" defaultValue="knuckle_stun_device">
-          {productCategories.map((category) => <option key={category} value={category}>{category.replaceAll("_", " ")}</option>)}
+        <select className="input" name="localRestrictedClass" defaultValue="STUN_GUN">
+          {restrictedClassOptions.map((category) => <option key={category} value={category}>{category.replaceAll("_", " ")}</option>)}
         </select>
       </label>
       <label className="grid gap-2 text-sm font-bold text-slate-800">

@@ -26,13 +26,6 @@ enum ProductStatus {
   RESTRICTED_REVIEW
 }
 
-enum ProductCategory {
-  personal_safety_alarm
-  training
-  knuckle_stun_device
-  visibility
-}
-
 enum InventoryTransactionType {
   STOCK_IN
   STOCK_OUT
@@ -290,15 +283,30 @@ model StorefrontSettings {
   updatedAt                      DateTime @updatedAt
 }
 
+model ProductCategory {
+  id          String       @id @default(cuid())
+  slug        String       @unique
+  name        String
+  description String?
+  status      RecordStatus @default(ACTIVE)
+  sortOrder   Int          @default(0)
+  products    Product[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  archivedAt  DateTime?
+}
+
 model Product {
   id                      String                          @id @default(cuid())
   slug                    String                          @unique
   brand                   String
   name                    String
-  category                ProductCategory
+  categoryId              String?
+  category                ProductCategory?                @relation(fields: [categoryId], references: [id])
   description             String
   status                  ProductStatus                   @default(DRAFT)
   restricted              Boolean                         @default(false)
+  restrictedClass         String?
   archivedAt              DateTime?
   variants                ProductVariant[]
   images                  ProductImage[]
@@ -577,20 +585,20 @@ model Refund {
 model StateRestrictionRule {
   id              String           @id @default(cuid())
   stateCode       String
-  productCategory ProductCategory
+  restrictedClass String
   productId       String?
   product         Product?         @relation(fields: [productId], references: [id])
   outcome         RuleOutcome      @default(BLOCK)
   reviewStatus    RuleReviewStatus @default(COUNSEL_REVIEW_REQUIRED)
   reason          String
-  legalSourceNote String            @default("")
+  legalSourceNote String           @default("")
   effectiveFrom   DateTime         @default(now())
   effectiveTo     DateTime?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   archivedAt      DateTime?
 
-  @@unique([stateCode, productCategory, productId])
+  @@unique([stateCode, restrictedClass, productId])
 }
 
 model LocalRestrictionRule {
@@ -598,7 +606,7 @@ model LocalRestrictionRule {
   stateCode       String
   localityType    String
   localityName    String
-  productCategory ProductCategory
+  restrictedClass String
   productId       String?
   product         Product?         @relation(fields: [productId], references: [id])
   outcome         RuleOutcome      @default(BLOCK)
@@ -650,7 +658,7 @@ model VerificationRequirement {
 model StateVerificationRule {
   id              String               @id @default(cuid())
   stateCode       String
-  productCategory ProductCategory
+  restrictedClass String
   templateId      String
   template        VerificationTemplate @relation(fields: [templateId], references: [id])
   reviewStatus    RuleReviewStatus     @default(MANUAL_REVIEW)
@@ -659,7 +667,7 @@ model StateVerificationRule {
   updatedAt       DateTime             @updatedAt
   archivedAt      DateTime?
 
-  @@unique([stateCode, productCategory])
+  @@unique([stateCode, restrictedClass])
 }
 
 model LocalVerificationRule {
@@ -667,7 +675,7 @@ model LocalVerificationRule {
   stateCode       String
   localityType    String
   localityName    String
-  productCategory ProductCategory
+  restrictedClass String
   templateId      String
   template        VerificationTemplate @relation(fields: [templateId], references: [id])
   reviewStatus    RuleReviewStatus     @default(MANUAL_REVIEW)
@@ -683,7 +691,7 @@ model BuyerVerificationRecord {
   user            User?                       @relation(fields: [userId], references: [id])
   status          VerificationRecordStatus    @default(PENDING)
   stateCode       String?
-  productCategory ProductCategory?
+  restrictedClass String?
   automatedFirst  Boolean                     @default(true)
   decisionReason  String?
   documents       BuyerVerificationDocument[]

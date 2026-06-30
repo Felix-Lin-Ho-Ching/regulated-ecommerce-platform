@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { createProductAction, updateProductAction, type ProductActionState } from "@/lib/products/actions";
-import { maxProductMediaRows, productCategories, productMediaTypes, productStatuses } from "@/lib/products/validation";
+import { maxProductMediaRows, productMediaTypes, productStatuses, restrictedClassOptions } from "@/lib/products/validation";
 import type { AdminProductDetail } from "@/lib/products/service";
 import { AlertPanel } from "@/components/common/panels";
 
@@ -99,7 +99,7 @@ function MediaRows({ product }: { product?: AdminProductDetail }) {
   );
 }
 
-export function ProductForm({ product }: { product?: AdminProductDetail }) {
+export function ProductForm({ product, categories = [] }: { product?: AdminProductDetail; categories?: Array<{ id: string; name: string; slug: string }> }) {
   const action = product ? updateProductAction : createProductAction;
   const [state, formAction] = useActionState<ProductActionState, FormData>(action, {});
 
@@ -115,7 +115,7 @@ export function ProductForm({ product }: { product?: AdminProductDetail }) {
         <Field label="Product name" name="name" defaultValue={product?.name} />
         <Field label="Slug" name="slug" defaultValue={product?.slug} />
         <Field label="Brand" name="brand" defaultValue={product?.brand ?? "Stun Fry"} />
-        <Select label="Category" name="category" defaultValue={product?.category} values={productCategories} />
+        <label className="grid gap-2 text-sm font-bold text-slate-800">Category<select className="input" name="categoryId" defaultValue={product?.categoryId ?? ""}><option value="">Uncategorized</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
         <Select label="Status" name="status" defaultValue={product?.status ?? "DRAFT"} values={productStatuses} />
         <Field label="SKU" name="sku" defaultValue={product?.sku} />
         <Field label="Price" name="price" defaultValue={product?.price?.toFixed(2)} type="number" />
@@ -123,6 +123,7 @@ export function ProductForm({ product }: { product?: AdminProductDetail }) {
           <input defaultChecked={product?.restricted} name="restricted" type="checkbox" />
           Restricted product
         </label>
+        <Select label="Restricted class" name="restrictedClass" defaultValue={product?.restrictedClass ?? "STUN_GUN"} values={restrictedClassOptions} />
         <label className="grid gap-2 text-sm font-bold text-slate-800 md:col-span-2">
           Description
           <textarea className="input min-h-32" name="description" defaultValue={product?.description} />
