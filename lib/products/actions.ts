@@ -6,24 +6,31 @@ import { createAuditLog } from "@/lib/audit/audit-service";
 import { optionalAuditNote, reasonRequiredMessage, validateManualReason, type AdminActionState } from "@/lib/admin/action-state";
 import { archiveProduct, createProduct, getAdminProductById, restoreProduct, updateProduct } from "@/lib/products/service";
 import { parseProductForm, ProductFormValidationError, type ProductMediaType } from "@/lib/products/validation";
-import { IMAGE_MEDIA_TYPES, LocalMediaUploadError, MAX_IMAGE_UPLOAD_BYTES, MAX_VIDEO_UPLOAD_BYTES, saveLocalMediaUpload, VIDEO_MEDIA_TYPES } from "@/lib/media/local-upload";
+import { requireAdminSession } from "@/lib/admin/auth";
+import { PRODUCT_IMAGE_MAX_BYTES, PRODUCT_IMAGE_MEDIA_TYPES, PRODUCT_VIDEO_MAX_BYTES, PRODUCT_VIDEO_MEDIA_TYPES, ProductMediaStorageError, storeProductMediaFile } from "@/lib/storage/product-media-storage";
 
 export type ProductActionState = AdminActionState;
 
 async function saveProductMediaUpload(file: File, type: ProductMediaType, role: "media" | "thumbnail"): Promise<string> {
   try {
-    const allowedTypes = role === "thumbnail" || type === "IMAGE" ? [...IMAGE_MEDIA_TYPES] : [...VIDEO_MEDIA_TYPES];
-    const maxBytes = role === "thumbnail" || type === "IMAGE" ? MAX_IMAGE_UPLOAD_BYTES : MAX_VIDEO_UPLOAD_BYTES;
-    return (await saveLocalMediaUpload(file, { folder: "products", allowedTypes, maxBytes })).publicPath;
+    const allowedTypes = role === "thumbnail" || type === "IMAGE" ? PRODUCT_IMAGE_MEDIA_TYPES : PRODUCT_VIDEO_MEDIA_TYPES;
+    const maxBytes = role === "thumbnail" || type === "IMAGE" ? PRODUCT_IMAGE_MAX_BYTES : PRODUCT_VIDEO_MAX_BYTES;
+    return (await storeProductMediaFile(file, { allowedTypes, maxBytes })).publicPath;
   } catch (error) {
-    if (error instanceof LocalMediaUploadError) throw error;
+    if (error instanceof ProductMediaStorageError) throw error;
     throw new Error("Upload failed. Try again or use a media URL.");
   }
 }
 
 const riskyStatuses = new Set(["ARCHIVED", "RESTRICTED_REVIEW"]);
 
+async function requireProductEditor() {
+  const session = await requireAdminSession("/admin/products");
+  if (!["OWNER", "ADMIN"].includes(session.role)) throw new Error("Only OWNER and ADMIN users can edit products.");
+}
+
 export async function createProductAction(_state: ProductActionState, formData: FormData): Promise<ProductActionState> {
+  await requireProductEditor();
   let input;
   try {
     input = await parseProductForm(formData, saveProductMediaUpload);
@@ -41,6 +48,7 @@ export async function createProductAction(_state: ProductActionState, formData: 
 }
 
 export async function updateProductAction(_state: ProductActionState, formData: FormData): Promise<ProductActionState> {
+  await requireProductEditor();
   let input;
   try {
     input = await parseProductForm(formData, saveProductMediaUpload);
@@ -66,6 +74,7 @@ export async function updateProductAction(_state: ProductActionState, formData: 
 }
 
 export async function archiveProductAction(_state: ProductActionState, formData: FormData): Promise<ProductActionState> {
+  await requireProductEditor();
   const idValue = formData.get("id");
   const noteValue = formData.get("archiveNote");
   const id = typeof idValue === "string" ? idValue : "";
@@ -83,6 +92,7 @@ export async function archiveProductAction(_state: ProductActionState, formData:
 }
 
 export async function restoreProductAction(_state: ProductActionState, formData: FormData): Promise<ProductActionState> {
+  await requireProductEditor();
   const idValue = formData.get("id");
   const noteValue = formData.get("restoreNote");
   const id = typeof idValue === "string" ? idValue : "";

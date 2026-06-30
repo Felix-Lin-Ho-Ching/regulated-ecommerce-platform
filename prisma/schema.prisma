@@ -311,6 +311,10 @@ model Product {
   variants                ProductVariant[]
   images                  ProductImage[]
   media                   ProductMedia[]
+  contentSections         ProductContentSection[]
+  includedItems           ProductIncludedItem[]
+  specs                   ProductSpec[]
+  faqs                    ProductFAQ[]
   features                ProductFeature[]
   stateRestrictionRules   StateRestrictionRule[]
   localRestrictionRules   LocalRestrictionRule[]
@@ -383,6 +387,75 @@ model ProductMedia {
   sortOrder    Int              @default(0)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
+}
+
+model ProductContentSection {
+  id          String       @id @default(cuid())
+  productId   String
+  product     Product      @relation(fields: [productId], references: [id])
+  sectionKey  String
+  eyebrow     String?
+  title       String
+  body        String?
+  imageUrl    String?
+  videoUrl    String?
+  ctaLabel    String?
+  ctaHref     String?
+  sortOrder   Int          @default(0)
+  status      RecordStatus @default(ACTIVE)
+  metadata    Json?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  archivedAt  DateTime?
+
+  @@index([productId, sectionKey, status, sortOrder])
+}
+
+model ProductIncludedItem {
+  id          String       @id @default(cuid())
+  productId   String
+  product     Product      @relation(fields: [productId], references: [id])
+  label       String
+  description String?
+  quantity    Int          @default(1)
+  sortOrder   Int          @default(0)
+  status      RecordStatus @default(ACTIVE)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  archivedAt  DateTime?
+
+  @@index([productId, status, sortOrder])
+}
+
+model ProductSpec {
+  id          String       @id @default(cuid())
+  productId   String
+  product     Product      @relation(fields: [productId], references: [id])
+  label       String
+  value       String
+  group       String?
+  sortOrder   Int          @default(0)
+  status      RecordStatus @default(ACTIVE)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  archivedAt  DateTime?
+
+  @@index([productId, status, sortOrder])
+}
+
+model ProductFAQ {
+  id         String       @id @default(cuid())
+  productId  String
+  product    Product      @relation(fields: [productId], references: [id])
+  question   String
+  answer     String
+  sortOrder  Int          @default(0)
+  status     RecordStatus @default(ACTIVE)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  archivedAt DateTime?
+
+  @@index([productId, status, sortOrder])
 }
 
 model ProductFeature {

@@ -3,6 +3,11 @@ import { products as mockProducts, complianceRules } from "@/lib/mock-data";
 import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
 import { expectedRestrictedStateRuleCount, restrictedRestrictedClass, unsafeDestinationOutcomes, usStateAndDcCodes } from "@/lib/compliance/restricted-state-rules";
 
+export type CatalogContentSection = { sectionKey: string; eyebrow?: string; title: string; body?: string; imageUrl?: string; videoUrl?: string; ctaLabel?: string; ctaHref?: string; sortOrder: number };
+export type CatalogIncludedItem = { label: string; description?: string; quantity: number; sortOrder: number };
+export type CatalogSpec = { label: string; value: string; group?: string; sortOrder: number };
+export type CatalogFAQ = { question: string; answer: string; sortOrder: number };
+
 export type CatalogProductMedia = {
   type: "IMAGE" | "VIDEO";
   url: string;
@@ -45,6 +50,10 @@ type CatalogProductRow = {
     title: string | null;
     sortOrder: number;
   }>;
+  contentSections: Array<{ sectionKey: string; eyebrow: string | null; title: string; body: string | null; imageUrl: string | null; videoUrl: string | null; ctaLabel: string | null; ctaHref: string | null; sortOrder: number }>;
+  includedItems: Array<{ label: string; description: string | null; quantity: number; sortOrder: number }>;
+  specs: Array<{ label: string; value: string; group: string | null; sortOrder: number }>;
+  faqs: Array<{ question: string; answer: string; sortOrder: number }>;
 };
 
 type StateRestrictionRuleRow = {
@@ -78,6 +87,10 @@ type ProductRow = {
     restrictedRelevant: boolean;
   }>;
   media: CatalogProductMedia[];
+  contentSections: CatalogContentSection[];
+  includedItems: CatalogIncludedItem[];
+  specs: CatalogSpec[];
+  faqs: CatalogFAQ[];
 };
 
 type RestrictionRuleRow = {
@@ -112,6 +125,10 @@ export type CatalogProduct = {
     restrictedRelevant: boolean;
   }>;
   media: CatalogProductMedia[];
+  contentSections: CatalogContentSection[];
+  includedItems: CatalogIncludedItem[];
+  specs: CatalogSpec[];
+  faqs: CatalogFAQ[];
 };
 
 const fallbackProducts: CatalogProduct[] = mockProducts.map((p) => ({
@@ -121,6 +138,10 @@ const fallbackProducts: CatalogProduct[] = mockProducts.map((p) => ({
   reserved: Math.min(4, p.stock),
   features: [],
   media: [],
+  contentSections: [],
+  includedItems: [],
+  specs: [],
+  faqs: [],
 }));
 
 export const storefrontCategories = [
@@ -206,6 +227,10 @@ export async function getCatalogProducts(
       variants: { include: { inventory: true } },
       features: true,
       media: { orderBy: { sortOrder: "asc" } },
+      contentSections: { where: { status: "ACTIVE", archivedAt: null }, orderBy: { sortOrder: "asc" } },
+      includedItems: { where: { status: "ACTIVE", archivedAt: null }, orderBy: { sortOrder: "asc" } },
+      specs: { where: { status: "ACTIVE", archivedAt: null }, orderBy: { sortOrder: "asc" } },
+      faqs: { where: { status: "ACTIVE", archivedAt: null }, orderBy: { sortOrder: "asc" } },
       category: true,
     },
     orderBy: { createdAt: "asc" },
@@ -248,6 +273,10 @@ export async function getCatalogProducts(
         title: media.title ?? undefined,
         sortOrder: media.sortOrder,
       })),
+      contentSections: product.contentSections.map((section) => ({ sectionKey: section.sectionKey, eyebrow: section.eyebrow ?? undefined, title: section.title, body: section.body ?? undefined, imageUrl: section.imageUrl ?? undefined, videoUrl: section.videoUrl ?? undefined, ctaLabel: section.ctaLabel ?? undefined, ctaHref: section.ctaHref ?? undefined, sortOrder: section.sortOrder })),
+      includedItems: product.includedItems.map((item) => ({ label: item.label, description: item.description ?? undefined, quantity: item.quantity, sortOrder: item.sortOrder })),
+      specs: product.specs.map((spec) => ({ label: spec.label, value: spec.value, group: spec.group ?? undefined, sortOrder: spec.sortOrder })),
+      faqs: product.faqs.map((faq) => ({ question: faq.question, answer: faq.answer, sortOrder: faq.sortOrder })),
     };
   });
 

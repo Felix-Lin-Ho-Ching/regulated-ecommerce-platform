@@ -4,10 +4,16 @@ export const productStatuses = ["DRAFT", "ACTIVE", "INACTIVE", "ARCHIVED", "REST
 export const restrictedClassOptions = ["STUN_GUN"] as const;
 export const productMediaTypes = ["IMAGE", "VIDEO"] as const;
 export const maxProductMediaRows = 6;
+export const maxProductContentRows = 7;
+export const maxProductIncludedRows = 8;
+export const maxProductSpecRows = 12;
+export const maxProductFAQRows = 8;
+export const productSectionKeys = ["overview", "features_design", "whats_included", "specs", "comparison", "state_requirements", "faq"] as const;
 
 type ProductStatus = (typeof productStatuses)[number];
 export type RestrictedClass = (typeof restrictedClassOptions)[number];
 export type ProductMediaType = (typeof productMediaTypes)[number];
+export type ProductSectionKey = (typeof productSectionKeys)[number];
 
 export type ProductFeatureInput = {
   code: string;
@@ -25,6 +31,11 @@ export type ProductMediaInput = {
   sortOrder: number;
 };
 
+export type ProductContentSectionInput = { sectionKey: ProductSectionKey; eyebrow?: string; title: string; body?: string; imageUrl?: string; videoUrl?: string; ctaLabel?: string; ctaHref?: string; sortOrder: number };
+export type ProductIncludedItemInput = { label: string; description?: string; quantity: number; sortOrder: number };
+export type ProductSpecInput = { label: string; value: string; group?: string; sortOrder: number };
+export type ProductFAQInput = { question: string; answer: string; sortOrder: number };
+
 export type ProductFormInput = {
   id?: string;
   name: string;
@@ -39,6 +50,10 @@ export type ProductFormInput = {
   priceCents: number;
   features: ProductFeatureInput[];
   media: ProductMediaInput[];
+  contentSections: ProductContentSectionInput[];
+  includedItems: ProductIncludedItemInput[];
+  specs: ProductSpecInput[];
+  faqs: ProductFAQInput[];
   auditNote: string;
 };
 
@@ -138,6 +153,32 @@ async function parseMediaRows(formData: FormData, resolveUpload?: MediaUploadRes
   return rows;
 }
 
+function parseContentSections(formData: FormData): ProductContentSectionInput[] {
+  return Array.from({ length: maxProductContentRows }, (_, index) => ({
+    sectionKey: oneOf(text(formData, `sectionKey${index}`), productSectionKeys, "overview"),
+    eyebrow: text(formData, `sectionEyebrow${index}`) || undefined,
+    title: text(formData, `sectionTitle${index}`),
+    body: text(formData, `sectionBody${index}`) || undefined,
+    imageUrl: text(formData, `sectionImageUrl${index}`) || undefined,
+    videoUrl: text(formData, `sectionVideoUrl${index}`) || undefined,
+    ctaLabel: text(formData, `sectionCtaLabel${index}`) || undefined,
+    ctaHref: text(formData, `sectionCtaHref${index}`) || undefined,
+    sortOrder: intOrDefault(text(formData, `sectionSortOrder${index}`), index),
+  })).filter((section) => section.title);
+}
+
+function parseIncludedItems(formData: FormData): ProductIncludedItemInput[] {
+  return Array.from({ length: maxProductIncludedRows }, (_, index) => ({ label: text(formData, `includedLabel${index}`), description: text(formData, `includedDescription${index}`) || undefined, quantity: intOrDefault(text(formData, `includedQuantity${index}`), 1), sortOrder: intOrDefault(text(formData, `includedSortOrder${index}`), index) })).filter((item) => item.label);
+}
+
+function parseSpecs(formData: FormData): ProductSpecInput[] {
+  return Array.from({ length: maxProductSpecRows }, (_, index) => ({ label: text(formData, `specLabel${index}`), value: text(formData, `specValue${index}`), group: text(formData, `specGroup${index}`) || undefined, sortOrder: intOrDefault(text(formData, `specSortOrder${index}`), index) })).filter((spec) => spec.label && spec.value);
+}
+
+function parseFaqs(formData: FormData): ProductFAQInput[] {
+  return Array.from({ length: maxProductFAQRows }, (_, index) => ({ question: text(formData, `faqQuestion${index}`), answer: text(formData, `faqAnswer${index}`), sortOrder: intOrDefault(text(formData, `faqSortOrder${index}`), index) })).filter((faq) => faq.question && faq.answer);
+}
+
 export async function parseProductForm(formData: FormData, resolveUpload?: MediaUploadResolver): Promise<ProductFormInput> {
   const name = text(formData, "name") || "Untitled product";
   const restricted = formData.get("restricted") === "on";
@@ -164,6 +205,10 @@ export async function parseProductForm(formData: FormData, resolveUpload?: Media
       .filter((feature) => feature.code || feature.label || feature.value)
       .filter((feature) => feature.code && feature.label),
     media: await parseMediaRows(formData, resolveUpload),
+    contentSections: parseContentSections(formData),
+    includedItems: parseIncludedItems(formData),
+    specs: parseSpecs(formData),
+    faqs: parseFaqs(formData),
     auditNote: text(formData, "auditNote"),
   };
 }

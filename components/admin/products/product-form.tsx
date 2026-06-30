@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { createProductAction, updateProductAction, type ProductActionState } from "@/lib/products/actions";
-import { maxProductMediaRows, productMediaTypes, productStatuses, restrictedClassOptions } from "@/lib/products/validation";
+import { maxProductContentRows, maxProductFAQRows, maxProductIncludedRows, maxProductMediaRows, maxProductSpecRows, productMediaTypes, productSectionKeys, productStatuses, restrictedClassOptions } from "@/lib/products/validation";
 import type { AdminProductDetail } from "@/lib/products/service";
 import { AlertPanel } from "@/components/common/panels";
 
@@ -80,7 +80,7 @@ function MediaRows({ product }: { product?: AdminProductDetail }) {
               <input className="input invalid:border-red-500" name={`mediaUrl${index}`} defaultValue={media?.url} type="text" />
               <span className="text-center text-xs font-black uppercase text-slate-500">or</span>
               <span>Upload file</span>
-              <input className="input" name={`mediaUpload${index}`} type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,.jpg,.jpeg,.png,.webp,.mp4,.webm,.mov" />
+              <input className="input" name={`mediaUpload${index}`} type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.mp4,.webm" />
               <span className="text-xs font-medium text-slate-500">Local uploads are for development/testing. Use durable external storage before production launch.</span>
             </label>
             <label className="grid gap-2 text-sm font-bold text-slate-800">
@@ -95,6 +95,25 @@ function MediaRows({ product }: { product?: AdminProductDetail }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function ProductContentRows({ product }: { product?: AdminProductDetail }) {
+  const sections = product?.contentSections ?? [];
+  const included = product?.includedItems ?? [];
+  const specs = product?.specs ?? [];
+  const faqs = product?.faqs ?? [];
+  return (
+    <div className="grid gap-6 md:col-span-2">
+      <h3 className="font-black">Editable product detail content</h3>
+      <div className="grid gap-3">
+        <h4 className="font-bold">Content sections</h4>
+        {Array.from({ length: maxProductContentRows }, (_, index) => { const row = sections[index]; return <div className="grid gap-3 rounded-2xl border border-stone-200 p-3 md:grid-cols-4" key={`section-${index}`}><Select label="Section key" name={`sectionKey${index}`} defaultValue={row?.sectionKey ?? productSectionKeys[index] ?? "overview"} values={productSectionKeys} /><Field label="Eyebrow" name={`sectionEyebrow${index}`} defaultValue={row?.eyebrow} /><Field label="Title" name={`sectionTitle${index}`} defaultValue={row?.title} /><Field label="Sort" name={`sectionSortOrder${index}`} defaultValue={row?.sortOrder ?? index} type="number" /><label className="grid gap-2 text-sm font-bold text-slate-800 md:col-span-4">Body<textarea className="input min-h-24" name={`sectionBody${index}`} defaultValue={row?.body} /></label><Field label="Image URL" name={`sectionImageUrl${index}`} defaultValue={row?.imageUrl} /><Field label="Video URL" name={`sectionVideoUrl${index}`} defaultValue={row?.videoUrl} /><Field label="CTA label" name={`sectionCtaLabel${index}`} defaultValue={row?.ctaLabel} /><Field label="CTA href" name={`sectionCtaHref${index}`} defaultValue={row?.ctaHref} /></div>; })}
+      </div>
+      <div className="grid gap-3"><h4 className="font-bold">What’s included</h4>{Array.from({ length: maxProductIncludedRows }, (_, index) => { const row = included[index]; return <div className="grid gap-3 rounded-2xl border border-stone-200 p-3 md:grid-cols-4" key={`included-${index}`}><Field label="Label" name={`includedLabel${index}`} defaultValue={row?.label} /><Field label="Description" name={`includedDescription${index}`} defaultValue={row?.description} /><Field label="Quantity" name={`includedQuantity${index}`} defaultValue={row?.quantity ?? 1} type="number" /><Field label="Sort" name={`includedSortOrder${index}`} defaultValue={row?.sortOrder ?? index} type="number" /></div>; })}</div>
+      <div className="grid gap-3"><h4 className="font-bold">Specs</h4>{Array.from({ length: maxProductSpecRows }, (_, index) => { const row = specs[index]; return <div className="grid gap-3 rounded-2xl border border-stone-200 p-3 md:grid-cols-4" key={`spec-${index}`}><Field label="Group" name={`specGroup${index}`} defaultValue={row?.group} /><Field label="Label" name={`specLabel${index}`} defaultValue={row?.label} /><Field label="Value" name={`specValue${index}`} defaultValue={row?.value} /><Field label="Sort" name={`specSortOrder${index}`} defaultValue={row?.sortOrder ?? index} type="number" /></div>; })}</div>
+      <div className="grid gap-3"><h4 className="font-bold">FAQ</h4>{Array.from({ length: maxProductFAQRows }, (_, index) => { const row = faqs[index]; return <div className="grid gap-3 rounded-2xl border border-stone-200 p-3 md:grid-cols-[1fr_2fr_auto]" key={`faq-${index}`}><Field label="Question" name={`faqQuestion${index}`} defaultValue={row?.question} /><Field label="Answer" name={`faqAnswer${index}`} defaultValue={row?.answer} /><Field label="Sort" name={`faqSortOrder${index}`} defaultValue={row?.sortOrder ?? index} type="number" /></div>; })}</div>
     </div>
   );
 }
@@ -130,6 +149,7 @@ export function ProductForm({ product, categories = [] }: { product?: AdminProdu
         </label>
         <MediaRows product={product} />
         <FeatureRows product={product} />
+        <ProductContentRows product={product} />
         <label className="grid gap-2 text-sm font-bold text-slate-800 md:col-span-2">
           Owner note (optional for routine details)
           <textarea className="input min-h-24" name="auditNote" />
