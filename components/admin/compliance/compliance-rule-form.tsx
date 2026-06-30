@@ -7,7 +7,7 @@ import { saveComplianceRuleAction } from "@/lib/compliance/actions";
 import { ruleOutcomes } from "@/lib/compliance/validation";
 import type { ComplianceRuleRow, VerificationTemplateRow } from "@/lib/compliance/service";
 import type { AdminProductDetail } from "@/lib/products/service";
-import { productCategories } from "@/lib/products/validation";
+import { restrictedClassOptions } from "@/lib/products/validation";
 
 const exampleStates = ["CA", "HI", "IL", "UN"];
 
@@ -43,8 +43,8 @@ Use this page to block or allow restricted products by shipping state and local/
       </label>
       <label className="grid gap-2 text-sm font-bold text-slate-800">
         Restricted product category
-        <select className="input" name="productCategory" defaultValue={rule?.productCategory ?? "knuckle_stun_device"}>
-          {productCategories.map((category) => (
+        <select className="input" name="restrictedClass" defaultValue={rule?.restrictedClass ?? "STUN_GUN"}>
+          {restrictedClassOptions.map((category) => (
             <option key={category} value={category}>
               {category.replaceAll("_", " ")}
             </option>

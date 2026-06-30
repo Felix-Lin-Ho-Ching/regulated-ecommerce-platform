@@ -5,7 +5,7 @@ import type { ComplianceRuleInput, VerificationTemplateInput } from "@/lib/compl
 export type ComplianceRuleRow = {
   id: string;
   stateCode: string;
-  productCategory: string;
+  restrictedClass: string;
   productName: string;
   productId: string;
   outcome: string;
@@ -60,7 +60,7 @@ export async function getComplianceRules(): Promise<ComplianceRuleRow[]> {
     return complianceRules.map((rule) => ({
       id: rule.id,
       stateCode: rule.state,
-      productCategory: rule.category,
+      restrictedClass: rule.category,
       productName: "All products in category",
       productId: "",
       outcome: rule.outcome === "allowed" ? "ALLOW" : "BLOCK",
@@ -78,20 +78,20 @@ export async function getComplianceRules(): Promise<ComplianceRuleRow[]> {
     prisma.stateRestrictionRule.findMany({
       where: { archivedAt: null },
       include: { product: true },
-      orderBy: [{ stateCode: "asc" }, { productCategory: "asc" }],
+      orderBy: [{ stateCode: "asc" }, { restrictedClass: "asc" }],
     }),
     prisma.stateVerificationRule.findMany({ include: { template: true }, where: { archivedAt: null } }),
   ]);
 
   return rules.map((rule: any) => {
     const verificationRule = verificationRules.find(
-      (item: any) => item.stateCode === rule.stateCode && item.productCategory === rule.productCategory,
+      (item: any) => item.stateCode === rule.stateCode && item.restrictedClass === rule.restrictedClass,
     );
 
     return {
       id: rule.id,
       stateCode: rule.stateCode,
-      productCategory: rule.productCategory,
+      restrictedClass: rule.restrictedClass,
       productName: rule.product?.name ?? "All products in category",
       productId: rule.productId ?? "",
       outcome: rule.outcome,
@@ -122,7 +122,7 @@ export async function upsertComplianceRule(input: ComplianceRuleInput): Promise<
         where: { id: input.id },
         data: {
           stateCode: input.stateCode,
-          productCategory: input.productCategory,
+          restrictedClass: input.restrictedClass,
           productId: input.productId ?? null,
           outcome: input.outcome,
           reviewStatus: input.reviewStatus,
@@ -135,7 +135,7 @@ export async function upsertComplianceRule(input: ComplianceRuleInput): Promise<
     : await prisma.stateRestrictionRule.create({
         data: {
           stateCode: input.stateCode,
-          productCategory: input.productCategory,
+          restrictedClass: input.restrictedClass,
           productId: input.productId ?? null,
           outcome: input.outcome,
           reviewStatus: input.reviewStatus,
@@ -147,11 +147,11 @@ export async function upsertComplianceRule(input: ComplianceRuleInput): Promise<
       });
 
   await prisma.stateVerificationRule.upsert({
-    where: { stateCode_productCategory: { stateCode: input.stateCode, productCategory: input.productCategory } },
+    where: { stateCode_restrictedClass: { stateCode: input.stateCode, restrictedClass: input.restrictedClass } },
     update: { templateId: template.id, reviewStatus: input.reviewStatus, reason: input.reason },
     create: {
       stateCode: input.stateCode,
-      productCategory: input.productCategory,
+      restrictedClass: input.restrictedClass,
       templateId: template.id,
       reviewStatus: input.reviewStatus,
       reason: input.reason,
@@ -193,7 +193,7 @@ export type LocalRestrictionRuleRow = {
   stateCode: string;
   localityType: string;
   localityName: string;
-  productCategory: string;
+  restrictedClass: string;
   productName: string;
   productId: string;
   outcome: string;
@@ -214,7 +214,7 @@ export async function getLocalRestrictionRules(): Promise<LocalRestrictionRuleRo
     stateCode: rule.stateCode,
     localityType: rule.localityType,
     localityName: rule.localityName,
-    productCategory: rule.productCategory,
+    restrictedClass: rule.restrictedClass,
     productName: rule.product?.name ?? "All products in category",
     productId: rule.productId ?? "",
     outcome: rule.outcome,
@@ -230,7 +230,7 @@ export async function createLocalRestrictionRule(input: import("@/lib/compliance
       stateCode: input.stateCode,
       localityType: input.localityType,
       localityName: input.localityName,
-      productCategory: input.productCategory,
+      restrictedClass: input.restrictedClass,
       productId: input.productId ?? null,
       outcome: input.outcome,
       reviewStatus: "DRAFT",

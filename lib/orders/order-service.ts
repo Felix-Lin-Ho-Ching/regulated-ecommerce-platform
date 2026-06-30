@@ -132,10 +132,10 @@ const shippingCookieName = "stun_fry_shipping";
 const ordersCookieName = "stun_fry_orders";
 
 export async function getCheckoutReadiness(
-  productCategory: string,
+  restrictedClass: string,
   stateCode: string,
 ): Promise<CheckoutReadiness> {
-  const decision = await evaluateCompliance({ productCategory, stateCode });
+  const decision = await evaluateCompliance({ restrictedClass, stateCode });
   return {
     canCollectPayment: false,
     canFulfill: false,
@@ -467,7 +467,7 @@ export async function getCheckoutEligibilitySnapshot(
       state: shipping.state,
       zip: shipping.postalCode,
       isAtLeast18,
-      productCategory: restrictedLine.product.category,
+      restrictedClass: restrictedLine.product.restrictedClass ?? undefined,
       productId: restrictedLine.product.id,
       restricted: true,
     }),

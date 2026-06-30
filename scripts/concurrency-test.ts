@@ -24,7 +24,8 @@ async function cleanup() {
 }
 
 async function makeInventory(stock: number) {
-  const product = await prisma.product.create({ data: { slug: `concurrency-test-${runId}-${stock}`, brand: "Test", name: `Concurrency ${stock}`, category: "personal_safety_alarm", description: "Concurrency stock test", status: "ACTIVE", restricted: false } });
+  const category = await prisma.productCategory.upsert({ where: { slug: "personal-safety-alarms" }, update: {}, create: { slug: "personal-safety-alarms", name: "Personal Safety Alarms" } });
+  const product = await prisma.product.create({ data: { slug: `concurrency-test-${runId}-${stock}`, brand: "Test", name: `Concurrency ${stock}`, categoryId: category.id, restrictedClass: null, description: "Concurrency stock test", status: "ACTIVE", restricted: false } });
   const variant = await prisma.productVariant.create({ data: { productId: product.id, sku: `${runId}-${stock}`, name: "Default", priceCents: 1000, status: "ACTIVE", inventory: { create: { onHand: stock, reserved: 0 } } }, include: { inventory: true } });
   if (!variant.inventory) throw new Error("Inventory not created");
   return variant.inventory.id;

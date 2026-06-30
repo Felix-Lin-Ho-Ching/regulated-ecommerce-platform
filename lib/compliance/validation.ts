@@ -4,7 +4,7 @@ export const ruleReviewStatuses = ["DRAFT", "MANUAL_REVIEW", "COUNSEL_REVIEW_REQ
 export type ComplianceRuleInput = {
   id?: string;
   stateCode: string;
-  productCategory: string;
+  restrictedClass: string;
   productId?: string;
   outcome: (typeof ruleOutcomes)[number];
   reviewStatus: (typeof ruleReviewStatuses)[number];
@@ -37,7 +37,7 @@ export function parseComplianceRuleForm(formData: FormData): ComplianceRuleInput
   return {
     id: text(formData, "id") || undefined,
     stateCode: text(formData, "stateCode").toUpperCase().slice(0, 2) || "UN",
-    productCategory: text(formData, "productCategory") || "knuckle_stun_device",
+    restrictedClass: text(formData, "restrictedClass") || "STUN_GUN",
     productId: text(formData, "productId") || undefined,
     outcome: oneOf(text(formData, "outcome"), ruleOutcomes, "BLOCK"),
     reviewStatus: oneOf(text(formData, "reviewStatus"), ruleReviewStatuses, "DRAFT"),
@@ -107,7 +107,7 @@ export type LocalRestrictionRuleInput = {
   stateCode: string;
   localityType: string;
   localityName: string;
-  productCategory: string;
+  restrictedClass: string;
   productId?: string;
   outcome: (typeof ruleOutcomes)[number];
   reason: string;
@@ -119,7 +119,7 @@ export function parseLocalRestrictionRuleForm(formData: FormData): LocalRestrict
     stateCode: text(formData, "localStateCode").toUpperCase().slice(0, 2) || "UN",
     localityType: text(formData, "localityType").toUpperCase() || "ZIP",
     localityName: text(formData, "localityName").toUpperCase().replace(/\s+/g, "") || "Unknown",
-    productCategory: text(formData, "localProductCategory") || "knuckle_stun_device",
+    restrictedClass: text(formData, "localRestrictedClass") || "STUN_GUN",
     productId: text(formData, "localProductId") || undefined,
     outcome: oneOf(text(formData, "localOutcome"), ruleOutcomes, "BLOCK"),
     reason: text(formData, "localReason") || "Local shipping restriction.",

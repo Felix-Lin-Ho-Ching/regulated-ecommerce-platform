@@ -11,7 +11,7 @@ export type StateGuidance = {
 
 type RuleRow = {
   stateCode: string;
-  productCategory: string;
+  restrictedClass: string;
   outcome: string;
   reviewStatus: string;
 };
@@ -72,7 +72,7 @@ export async function getStateGuidance(): Promise<StateGuidance[]> {
   if (!isDatabaseConfigured) {
     const rows = complianceRules.map((rule) => ({
       stateCode: rule.state,
-      productCategory: rule.category,
+      restrictedClass: rule.category,
       outcome: rule.outcome,
       reviewStatus: rule.coverage === "review_needed" || rule.coverage === "missing" ? "MANUAL_REVIEW" : "COVERED",
     }));
@@ -82,7 +82,7 @@ export async function getStateGuidance(): Promise<StateGuidance[]> {
 
   const rows = (await prisma.stateRestrictionRule.findMany({
     where: { archivedAt: null },
-    select: { stateCode: true, productCategory: true, outcome: true, reviewStatus: true },
+    select: { stateCode: true, restrictedClass: true, outcome: true, reviewStatus: true },
     orderBy: [{ stateCode: "asc" }],
   })) as RuleRow[];
 

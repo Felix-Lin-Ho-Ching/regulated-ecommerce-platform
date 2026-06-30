@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { ArchiveProductForm, RestoreProductForm } from "@/components/admin/products/archive-product-form";
 import { ProductForm } from "@/components/admin/products/product-form";
+import { getActiveProductCategories } from "@/lib/product-categories/service";
 import { AlertPanel } from "@/components/common/panels";
 import { AdminShell, EmptyState, SectionHeader, StatusBadge } from "@/components/ui";
 import { getAdminProductById } from "@/lib/products/service";
 
 export default async function ProductEditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const product = await getAdminProductById(id);
+  const [product, categories] = await Promise.all([getAdminProductById(id), getActiveProductCategories()]);
 
   if (!product) {
     return (
@@ -42,7 +43,7 @@ export default async function ProductEditPage({ params }: { params: Promise<{ id
           </AlertPanel>
         </div>
       ) : null}
-      <ProductForm product={product} />
+      <ProductForm product={product} categories={categories} />
       <div className="mt-6">
         {isArchived ? <RestoreProductForm productId={product.id} /> : <ArchiveProductForm productId={product.id} />}
       </div>

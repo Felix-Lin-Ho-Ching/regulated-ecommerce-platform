@@ -1,4 +1,4 @@
-export const restrictedProductCategory = "knuckle_stun_device";
+export const restrictedRestrictedClass = "STUN_GUN";
 
 export const usStateAndDcCodes = [
   "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA",

@@ -9,6 +9,7 @@ export function AdminSidebar({ role }: { role: string }) {
   const ownerAdminLinks = [
     ["/admin", "Dashboard"],
     ["/admin/products", "Products"],
+    ["/admin/categories", "Categories"],
     ["/admin/inventory", "Inventory"],
     ["/admin/orders", "Orders"],
     ["/admin/fulfillment", "Fulfillment"],

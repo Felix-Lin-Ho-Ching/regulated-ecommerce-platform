@@ -21,7 +21,7 @@ export default async function ComplianceRulesPage() {
         columns={["State", "Restricted product category", "Product", "Rule", "Reason"]}
         rows={rules.map((rule) => [
           rule.stateCode,
-          rule.productCategory,
+          rule.restrictedClass,
           rule.productName,
           <StatusBadge key={`${rule.id}-outcome`} tone={rule.outcome === "BLOCK" ? "danger" : rule.outcome === "ALLOW" ? "success" : "warning"}>
             {rule.outcome}
@@ -38,7 +38,7 @@ export default async function ComplianceRulesPage() {
             rule.stateCode,
             rule.localityType,
             rule.localityName,
-            rule.productCategory,
+            rule.restrictedClass,
             rule.productName,
             <StatusBadge key={`${rule.id}-local-outcome`} tone={rule.outcome === "BLOCK" ? "danger" : rule.outcome === "ALLOW" ? "success" : "warning"}>{rule.outcome}</StatusBadge>,
             rule.reason,

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 
 export type ComplianceInput = {
-  productCategory: "knuckle_stun_device" | string;
+  restrictedClass: "STUN_GUN" | string;
   stateCode: string;
   localityName?: string;
 };
@@ -22,7 +22,7 @@ export async function evaluateCompliance(input: ComplianceInput): Promise<Compli
   const rule = (await prisma.stateRestrictionRule.findFirst({
     where: {
       stateCode: input.stateCode,
-      productCategory: input.productCategory as never,
+      restrictedClass: input.restrictedClass as never,
       archivedAt: null,
     },
     orderBy: { createdAt: "desc" },
