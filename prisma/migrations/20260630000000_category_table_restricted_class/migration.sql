@@ -1,4 +1,8 @@
--- Refactor storefront categories from ProductCategory enum to admin-managed ProductCategory rows.
+-- Refactor storefront categories from the legacy ProductCategory enum to admin-managed ProductCategory rows.
+-- PostgreSQL stores enum types and table relation types in the same namespace, so the
+-- legacy enum must be renamed before the replacement ProductCategory table is created.
+ALTER TYPE "ProductCategory" RENAME TO "ProductCategory_old";
+
 CREATE TABLE "ProductCategory" (
   "id" TEXT NOT NULL,
   "slug" TEXT NOT NULL,
@@ -20,6 +24,7 @@ INSERT INTO "ProductCategory" ("id", "slug", "name", "sortOrder") VALUES
   ('cat_visibility', 'visibility', 'Visibility', 40)
 ON CONFLICT ("slug") DO NOTHING;
 
+-- Add nullable columns first so existing rows can be backfilled before constraints are introduced.
 ALTER TABLE "Product" ADD COLUMN "categoryId" TEXT;
 ALTER TABLE "Product" ADD COLUMN "restrictedClass" TEXT;
 
@@ -31,13 +36,19 @@ UPDATE "Product" SET
     WHEN 'visibility' THEN (SELECT "id" FROM "ProductCategory" WHERE "slug" = 'visibility')
     ELSE NULL
   END,
-  "restrictedClass" = CASE WHEN "category"::text = 'knuckle_stun_device' THEN 'STUN_GUN' ELSE NULL END;
+  "restrictedClass" = CASE
+    WHEN "category"::text = 'knuckle_stun_device' OR "restricted" = true THEN 'STUN_GUN'
+    ELSE NULL
+  END;
 
 ALTER TABLE "Product" ADD CONSTRAINT "Product_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "ProductCategory"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 CREATE INDEX "Product_categoryId_status_idx" ON "Product"("categoryId", "status");
 
 ALTER TABLE "StateRestrictionRule" ADD COLUMN "restrictedClass" TEXT;
-UPDATE "StateRestrictionRule" SET "restrictedClass" = CASE WHEN "productCategory"::text = 'knuckle_stun_device' THEN 'STUN_GUN' ELSE "productCategory"::text END;
+UPDATE "StateRestrictionRule" SET "restrictedClass" = CASE
+  WHEN "productCategory"::text = 'knuckle_stun_device' THEN 'STUN_GUN'
+  ELSE 'UNMAPPED_' || upper("productCategory"::text)
+END;
 ALTER TABLE "StateRestrictionRule" ALTER COLUMN "restrictedClass" SET NOT NULL;
 DROP INDEX IF EXISTS "StateRestrictionRule_state_category_idx";
 ALTER TABLE "StateRestrictionRule" DROP CONSTRAINT IF EXISTS "StateRestrictionRule_stateCode_productCategory_productId_key";
@@ -46,26 +57,39 @@ CREATE INDEX "StateRestrictionRule_state_restrictedClass_idx" ON "StateRestricti
 ALTER TABLE "StateRestrictionRule" DROP COLUMN "productCategory";
 
 ALTER TABLE "LocalRestrictionRule" ADD COLUMN "restrictedClass" TEXT;
-UPDATE "LocalRestrictionRule" SET "restrictedClass" = CASE WHEN "productCategory"::text = 'knuckle_stun_device' THEN 'STUN_GUN' ELSE "productCategory"::text END;
+UPDATE "LocalRestrictionRule" SET "restrictedClass" = CASE
+  WHEN "productCategory"::text = 'knuckle_stun_device' THEN 'STUN_GUN'
+  ELSE 'UNMAPPED_' || upper("productCategory"::text)
+END;
 ALTER TABLE "LocalRestrictionRule" ALTER COLUMN "restrictedClass" SET NOT NULL;
 ALTER TABLE "LocalRestrictionRule" DROP COLUMN "productCategory";
 
 ALTER TABLE "StateVerificationRule" ADD COLUMN "restrictedClass" TEXT;
-UPDATE "StateVerificationRule" SET "restrictedClass" = CASE WHEN "productCategory"::text = 'knuckle_stun_device' THEN 'STUN_GUN' ELSE "productCategory"::text END;
+UPDATE "StateVerificationRule" SET "restrictedClass" = CASE
+  WHEN "productCategory"::text = 'knuckle_stun_device' THEN 'STUN_GUN'
+  ELSE 'UNMAPPED_' || upper("productCategory"::text)
+END;
 ALTER TABLE "StateVerificationRule" ALTER COLUMN "restrictedClass" SET NOT NULL;
 ALTER TABLE "StateVerificationRule" DROP CONSTRAINT IF EXISTS "StateVerificationRule_stateCode_productCategory_key";
 ALTER TABLE "StateVerificationRule" ADD CONSTRAINT "StateVerificationRule_stateCode_restrictedClass_key" UNIQUE ("stateCode", "restrictedClass");
 ALTER TABLE "StateVerificationRule" DROP COLUMN "productCategory";
 
 ALTER TABLE "LocalVerificationRule" ADD COLUMN "restrictedClass" TEXT;
-UPDATE "LocalVerificationRule" SET "restrictedClass" = CASE WHEN "productCategory"::text = 'knuckle_stun_device' THEN 'STUN_GUN' ELSE "productCategory"::text END;
+UPDATE "LocalVerificationRule" SET "restrictedClass" = CASE
+  WHEN "productCategory"::text = 'knuckle_stun_device' THEN 'STUN_GUN'
+  ELSE 'UNMAPPED_' || upper("productCategory"::text)
+END;
 ALTER TABLE "LocalVerificationRule" ALTER COLUMN "restrictedClass" SET NOT NULL;
 ALTER TABLE "LocalVerificationRule" DROP COLUMN "productCategory";
 
 ALTER TABLE "BuyerVerificationRecord" ADD COLUMN "restrictedClass" TEXT;
-UPDATE "BuyerVerificationRecord" SET "restrictedClass" = CASE WHEN "productCategory"::text = 'knuckle_stun_device' THEN 'STUN_GUN' ELSE "productCategory"::text END;
+UPDATE "BuyerVerificationRecord" SET "restrictedClass" = CASE
+  WHEN "productCategory"::text = 'knuckle_stun_device' THEN 'STUN_GUN'
+  WHEN "productCategory" IS NULL THEN NULL
+  ELSE 'UNMAPPED_' || upper("productCategory"::text)
+END;
 ALTER TABLE "BuyerVerificationRecord" DROP COLUMN "productCategory";
 
 DROP INDEX IF EXISTS "Product_category_status_idx";
 ALTER TABLE "Product" DROP COLUMN "category";
-DROP TYPE IF EXISTS "ProductCategory";
+DROP TYPE "ProductCategory_old";
