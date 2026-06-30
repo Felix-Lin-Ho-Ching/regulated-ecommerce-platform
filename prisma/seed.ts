@@ -189,6 +189,34 @@ async function main() {
       create: { id: media.id, productId: media.productId, type: media.type, url: media.url, thumbnailUrl: "thumbnailUrl" in media ? media.thumbnailUrl : null, alt: media.alt, title: media.title, sortOrder: media.sortOrder },
     });
   }
+  const detailSections = [
+    ["section_knuckle_overview", "overview", "Overview", "Built for regulated self-defense retail workflows, this Stun Fry placeholder product emphasizes responsible ownership, clear storage, and destination-based checkout review."],
+    ["section_knuckle_design", "features_design", "Design details", "A compact form factor, status indicator, and textured grip are presented as neutral product attributes without aggressive claims."],
+    ["section_knuckle_included", "whats_included", "What’s included", "Package contents are maintained as structured records so owners can update the list without code changes."],
+    ["section_knuckle_specs", "specs", "Specifications", "Structured specifications are editable by authorized product administrators."],
+    ["section_knuckle_state", "state_requirements", "State requirements", "Availability depends on shipping destination. Checkout performs final destination verification before payment capture or fulfillment."],
+    ["section_knuckle_faq", "faq", "Frequently asked questions", "Answers are maintained by store administrators and should be reviewed before production launch."],
+  ] as const;
+  for (const [id, sectionKey, title, body] of detailSections) {
+    await prisma.productContentSection.upsert({ where: { id }, update: { sectionKey, title, body, status: "ACTIVE", archivedAt: null }, create: { id, productId: "prod_knuckle", sectionKey, title, body, sortOrder: detailSections.findIndex((row) => row[0] === id), status: "ACTIVE" } });
+  }
+  for (const [index, label, description, quantity] of [
+    [0, "ArcGuard regulated device", "Primary catalog item for destination-reviewed orders.", 1],
+    [1, "Charging cable", "Standard charging accessory for the device.", 1],
+    [2, "Owner safety card", "Quick-start storage, handling, and compliance reminder card.", 1],
+  ] as const) await prisma.productIncludedItem.upsert({ where: { id: `included_knuckle_${index}` }, update: { label, description, quantity, sortOrder: index, status: "ACTIVE", archivedAt: null }, create: { id: `included_knuckle_${index}`, productId: "prod_knuckle", label, description, quantity, sortOrder: index, status: "ACTIVE" } });
+  for (const [index, group, label, value] of [
+    [0, "Product", "Brand", "Stun Fry"],
+    [1, "Product", "SKU", "AKS-310"],
+    [2, "Compliance", "Restricted class", "STUN_GUN"],
+    [3, "Fulfillment", "Availability", "Destination verification required"],
+  ] as const) await prisma.productSpec.upsert({ where: { id: `spec_knuckle_${index}` }, update: { group, label, value, sortOrder: index, status: "ACTIVE", archivedAt: null }, create: { id: `spec_knuckle_${index}`, productId: "prod_knuckle", group, label, value, sortOrder: index, status: "ACTIVE" } });
+  for (const [index, question, answer] of [
+    [0, "Can this ship everywhere?", "No. Availability depends on the shipping destination, configured restricted-class rules, and checkout verification."],
+    [1, "When is eligibility checked?", "The product page provides a preview link, but checkout remains the final authority before an order proceeds."],
+    [2, "Who can edit this information?", "Only owner or admin users can edit product media and detail content."],
+  ] as const) await prisma.productFAQ.upsert({ where: { id: `faq_knuckle_${index}` }, update: { question, answer, sortOrder: index, status: "ACTIVE", archivedAt: null }, create: { id: `faq_knuckle_${index}`, productId: "prod_knuckle", question, answer, sortOrder: index, status: "ACTIVE" } });
+
   for (const feature of [
     ["contact_prongs", "Contact prongs", "Integrated restricted feature"],
     ["stun_capability", "Stun capability", "Electrical defense function"],
