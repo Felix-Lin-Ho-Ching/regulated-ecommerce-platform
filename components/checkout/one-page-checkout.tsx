@@ -1,6 +1,6 @@
 "use client";
 
-import { type Dispatch, type FormEvent, type SetStateAction, useEffect, useState } from "react";
+import { type Dispatch, type FormEvent, type SetStateAction, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CartSnapshot } from "@/lib/cart/cart-service";
 import { estimateCheckoutTaxAction, evaluateCheckoutDestinationAction, submitCheckoutAction } from "@/lib/checkout/actions";
@@ -17,14 +17,14 @@ type AddressState = {
   postalCode: string;
 };
 
-type AgeState = { month: string; day: string; year: string; verified: boolean };
+type DobStatus = "empty" | "invalid" | "underage" | "verified";
 type BillingState = { same: boolean; firstName: string; lastName: string; line1: string; city: string; state: string; postalCode: string };
 type PaymentState = { cardNumber: string; expiration: string; cvv: string; nameOnCard: string };
 
 const ADDRESS_WARNING = "Complete your contact and shipping address before submitting.";
 const BLOCKED_DESTINATION_WARNING = "This item is not available for your shipping destination. Change shipping address or remove restricted item.";
 const PENDING_DESTINATION_WARNING = "Checking configured destination rules. Try again in a moment.";
-const AGE_WARNING = "Age verification is required for restricted items.";
+const AGE_WARNING = "Enter a valid date of birth showing you are at least 18 years old.";
 
 type CheckoutWarning = "address" | "blocked" | "pending" | "verification" | "tax" | null;
 
@@ -33,17 +33,44 @@ function warningFromError(error?: string): CheckoutWarning {
   return null;
 }
 
-function isAdult({ year, month, day }: AgeState) {
-  const dob = new Date(Number(year), Number(month) - 1, Number(day));
-  if (Number.isNaN(dob.getTime())) return false;
+function formatDateValue(year: number, month: number, day: number) {
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function parseDob(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const [, yearText, monthText, dayText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const dob = new Date(year, month - 1, day);
+  if (Number.isNaN(dob.getTime()) || dob.getFullYear() !== year || dob.getMonth() !== month - 1 || dob.getDate() !== day) return null;
+  return dob;
+}
+
+function getDobStatus(value: string): DobStatus {
+  if (!value) return "empty";
+  const dob = parseDob(value);
+  if (!dob) return "invalid";
   const today = new Date();
-  return new Date(dob.getFullYear() + 18, dob.getMonth(), dob.getDate()) <= today;
+  today.setHours(0, 0, 0, 0);
+  if (dob > today || dob.getFullYear() < 1900) return "invalid";
+  const adultDate = new Date(dob.getFullYear() + 18, dob.getMonth(), dob.getDate());
+  return adultDate <= today ? "verified" : "underage";
+}
+
+function getDobMessage(status: DobStatus) {
+  if (status === "verified") return "Age verified for checkout.";
+  if (status === "underage") return "You must be at least 18 years old to buy restricted items.";
+  if (status === "invalid") return "Enter a valid date of birth.";
+  return "Select your date of birth.";
 }
 
 export function OnePageCheckout({ cart, error, message, paymentMode }: { cart: CartSnapshot; error?: string; message?: string; paymentMode?: string }) {
   const router = useRouter();
   const [address, setAddress] = useState<AddressState>({ email: "", firstName: "", lastName: "", line1: "", city: "", state: "", postalCode: "" });
-  const [age, setAge] = useState<AgeState>({ month: "", day: "", year: "", verified: false });
+  const [dob, setDob] = useState("");
   const [billing, setBilling] = useState<BillingState>({ same: true, firstName: "", lastName: "", line1: "", city: "", state: "", postalCode: "" });
   const [payment, setPayment] = useState<PaymentState>({ cardNumber: "", expiration: "", cvv: "", nameOnCard: "" });
   const [destination, setDestination] = useState<CheckoutDestinationResult>({ status: "pending", message: "Enter your shipping address to view available shipping methods." });
@@ -95,7 +122,8 @@ export function OnePageCheckout({ cart, error, message, paymentMode }: { cart: C
     return () => { current = false; };
   }, [addressComplete, address.line1, address.city, address.state, address.postalCode, destination.status]);
   const isMockCard = paymentMode === "mock_card";
-  const ageComplete = !hasRestricted || age.verified;
+  const dobStatus = getDobStatus(dob);
+  const ageComplete = !hasRestricted || dobStatus === "verified";
   const paymentComplete = !isMockCard || Boolean(payment.cardNumber && payment.expiration && payment.cvv && payment.nameOnCard);
   const billingComplete = billing.same || Boolean(billing.firstName && billing.lastName && billing.line1 && billing.city && billing.state && billing.postalCode);
   const blocked = destination.status === "blocked";
@@ -107,11 +135,6 @@ export function OnePageCheckout({ cart, error, message, paymentMode }: { cart: C
       if (error === "address" || error === "blocked" || error === "verification") router.replace("/checkout");
     }
     setAddress((current) => ({ ...current, [field]: value }));
-  }
-
-  function updateAge(field: keyof AgeState, value: string | boolean) {
-    setCheckoutWarning(null);
-    setAge((current) => ({ ...current, verified: false, [field]: value }));
   }
 
   function getCheckoutWarning() {
@@ -178,8 +201,7 @@ export function OnePageCheckout({ cart, error, message, paymentMode }: { cart: C
           <section className="card p-5">
             <h2 className="text-xl font-black">Age verification</h2>
             <p className="mt-2 text-sm text-slate-600">Date of birth is required for restricted items. It is used for this checkout eligibility check.</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_1.4fr_auto]"><input className="input" name="dobMonth" placeholder="MM" value={age.month} onChange={(e) => updateAge("month", e.target.value)} required /><input className="input" name="dobDay" placeholder="DD" value={age.day} onChange={(e) => updateAge("day", e.target.value)} required /><input className="input" name="dobYear" placeholder="YYYY" value={age.year} onChange={(e) => updateAge("year", e.target.value)} required /><button className="btn btn-secondary" type="button" onClick={() => setAge((current) => ({ ...current, verified: isAdult(current) }))}>Verify age</button></div>
-            {age.verified ? <p className="mt-3 text-sm font-bold text-emerald-700">Age verified for checkout.</p> : null}
+            <DobPicker value={dob} onChange={(value) => { setCheckoutWarning(null); setDob(value); }} status={dobStatus} />
           </section>
         ) : null}
 
@@ -188,6 +210,73 @@ export function OnePageCheckout({ cart, error, message, paymentMode }: { cart: C
       <OrderSummary cart={cart} taxEstimate={taxEstimate} taxError={taxError} />
     </form>
   );
+}
+
+
+function DobPicker({ value, onChange, status }: { value: string; onChange: (value: string) => void; status: DobStatus }) {
+  const today = useMemo(() => new Date(), []);
+  const currentYear = today.getFullYear();
+  const parsed = parseDob(value);
+  const initialYear = parsed?.getFullYear() ?? currentYear - 18;
+  const initialMonth = (parsed?.getMonth() ?? 0) + 1;
+  const [open, setOpen] = useState(false);
+  const [viewYear, setViewYear] = useState(initialYear);
+  const [viewMonth, setViewMonth] = useState(initialMonth);
+  const pickerId = useId();
+  const messageId = `${pickerId}-message`;
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const years = useMemo(() => Array.from({ length: currentYear - 1900 + 1 }, (_, index) => currentYear - index), [currentYear]);
+  const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
+  const firstWeekday = new Date(viewYear, viewMonth - 1, 1).getDay();
+  const message = getDobMessage(status);
+  const isError = status === "invalid" || status === "underage";
+
+  useEffect(() => {
+    if (!open) return;
+    function handlePointerDown(event: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [open]);
+
+  function chooseDay(day: number) {
+    const next = formatDateValue(viewYear, viewMonth, day);
+    onChange(next);
+    setOpen(false);
+  }
+
+  function syncNativeDate(next: string) {
+    const nextDate = parseDob(next);
+    if (nextDate) {
+      setViewYear(nextDate.getFullYear());
+      setViewMonth(nextDate.getMonth() + 1);
+    }
+    onChange(next);
+  }
+
+  return <div className="mt-4" ref={popoverRef}>
+    <label className="block text-sm font-bold" htmlFor={pickerId}>Date of birth</label>
+    <input name="dob" type="hidden" value={value} />
+    <input aria-describedby={messageId} className="input mt-1 md:hidden" id={`${pickerId}-native`} max={formatDateValue(currentYear, today.getMonth() + 1, today.getDate())} min="1900-01-01" type="date" value={value} onChange={(event) => syncNativeDate(event.target.value)} />
+    <button aria-describedby={messageId} aria-expanded={open} aria-haspopup="dialog" className="input mt-1 hidden w-full text-left md:block" id={pickerId} type="button" onClick={() => setOpen((current) => !current)}>
+      {value || "Select YYYY-MM-DD"}
+    </button>
+    {open ? <div aria-label="Choose date of birth" className="absolute z-20 mt-2 w-[min(100%,24rem)] rounded-2xl border border-stone-200 bg-white p-4 shadow-xl" role="dialog">
+      <div className="grid grid-cols-2 gap-3">
+        <label className="text-sm font-bold">Year<select className="input mt-1" value={viewYear} onChange={(event) => setViewYear(Number(event.target.value))}>{years.map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
+        <label className="text-sm font-bold">Month<select className="input mt-1" value={viewMonth} onChange={(event) => setViewMonth(Number(event.target.value))}>{Array.from({ length: 12 }, (_, index) => index + 1).map((month) => <option key={month} value={month}>{new Date(2000, month - 1, 1).toLocaleString("en", { month: "long" })}</option>)}</select></label>
+      </div>
+      <div className="mt-4 grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-500">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div>
+      <div className="mt-2 grid grid-cols-7 gap-1">{Array.from({ length: firstWeekday }, (_, index) => <span key={`blank-${index}`} />)}{Array.from({ length: daysInMonth }, (_, index) => {
+        const day = index + 1;
+        const dayValue = formatDateValue(viewYear, viewMonth, day);
+        const disabled = getDobStatus(dayValue) === "invalid";
+        return <button aria-label={dayValue} className={`rounded-lg p-2 text-sm font-bold ${value === dayValue ? "bg-teal-700 text-white" : "bg-stone-50 text-slate-800 hover:bg-amber-100"} disabled:cursor-not-allowed disabled:opacity-40`} disabled={disabled} key={dayValue} type="button" onClick={() => chooseDay(day)}>{day}</button>;
+      })}</div>
+    </div> : null}
+    <p className={`mt-3 text-sm font-bold ${status === "verified" ? "text-emerald-700" : isError ? "text-red-700" : "text-slate-600"}`} id={messageId}>{message}</p>
+  </div>;
 }
 
 function ShippingMethod({ addressComplete, destination, shipping, pending }: { addressComplete: boolean; destination: { status: string; message: string }; shipping: number; pending: boolean }) {
