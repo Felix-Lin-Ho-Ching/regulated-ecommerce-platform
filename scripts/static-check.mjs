@@ -55,6 +55,13 @@ if(mode==='lint'){
 } else {
   const routeCount = files.filter(f=>f.endsWith('page.tsx')).length;
   if(routeCount < 40){ console.error(`Expected at least 40 routes, found ${routeCount}`); process.exit(1); }
+  const checkout = readFileSync('components/checkout/one-page-checkout.tsx', 'utf8');
+  const requiredCheckoutText = ['Card number', 'Expiration date MM/YY', 'Security code', 'Name on card', 'Use shipping address as billing address', 'Test payment mode: use mock card numbers. No real payment is processed.'];
+  const missingCheckoutText = requiredCheckoutText.filter((text) => !checkout.includes(text));
+  if(missingCheckoutText.length){ console.error('Checkout UI missing required payment text: ' + missingCheckoutText.join(', ')); process.exit(1); }
+  for (const forbidden of ['AgeChecker', 'Sezzle', 'Buy Now Pay Later', 'I confirm I am at least 18 years old', 'ageAttestation']) {
+    if(checkout.includes(forbidden)){ console.error(`Checkout UI contains forbidden text: ${forbidden}`); process.exit(1); }
+  }
   console.log(`Smoke check passed with ${routeCount} page routes.`);
 }
 

@@ -7,6 +7,7 @@ import { logDebugEmail } from "@/lib/email/email-log-service";
 import { buildOrderConfirmationEmail } from "@/lib/email/templates/order-confirmation";
 import { buildAdminNewOrderEmail } from "@/lib/email/templates/admin-new-order";
 import { createApprovedMockPaymentAttemptIfNeeded, isMockApprovedPaymentMode, normalizePaymentMode, processOrderPayment } from "@/lib/payments/payment-service";
+import type { MockCardInput } from "@/lib/payments/providers/mock-authorize-net";
 
 export function isApprovedPaymentMode(paymentMode = process.env.PAYMENT_MODE || "order_request") {
   return isMockApprovedPaymentMode(paymentMode);
@@ -213,7 +214,7 @@ function buildOrderNumber() {
   return `SF-${Date.now().toString().slice(-6)}`;
 }
 
-export async function createOrderRequestFromCart(): Promise<CustomerOrderSummary> {
+export async function createOrderRequestFromCart(options: { card?: MockCardInput } = {}): Promise<CustomerOrderSummary> {
   const [session, cart, shipping] = await Promise.all([
     getCustomerSession(),
     getCartSnapshot(),
@@ -282,7 +283,7 @@ export async function createOrderRequestFromCart(): Promise<CustomerOrderSummary
     await prisma.order.update({ where: { id: order.id }, data: { status: "AUTO_ELIGIBLE" } });
     const selectedPaymentMode = normalizePaymentMode(process.env.PAYMENT_MODE || "order_request");
     let readyOrder = await prisma.order.update({ where: { id: order.id }, data: { status: selectedPaymentMode === "order_request" ? "READY_FOR_PAYMENT" : "PENDING_PAYMENT" }, include: { items: { include: { product: { select: { restricted: true } } } }, shippingAddress: true } });
-    const paymentResult = await (prisma as any).$transaction(async (tx: any) => processOrderPayment(tx, { id: readyOrder.id, orderNumber: readyOrder.orderNumber, totalCents: readyOrder.totalCents }, selectedPaymentMode));
+    const paymentResult = await (prisma as any).$transaction(async (tx: any) => processOrderPayment(tx, { id: readyOrder.id, orderNumber: readyOrder.orderNumber, totalCents: readyOrder.totalCents }, selectedPaymentMode, options.card));
 
     await prisma.auditLog.createMany({ data: [
       { action: "CREATE", entityType: "Order", entityId: order.id, note: "Order request received.", metadata: { status: "ORDER_REQUEST_SUBMITTED" } },
@@ -290,7 +291,7 @@ export async function createOrderRequestFromCart(): Promise<CustomerOrderSummary
       { action: "UPDATE", entityType: "Order", entityId: order.id, note: selectedPaymentMode === "order_request" ? "Order request is ready for a future payment step; fulfillment is not released." : "Mock Authorize.net payment processed.", metadata: { status: readyOrder.status, paymentMode: selectedPaymentMode, paymentStatus: paymentResult.paymentAttempt.status, paymentCollected: paymentResult.paymentAttempt.status === "APPROVED", fulfillmentReleased: false } },
     ] });
 
-    if (selectedPaymentMode === "mock_approved") {
+    if (selectedPaymentMode === "mock_approved" || (selectedPaymentMode === "mock_card" && paymentResult.paymentAttempt.status === "APPROVED")) {
       await releaseOrderAfterPaymentApproval(readyOrder.id, { email: "checkout", role: "SYSTEM" });
       readyOrder = await prisma.order.findUniqueOrThrow({ where: { id: order.id }, include: { items: { include: { product: { select: { restricted: true } } } }, shippingAddress: true } });
     } else {
@@ -300,7 +301,7 @@ export async function createOrderRequestFromCart(): Promise<CustomerOrderSummary
           await prisma.inventory.update({ where: { id: inventory.id }, data: { reserved: { increment: item.quantity }, transactions: { create: { type: "RESERVATION", quantity: item.quantity, reason: `Order ${readyOrder.orderNumber} reservation after READY_FOR_PAYMENT` } }, reservations: { create: { orderItemId: item.id, quantity: item.quantity } } } });
         }
       }
-      if (selectedPaymentMode === "mock_declined") {
+      if (selectedPaymentMode === "mock_declined" || (selectedPaymentMode === "mock_card" && paymentResult.paymentAttempt.status === "DECLINED")) {
         readyOrder = await prisma.order.update({ where: { id: readyOrder.id }, data: { status: "PAYMENT_FAILED", fulfillmentStatus: "FULFILLMENT_HOLD", liveFulfillmentEnabled: false }, include: { items: { include: { product: { select: { restricted: true } } } }, shippingAddress: true } });
       }
     }
@@ -319,13 +320,13 @@ export async function createOrderRequestFromCart(): Promise<CustomerOrderSummary
 
     return {
       orderNumber: readyOrder.orderNumber,
-      status: selectedPaymentMode === "mock_approved" ? "Paid" : selectedPaymentMode === "mock_declined" ? "Payment failed" : selectedPaymentMode === "mock_review" ? "Pending payment" : "Ready for payment",
+      status: readyOrder.status === "PAID" ? "Paid" : readyOrder.status === "PAYMENT_FAILED" ? "Payment failed" : selectedPaymentMode === "mock_review" ? "Pending payment" : "Ready for payment",
       total: readyOrder.totalCents / 100,
-      payment: selectedPaymentMode === "mock_approved" ? "Payment collected" : selectedPaymentMode === "order_request" ? "Payment not collected" : customerPaymentStatusLabel(paymentResult.paymentAttempt.status),
+      payment: readyOrder.status === "PAID" ? "Payment collected" : selectedPaymentMode === "order_request" ? "Payment not collected" : customerPaymentStatusLabel(paymentResult.paymentAttempt.status),
       verification: "Eligibility checks passed",
       createdAt: readyOrder.createdAt.toISOString(),
       hasRestrictedItems: readyOrder.items.some((item: { product: { restricted: boolean } }) => item.product.restricted),
-      fulfillment: selectedPaymentMode === "mock_approved" ? "Ready to ship" : "Fulfillment not released",
+      fulfillment: readyOrder.fulfillmentStatus === "READY_TO_SHIP" ? "Ready to ship" : "Fulfillment not released",
       shipmentStatus: "Not shipped",
     };
   }

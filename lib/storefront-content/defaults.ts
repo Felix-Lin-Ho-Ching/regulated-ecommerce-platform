@@ -50,7 +50,7 @@ export const defaultStorefrontContent: StorefrontContent = {
   eligibilityPopupTitle: "Check restricted-product availability",
   eligibilityPopupBody:
     "Tell us your age confirmation and shipping destination to preview whether restricted products may be available. This is not final legal approval.",
-  eligibilityAgeConfirmationText: "I confirm I am at least 18 years old.",
+  eligibilityAgeConfirmationText: "Date of birth is required for restricted items.",
   eligibilityStateLabel: "Shipping state",
   eligibilityZipLabel: "ZIP code",
   eligibilityAcknowledgementText:

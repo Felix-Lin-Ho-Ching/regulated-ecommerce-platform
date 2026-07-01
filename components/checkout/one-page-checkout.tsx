@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useEffect, useState } from "react";
+import { type Dispatch, type FormEvent, type SetStateAction, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CartSnapshot } from "@/lib/cart/cart-service";
 import { evaluateCheckoutDestinationAction, submitCheckoutAction } from "@/lib/checkout/actions";
@@ -17,7 +17,9 @@ type AddressState = {
   postalCode: string;
 };
 
-type AgeState = { month: string; day: string; year: string; verified: boolean; attested: boolean };
+type AgeState = { month: string; day: string; year: string; verified: boolean };
+type BillingState = { same: boolean; firstName: string; lastName: string; line1: string; city: string; state: string; postalCode: string };
+type PaymentState = { cardNumber: string; expiration: string; cvv: string; nameOnCard: string };
 
 const ADDRESS_WARNING = "Complete your contact and shipping address before submitting.";
 const BLOCKED_DESTINATION_WARNING = "This item is not available for your shipping destination. Change shipping address or remove restricted item.";
@@ -38,10 +40,12 @@ function isAdult({ year, month, day }: AgeState) {
   return new Date(dob.getFullYear() + 18, dob.getMonth(), dob.getDate()) <= today;
 }
 
-export function OnePageCheckout({ cart, error, message }: { cart: CartSnapshot; error?: string; message?: string }) {
+export function OnePageCheckout({ cart, error, message, paymentMode }: { cart: CartSnapshot; error?: string; message?: string; paymentMode?: string }) {
   const router = useRouter();
   const [address, setAddress] = useState<AddressState>({ email: "", firstName: "", lastName: "", line1: "", city: "", state: "", postalCode: "" });
-  const [age, setAge] = useState<AgeState>({ month: "", day: "", year: "", verified: false, attested: false });
+  const [age, setAge] = useState<AgeState>({ month: "", day: "", year: "", verified: false });
+  const [billing, setBilling] = useState<BillingState>({ same: true, firstName: "", lastName: "", line1: "", city: "", state: "", postalCode: "" });
+  const [payment, setPayment] = useState<PaymentState>({ cardNumber: "", expiration: "", cvv: "", nameOnCard: "" });
   const [destination, setDestination] = useState<CheckoutDestinationResult>({ status: "pending", message: "Enter your shipping address to view available shipping methods." });
   const [isDestinationPending, setIsDestinationPending] = useState(false);
   const [checkoutWarning, setCheckoutWarning] = useState<CheckoutWarning>(() => warningFromError(error));
@@ -70,7 +74,10 @@ export function OnePageCheckout({ cart, error, message }: { cart: CartSnapshot; 
       current = false;
     };
   }, [address.state, address.postalCode]);
-  const ageComplete = !hasRestricted || (age.verified && age.attested);
+  const isMockCard = paymentMode === "mock_card";
+  const ageComplete = !hasRestricted || age.verified;
+  const paymentComplete = !isMockCard || Boolean(payment.cardNumber && payment.expiration && payment.cvv && payment.nameOnCard);
+  const billingComplete = billing.same || Boolean(billing.firstName && billing.lastName && billing.line1 && billing.city && billing.state && billing.postalCode);
   const blocked = destination.status === "blocked";
   const visibleCheckoutWarning = blocked ? "blocked" : checkoutWarning === "blocked" && destination.status === "allowed" ? null : checkoutWarning;
 
@@ -84,7 +91,7 @@ export function OnePageCheckout({ cart, error, message }: { cart: CartSnapshot; 
 
   function updateAge(field: keyof AgeState, value: string | boolean) {
     setCheckoutWarning(null);
-    setAge((current) => ({ ...current, verified: field === "attested" ? current.verified : false, [field]: value }));
+    setAge((current) => ({ ...current, verified: false, [field]: value }));
   }
 
   function getCheckoutWarning() {
@@ -92,6 +99,7 @@ export function OnePageCheckout({ cart, error, message }: { cart: CartSnapshot; 
     if (isDestinationPending) return "pending";
     if (blocked) return "blocked";
     if (!ageComplete) return "verification";
+    if (!paymentComplete || !billingComplete) return "address";
     return null;
   }
 
@@ -142,14 +150,13 @@ export function OnePageCheckout({ cart, error, message }: { cart: CartSnapshot; 
         </section>
 
         <section className="card p-5"><h2 className="text-xl font-black">Shipping method</h2><ShippingMethod addressComplete={addressComplete} destination={destination} shipping={cart.shipping} pending={isDestinationPending} /></section>
-        <section className="card p-5"><h2 className="text-xl font-black">Order request</h2><PaymentBlock disabled={blocked} /></section>
+        <section className="card p-5"><h2 className="text-xl font-black">Payment</h2><PaymentBlock disabled={blocked} isMockCard={isMockCard} payment={payment} setPayment={setPayment} billing={billing} setBilling={setBilling} /></section>
 
         {hasRestricted ? (
           <section className="card p-5">
             <h2 className="text-xl font-black">Age verification</h2>
-            <p className="mt-2 text-sm text-slate-600">Age verification is required for restricted items. Your date of birth is used only for this checkout check.</p>
+            <p className="mt-2 text-sm text-slate-600">Date of birth is required for restricted items. It is used for this checkout eligibility check.</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_1.4fr_auto]"><input className="input" name="dobMonth" placeholder="MM" value={age.month} onChange={(e) => updateAge("month", e.target.value)} required /><input className="input" name="dobDay" placeholder="DD" value={age.day} onChange={(e) => updateAge("day", e.target.value)} required /><input className="input" name="dobYear" placeholder="YYYY" value={age.year} onChange={(e) => updateAge("year", e.target.value)} required /><button className="btn btn-secondary" type="button" onClick={() => setAge((current) => ({ ...current, verified: isAdult(current) }))}>Verify age</button></div>
-            <label className="mt-4 flex gap-3 text-sm font-bold"><input name="ageAttestation" type="checkbox" checked={age.attested} onChange={(e) => updateAge("attested", e.target.checked)} /> I confirm I am at least 18 years old.</label>
             {age.verified ? <p className="mt-3 text-sm font-bold text-emerald-700">Age verified for checkout.</p> : null}
           </section>
         ) : null}
@@ -168,8 +175,32 @@ function ShippingMethod({ addressComplete, destination, shipping, pending }: { a
   return <p className="mt-2 text-sm font-bold text-amber-900">{destination.message}</p>;
 }
 
-function PaymentBlock({ disabled }: { disabled: boolean }) {
-  return <div className="mt-4 rounded-2xl border border-stone-200 bg-stone-50 p-4"><p className="font-bold text-slate-800">Payment is not collected online yet.</p><p className="mt-2 text-sm text-slate-600">Submit an order request now. Allowed requests automatically become ready for a future payment step; payment is not collected and fulfillment is not released.</p><input type="hidden" name="paymentMode" value="order_request" /><fieldset disabled={disabled} className="mt-3"><label className="flex gap-3 text-sm font-bold"><input defaultChecked name="billingSame" type="checkbox" /> Use shipping address for order-request review</label></fieldset></div>;
+function PaymentBlock({ disabled, isMockCard, payment, setPayment, billing, setBilling }: { disabled: boolean; isMockCard: boolean; payment: PaymentState; setPayment: Dispatch<SetStateAction<PaymentState>>; billing: BillingState; setBilling: Dispatch<SetStateAction<BillingState>> }) {
+  if (!isMockCard) return <div className="mt-4 rounded-2xl border border-stone-200 bg-stone-50 p-4"><p className="font-bold text-slate-800">Payment is not collected online yet.</p><p className="mt-2 text-sm text-slate-600">Submit an order request now. Allowed requests automatically become ready for a future payment step; payment is not collected and fulfillment is not released.</p><input type="hidden" name="paymentMode" value="order_request" /></div>;
+  const updatePayment = (field: keyof PaymentState, value: string) => setPayment((current) => ({ ...current, [field]: value }));
+  const updateBilling = (field: keyof BillingState, value: string | boolean) => setBilling((current) => ({ ...current, [field]: value }));
+  return <fieldset disabled={disabled} className="mt-4 space-y-4 rounded-2xl border border-stone-200 bg-stone-50 p-4">
+    <input type="hidden" name="paymentMode" value="mock_card" />
+    <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900">Test payment mode: use mock card numbers. No real payment is processed.</p>
+    <div className="grid gap-3 sm:grid-cols-2">
+      <label className="block text-sm font-bold sm:col-span-2">Card number<input autoComplete="cc-number" className="input mt-1" name="cardNumber" inputMode="numeric" required value={payment.cardNumber} onChange={(e) => updatePayment("cardNumber", e.target.value)} /></label>
+      <label className="block text-sm font-bold">Expiration date MM/YY<input autoComplete="cc-exp" className="input mt-1" name="cardExpiration" placeholder="MM/YY" required value={payment.expiration} onChange={(e) => updatePayment("expiration", e.target.value)} /></label>
+      <label className="block text-sm font-bold">Security code<input autoComplete="cc-csc" className="input mt-1" name="cardCvv" inputMode="numeric" required value={payment.cvv} onChange={(e) => updatePayment("cvv", e.target.value)} /></label>
+      <label className="block text-sm font-bold sm:col-span-2">Name on card<input autoComplete="cc-name" className="input mt-1" name="nameOnCard" required value={payment.nameOnCard} onChange={(e) => updatePayment("nameOnCard", e.target.value)} /></label>
+    </div>
+    <label className="flex gap-3 text-sm font-bold"><input checked={billing.same} name="billingSame" type="checkbox" onChange={(e) => updateBilling("same", e.target.checked)} /> Use shipping address as billing address</label>
+    {!billing.same ? <div className="grid gap-3 sm:grid-cols-2">
+      <label className="block text-sm font-bold">Billing first name<input className="input mt-1" name="billingFirstName" required value={billing.firstName} onChange={(e) => updateBilling("firstName", e.target.value)} /></label>
+      <label className="block text-sm font-bold">Billing last name<input className="input mt-1" name="billingLastName" required value={billing.lastName} onChange={(e) => updateBilling("lastName", e.target.value)} /></label>
+      <label className="block text-sm font-bold sm:col-span-2">Billing address line 1<input className="input mt-1" name="billingLine1" required value={billing.line1} onChange={(e) => updateBilling("line1", e.target.value)} /></label>
+      <label className="block text-sm font-bold sm:col-span-2">Billing address line 2 <span className="font-normal text-slate-500">optional</span><input className="input mt-1" name="billingLine2" /></label>
+      <label className="block text-sm font-bold">Billing city<input className="input mt-1" name="billingCity" required value={billing.city} onChange={(e) => updateBilling("city", e.target.value)} /></label>
+      <label className="block text-sm font-bold">Billing state<input className="input mt-1 uppercase" name="billingState" maxLength={2} required value={billing.state} onChange={(e) => updateBilling("state", e.target.value)} /></label>
+      <label className="block text-sm font-bold">Billing ZIP code<input className="input mt-1" name="billingPostalCode" required value={billing.postalCode} onChange={(e) => updateBilling("postalCode", e.target.value)} /></label>
+      <label className="block text-sm font-bold">Billing country<input className="input mt-1" name="billingCountry" readOnly value="United States" /></label>
+      <label className="block text-sm font-bold sm:col-span-2">Billing phone <span className="font-normal text-slate-500">optional</span><input className="input mt-1" name="billingPhone" /></label>
+    </div> : null}
+  </fieldset>;
 }
 
 function OrderSummary({ cart }: { cart: CartSnapshot }) { return <aside className="card h-fit p-5 lg:sticky lg:top-4"><h2 className="text-xl font-black">Order summary</h2><div className="mt-4 divide-y divide-stone-200">{cart.lines.map((line) => <div className="flex gap-3 py-3" key={line.product.slug}><div className="h-16 w-16 rounded-xl bg-gradient-to-br from-amber-100 to-teal-100" /><div className="flex-1"><p className="font-black">{line.product.name}</p><p className="text-sm text-slate-600">Qty {line.quantity}</p></div><strong>{money(line.lineTotal)}</strong></div>)}</div><label className="mt-4 flex gap-2"><input className="input" placeholder="Discount code" /><button className="btn btn-secondary" type="button">Apply</button></label><dl className="mt-4 space-y-2 text-sm"><Row label="Subtotal" value={money(cart.subtotal)} /><Row label="Shipping" value={money(cart.shipping)} /><Row label="Estimated tax" value={money(cart.tax)} /><div className="flex justify-between border-t pt-3 text-lg font-black"><dt>Total</dt><dd>{money(cart.total)}</dd></div></dl></aside>; }
