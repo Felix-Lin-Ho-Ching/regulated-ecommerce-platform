@@ -11,11 +11,18 @@ function required(formData: FormData, name: string) {
   return String(formData.get(name) || "").trim();
 }
 
-function isAdult(year: string, month: string, day: string) {
-  if (!/^\d{4}$/.test(year) || !/^\d{1,2}$/.test(month) || !/^\d{1,2}$/.test(day)) return false;
-  const dob = new Date(Number(year), Number(month) - 1, Number(day));
-  if (Number.isNaN(dob.getTime()) || dob.getFullYear() !== Number(year) || dob.getMonth() !== Number(month) - 1 || dob.getDate() !== Number(day)) return false;
+function isAdult(dobValue: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dobValue);
+  if (!match) return false;
+  const [, yearText, monthText, dayText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const dob = new Date(year, month - 1, day);
+  if (Number.isNaN(dob.getTime()) || dob.getFullYear() !== year || dob.getMonth() !== month - 1 || dob.getDate() !== day || year < 1900) return false;
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (dob > today) return false;
   const adultDate = new Date(dob.getFullYear() + 18, dob.getMonth(), dob.getDate());
   return adultDate <= today;
 }
@@ -110,7 +117,7 @@ export async function submitCheckoutAction(formData: FormData) {
       if (destination.status !== "allowed") redirect("/checkout?error=blocked");
     }
 
-    const adult = isAdult(required(formData, "dobYear"), required(formData, "dobMonth"), required(formData, "dobDay"));
+    const adult = isAdult(required(formData, "dob"));
     if (!adult) redirect("/checkout?error=verification");
   }
 
