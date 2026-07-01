@@ -3,7 +3,7 @@
 import { type Dispatch, type FormEvent, type SetStateAction, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CartSnapshot } from "@/lib/cart/cart-service";
-import { evaluateCheckoutDestinationAction, submitCheckoutAction } from "@/lib/checkout/actions";
+import { estimateCheckoutTaxAction, evaluateCheckoutDestinationAction, submitCheckoutAction } from "@/lib/checkout/actions";
 import type { CheckoutDestinationResult } from "@/lib/checkout/eligibility";
 import { money } from "@/lib/utils";
 
@@ -26,10 +26,10 @@ const BLOCKED_DESTINATION_WARNING = "This item is not available for your shippin
 const PENDING_DESTINATION_WARNING = "Checking configured destination rules. Try again in a moment.";
 const AGE_WARNING = "Age verification is required for restricted items.";
 
-type CheckoutWarning = "address" | "blocked" | "pending" | "verification" | null;
+type CheckoutWarning = "address" | "blocked" | "pending" | "verification" | "tax" | null;
 
 function warningFromError(error?: string): CheckoutWarning {
-  if (error === "address" || error === "blocked" || error === "verification") return error;
+  if (error === "address" || error === "blocked" || error === "verification" || error === "tax") return error;
   return null;
 }
 
@@ -50,6 +50,8 @@ export function OnePageCheckout({ cart, error, message, paymentMode }: { cart: C
   const [isDestinationPending, setIsDestinationPending] = useState(false);
   const [checkoutWarning, setCheckoutWarning] = useState<CheckoutWarning>(() => warningFromError(error));
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [taxEstimate, setTaxEstimate] = useState<{ taxCents: number; totalCents: number; provider: string } | null>(null);
+  const [taxError, setTaxError] = useState<string | null>(null);
   const hasRestricted = cart.hasRestrictedItems;
   const addressComplete = Boolean(address.email && address.firstName && address.lastName && address.line1 && address.city && address.state && address.postalCode);
 
@@ -74,6 +76,24 @@ export function OnePageCheckout({ cart, error, message, paymentMode }: { cart: C
       current = false;
     };
   }, [address.state, address.postalCode]);
+
+  useEffect(() => {
+    if (!addressComplete || destination.status !== "allowed") {
+      setTaxEstimate(null);
+      setTaxError(null);
+      return;
+    }
+    let current = true;
+    setTaxError(null);
+    void estimateCheckoutTaxAction({ line1: address.line1, city: address.city, state: address.state, postalCode: address.postalCode })
+      .then((result) => {
+        if (!current) return;
+        if (result.ok) setTaxEstimate({ taxCents: result.taxCents, totalCents: result.totalCents, provider: result.provider });
+        else { setTaxEstimate(null); setTaxError(result.error); }
+      })
+      .catch(() => { if (current) { setTaxEstimate(null); setTaxError("Tax calculation is unavailable. Payment is blocked until tax can be calculated."); } });
+    return () => { current = false; };
+  }, [addressComplete, address.line1, address.city, address.state, address.postalCode, destination.status]);
   const isMockCard = paymentMode === "mock_card";
   const ageComplete = !hasRestricted || age.verified;
   const paymentComplete = !isMockCard || Boolean(payment.cardNumber && payment.expiration && payment.cvv && payment.nameOnCard);
@@ -99,6 +119,8 @@ export function OnePageCheckout({ cart, error, message, paymentMode }: { cart: C
     if (isDestinationPending) return "pending";
     if (blocked) return "blocked";
     if (!ageComplete) return "verification";
+    if (taxError) return "tax";
+    if (!taxEstimate) return "pending";
     if (!paymentComplete || !billingComplete) return "address";
     return null;
   }
@@ -163,7 +185,7 @@ export function OnePageCheckout({ cart, error, message, paymentMode }: { cart: C
 
         <button className="btn btn-primary w-full" disabled={isSubmitting} type="submit">Submit order request</button>
       </div>
-      <OrderSummary cart={cart} />
+      <OrderSummary cart={cart} taxEstimate={taxEstimate} taxError={taxError} />
     </form>
   );
 }
@@ -203,13 +225,14 @@ function PaymentBlock({ disabled, isMockCard, payment, setPayment, billing, setB
   </fieldset>;
 }
 
-function OrderSummary({ cart }: { cart: CartSnapshot }) { return <aside className="card h-fit p-5 lg:sticky lg:top-4"><h2 className="text-xl font-black">Order summary</h2><div className="mt-4 divide-y divide-stone-200">{cart.lines.map((line) => <div className="flex gap-3 py-3" key={line.product.slug}><div className="h-16 w-16 rounded-xl bg-gradient-to-br from-amber-100 to-teal-100" /><div className="flex-1"><p className="font-black">{line.product.name}</p><p className="text-sm text-slate-600">Qty {line.quantity}</p></div><strong>{money(line.lineTotal)}</strong></div>)}</div><label className="mt-4 flex gap-2"><input className="input" placeholder="Discount code" /><button className="btn btn-secondary" type="button">Apply</button></label><dl className="mt-4 space-y-2 text-sm"><Row label="Subtotal" value={money(cart.subtotal)} /><Row label="Shipping" value={money(cart.shipping)} /><Row label="Estimated tax" value={money(cart.tax)} /><div className="flex justify-between border-t pt-3 text-lg font-black"><dt>Total</dt><dd>{money(cart.total)}</dd></div></dl></aside>; }
+function OrderSummary({ cart, taxEstimate, taxError }: { cart: CartSnapshot; taxEstimate: { taxCents: number; totalCents: number; provider: string } | null; taxError: string | null }) { const estimatedTax = taxEstimate ? taxEstimate.taxCents / 100 : cart.tax; const total = taxEstimate ? taxEstimate.totalCents / 100 : cart.total; return <aside className="card h-fit p-5 lg:sticky lg:top-4"><h2 className="text-xl font-black">Order summary</h2><div className="mt-4 divide-y divide-stone-200">{cart.lines.map((line) => <div className="flex gap-3 py-3" key={line.product.slug}><div className="h-16 w-16 rounded-xl bg-gradient-to-br from-amber-100 to-teal-100" /><div className="flex-1"><p className="font-black">{line.product.name}</p><p className="text-sm text-slate-600">Qty {line.quantity}</p></div><strong>{money(line.lineTotal)}</strong></div>)}</div><label className="mt-4 flex gap-2"><input className="input" placeholder="Discount code" /><button className="btn btn-secondary" type="button">Apply</button></label>{taxError ? <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-bold text-red-900">{taxError}</p> : null}<dl className="mt-4 space-y-2 text-sm"><Row label="Subtotal" value={money(cart.subtotal)} /><Row label="Shipping" value={money(cart.shipping)} /><Row label={taxEstimate ? `Estimated tax (${taxEstimate.provider})` : "Estimated tax after address"} value={taxEstimate ? money(estimatedTax) : "—"} /><div className="flex justify-between border-t pt-3 text-lg font-black"><dt>Total</dt><dd>{taxEstimate ? money(total) : money(cart.total)}</dd></div></dl></aside>; }
 function Row({ label, value }: { label: string; value: string }) { return <div className="flex justify-between"><dt>{label}</dt><dd>{value}</dd></div>; }
 function BlockedNotice() { return <CheckoutNotice tone="danger">{BLOCKED_DESTINATION_WARNING}</CheckoutNotice>; }
 function CheckoutWarningNotice({ warning }: { warning: Exclude<CheckoutWarning, null> }) {
   if (warning === "blocked") return <BlockedNotice />;
   if (warning === "address") return <CheckoutNotice tone="warning">{ADDRESS_WARNING}</CheckoutNotice>;
   if (warning === "pending") return <CheckoutNotice tone="warning">{PENDING_DESTINATION_WARNING}</CheckoutNotice>;
+  if (warning === "tax") return <CheckoutNotice tone="danger">Tax calculation is unavailable. Payment is blocked until tax can be calculated.</CheckoutNotice>;
   return <CheckoutNotice tone="warning">{AGE_WARNING}</CheckoutNotice>;
 }
 function CheckoutNotice({ children, tone }: { children: React.ReactNode; tone: "warning" | "danger" }) { return <div className={`rounded-2xl border p-4 text-sm font-bold ${tone === "danger" ? "border-red-200 bg-red-50 text-red-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>{children}</div>; }

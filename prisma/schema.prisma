@@ -290,6 +290,7 @@ model ProductCategory {
   description String?
   status      RecordStatus @default(ACTIVE)
   sortOrder   Int          @default(0)
+  taxCode     String?
   products    Product[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -306,6 +307,7 @@ model Product {
   description             String
   status                  ProductStatus                   @default(DRAFT)
   restricted              Boolean                         @default(false)
+  taxCode                 String?
   restrictedClass         String?
   archivedAt              DateTime?
   variants                ProductVariant[]
@@ -569,6 +571,9 @@ model Order {
   subtotalCents             Int                        @default(0)
   shippingCents             Int                        @default(0)
   taxCents                  Int                        @default(0)
+  taxProvider               String?
+  taxCalculationId          String?
+  taxSnapshot               Json?
   totalCents                Int                        @default(0)
   customerEmail             String?
   customerName              String?
