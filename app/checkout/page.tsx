@@ -18,7 +18,7 @@ export default async function Checkout({ searchParams }: { searchParams: Promise
           <Link className="btn btn-primary mt-5" href="/products">Shop products</Link>
         </EmptyState>
       ) : (
-        <OnePageCheckout cart={cart} error={sp.error} message={sp.message} />
+        <OnePageCheckout cart={cart} error={sp.error} message={sp.message} paymentMode={process.env.PAYMENT_MODE} />
       )}
     </AppShell>
   );

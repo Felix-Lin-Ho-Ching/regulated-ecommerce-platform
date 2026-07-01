@@ -275,7 +275,7 @@ model StorefrontSettings {
   trustBadgeLabels               Json
   eligibilityPopupTitle          String   @default("Check restricted-product availability")
   eligibilityPopupBody           String   @default("Tell us your age confirmation and shipping destination to preview whether restricted products may be available. This is not final legal approval.")
-  eligibilityAgeConfirmationText String   @default("I confirm I am at least 18 years old.")
+  eligibilityAgeConfirmationText String   @default("Date of birth is required for restricted items.")
   eligibilityStateLabel          String   @default("Shipping state")
   eligibilityZipLabel            String   @default("ZIP code")
   eligibilityAcknowledgementText String   @default("I understand restricted products may be unavailable or require additional verification before payment.")
