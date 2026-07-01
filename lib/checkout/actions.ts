@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getCartSnapshot } from "@/lib/cart/cart-service";
 import { evaluateCheckoutDestinationFromConfiguredRules } from "@/lib/checkout/eligibility";
 import { createOrderRequestFromCart, saveShippingDraft } from "@/lib/orders/order-service";
+import { calculateCheckoutTax } from "@/lib/tax/tax-service";
 import { normalizePaymentMode } from "@/lib/payments/payment-service";
 
 function required(formData: FormData, name: string) {
@@ -39,6 +40,24 @@ export async function evaluateCheckoutDestinationAction({ state, postalCode }: {
   }
 
   return { status: "allowed" as const, message: "Standard shipping is available." };
+}
+
+export async function estimateCheckoutTaxAction(address: { line1?: string; city?: string; state?: string; postalCode?: string }) {
+  const cart = await getCartSnapshot();
+  if (!address.line1 || !address.city || !address.state || !address.postalCode || cart.lines.length === 0) return { ok: false as const, error: "Enter a complete shipping address." };
+  const destination = await evaluateCheckoutDestinationAction({ state: address.state, postalCode: address.postalCode });
+  if (destination.status !== "allowed") return { ok: false as const, error: destination.message };
+  try {
+    const shippingCents = Math.round(cart.shipping * 100);
+    const tax = await calculateCheckoutTax({
+      toAddress: { line1: address.line1, city: address.city, state: address.state.toUpperCase().slice(0, 2), postalCode: address.postalCode, country: "US" },
+      shippingCents,
+      lineItems: cart.lines.map((line) => ({ id: line.product.variantId, productId: line.product.id, sku: line.product.sku, name: line.product.name, quantity: line.quantity, unitPriceCents: Math.round(line.product.price * 100), productTaxCode: line.product.taxCode, categoryTaxCode: line.product.categoryTaxCode })),
+    });
+    return { ok: true as const, taxCents: tax.taxCents, provider: tax.provider, totalCents: Math.round(cart.subtotal * 100) + shippingCents + tax.taxCents };
+  } catch {
+    return { ok: false as const, error: "Tax calculation is unavailable. Payment is blocked until tax can be calculated." };
+  }
 }
 
 export async function submitCheckoutAction(formData: FormData) {
@@ -101,7 +120,8 @@ export async function submitCheckoutAction(formData: FormData) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Checkout could not be completed.";
     if (message.startsWith("Only ")) redirect(`/checkout?error=stock&message=${encodeURIComponent(message)}`);
-    redirect("/checkout?error=blocked");
+    const safe = message.toLowerCase().includes("tax") ? "tax" : "blocked";
+    redirect(`/checkout?error=${safe}`);
   }
   redirect(`/checkout/success?order=${encodeURIComponent(order.orderNumber)}`);
 }

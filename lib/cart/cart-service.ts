@@ -94,7 +94,8 @@ export async function getCartSnapshot(): Promise<CartSnapshot> {
 
   const subtotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
   const shipping = subtotal > 0 ? 12 : 0;
-  const tax = Math.round(subtotal * 0.08 * 100) / 100;
+  // Final tax is calculated server-side during checkout after destination checks.
+  const tax = 0;
   const total = subtotal + shipping + tax;
 
   return {

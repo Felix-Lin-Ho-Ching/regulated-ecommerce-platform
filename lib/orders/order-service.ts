@@ -7,6 +7,7 @@ import { logDebugEmail } from "@/lib/email/email-log-service";
 import { buildOrderConfirmationEmail } from "@/lib/email/templates/order-confirmation";
 import { buildAdminNewOrderEmail } from "@/lib/email/templates/admin-new-order";
 import { createApprovedMockPaymentAttemptIfNeeded, isMockApprovedPaymentMode, normalizePaymentMode, processOrderPayment } from "@/lib/payments/payment-service";
+import { calculateCheckoutTax } from "@/lib/tax/tax-service";
 import type { MockCardInput } from "@/lib/payments/providers/mock-authorize-net";
 
 export function isApprovedPaymentMode(paymentMode = process.env.PAYMENT_MODE || "order_request") {
@@ -226,6 +227,15 @@ export async function createOrderRequestFromCart(options: { card?: MockCardInput
   }
 
   const orderNumber = buildOrderNumber();
+  const subtotalCents = toCents(cart.subtotal);
+  const shippingCents = toCents(cart.shipping);
+  const taxInput = {
+    toAddress: { name: shipping.name, line1: shipping.line1, line2: shipping.line2, city: shipping.city, state: shipping.state, postalCode: shipping.postalCode, country: "US" },
+    shippingCents,
+    orderReference: orderNumber,
+    lineItems: cart.lines.map((line) => ({ id: line.product.variantId, productId: line.product.id, sku: line.product.sku, name: line.product.name, quantity: line.quantity, unitPriceCents: toCents(line.product.price), productTaxCode: line.product.taxCode, categoryTaxCode: line.product.categoryTaxCode })),
+  };
+  const tax = await calculateCheckoutTax(taxInput);
 
   if (isDatabaseConfigured) {
     for (const line of cart.lines) {
@@ -242,10 +252,13 @@ export async function createOrderRequestFromCart(options: { card?: MockCardInput
         userId: session?.demo ? undefined : session?.userId,
         status: "ORDER_REQUEST_SUBMITTED",
         fulfillmentStatus: "FULFILLMENT_HOLD",
-        subtotalCents: toCents(cart.subtotal),
-        shippingCents: toCents(cart.shipping),
-        taxCents: toCents(cart.tax),
-        totalCents: toCents(cart.total),
+        subtotalCents,
+        shippingCents,
+        taxCents: tax.taxCents,
+        taxProvider: tax.provider,
+        taxCalculationId: tax.calculationId,
+        taxSnapshot: tax.snapshot as any,
+        totalCents: subtotalCents + shippingCents + tax.taxCents,
         customerEmail: session?.email,
         customerName: shipping.name || session?.name,
         customerPhone: shipping.phone,
@@ -334,7 +347,7 @@ export async function createOrderRequestFromCart(options: { card?: MockCardInput
   const order = {
     orderNumber,
     status: "Ready for payment",
-    total: cart.total,
+    total: (subtotalCents + shippingCents + tax.taxCents) / 100,
     payment: "Payment not collected",
     verification: "Eligibility checks passed",
     createdAt: new Date().toISOString(),

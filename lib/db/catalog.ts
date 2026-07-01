@@ -22,8 +22,9 @@ type CatalogProductRow = {
   slug: string;
   brand: string;
   name: string;
-  category: { id: string; slug: string; name: string; status: string; archivedAt: Date | null } | null;
+  category: { id: string; slug: string; name: string; status: string; archivedAt: Date | null; taxCode: string | null } | null;
   restrictedClass: string | null;
+  taxCode: string | null;
   description: string;
   status: string;
   restricted: boolean;
@@ -69,8 +70,9 @@ type ProductRow = {
   slug: string;
   brand: string;
   name: string;
-  category: { id: string; slug: string; name: string; status: string; archivedAt: Date | null } | null;
+  category: { id: string; slug: string; name: string; status: string; archivedAt: Date | null; taxCode: string | null } | null;
   restrictedClass: string | null;
+  taxCode: string | null;
   description: string;
   status: string;
   restricted: boolean;
@@ -109,7 +111,9 @@ export type CatalogProduct = {
   category: string;
   categoryId?: string | null;
   categorySlug?: string | null;
+  categoryTaxCode?: string | null;
   restrictedClass?: string | null;
+  taxCode?: string | null;
   description: string;
   status: string;
   restricted: boolean;
@@ -245,7 +249,9 @@ export async function getCatalogProducts(
       category: product.category?.name ?? "Uncategorized",
       categoryId: product.category?.id ?? null,
       categorySlug: product.category?.slug ?? null,
+      categoryTaxCode: product.category?.taxCode ?? null,
       restrictedClass: product.restrictedClass ?? null,
+      taxCode: product.taxCode ?? null,
       description: product.description,
       status: product.status,
       restricted: product.restricted,
