@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { CartSnapshot } from "@/lib/cart/cart-service";
 import { estimateCheckoutTaxAction, evaluateCheckoutDestinationAction, submitCheckoutAction } from "@/lib/checkout/actions";
 import type { CheckoutDestinationResult } from "@/lib/checkout/eligibility";
+import { US_STATES } from "@/lib/checkout/us-states";
 import { money } from "@/lib/utils";
 
 type AddressState = {
@@ -187,7 +188,7 @@ export function OnePageCheckout({ cart, error, message, paymentMode }: { cart: C
             <label className="block text-sm font-bold sm:col-span-2">Address<input className="input mt-1" name="line1" required onChange={(e) => updateAddress("line1", e.target.value)} /></label>
             <label className="block text-sm font-bold sm:col-span-2">Apartment, suite, etc. <span className="font-normal text-slate-500">optional</span><input className="input mt-1" name="line2" /></label>
             <label className="block text-sm font-bold">City<input className="input mt-1" name="city" required onChange={(e) => updateAddress("city", e.target.value)} /></label>
-            <label className="block text-sm font-bold">State<input className="input mt-1 uppercase" name="state" maxLength={2} required onChange={(e) => updateAddress("state", e.target.value)} /></label>
+            <label className="block text-sm font-bold">State<StateSelect name="state" value={address.state} onChange={(value) => updateAddress("state", value)} /></label>
             <label className="block text-sm font-bold">ZIP code<input className="input mt-1" name="postalCode" required onChange={(e) => updateAddress("postalCode", e.target.value)} /></label>
             <label className="block text-sm font-bold">Phone <span className="font-normal text-slate-500">optional</span><input className="input mt-1" name="phone" /></label>
           </div>
@@ -212,6 +213,14 @@ export function OnePageCheckout({ cart, error, message, paymentMode }: { cart: C
   );
 }
 
+function StateSelect({ name, value, onChange, required = true }: { name: string; value: string; onChange: (value: string) => void; required?: boolean }) {
+  return (
+    <select className="input mt-1" name={name} required={required} value={value} onChange={(event) => onChange(event.target.value)}>
+      <option value="">Select state</option>
+      {US_STATES.map((state) => <option key={state.code} value={state.code}>{state.code} — {state.name}</option>)}
+    </select>
+  );
+}
 
 function DobPicker({ value, onChange, status }: { value: string; onChange: (value: string) => void; status: DobStatus }) {
   const today = useMemo(() => new Date(), []);
@@ -306,7 +315,7 @@ function PaymentBlock({ disabled, isMockCard, payment, setPayment, billing, setB
       <label className="block text-sm font-bold sm:col-span-2">Billing address line 1<input className="input mt-1" name="billingLine1" required value={billing.line1} onChange={(e) => updateBilling("line1", e.target.value)} /></label>
       <label className="block text-sm font-bold sm:col-span-2">Billing address line 2 <span className="font-normal text-slate-500">optional</span><input className="input mt-1" name="billingLine2" /></label>
       <label className="block text-sm font-bold">Billing city<input className="input mt-1" name="billingCity" required value={billing.city} onChange={(e) => updateBilling("city", e.target.value)} /></label>
-      <label className="block text-sm font-bold">Billing state<input className="input mt-1 uppercase" name="billingState" maxLength={2} required value={billing.state} onChange={(e) => updateBilling("state", e.target.value)} /></label>
+      <label className="block text-sm font-bold">Billing state<StateSelect name="billingState" value={billing.state} onChange={(value) => updateBilling("state", value)} /></label>
       <label className="block text-sm font-bold">Billing ZIP code<input className="input mt-1" name="billingPostalCode" required value={billing.postalCode} onChange={(e) => updateBilling("postalCode", e.target.value)} /></label>
       <label className="block text-sm font-bold">Billing country<input className="input mt-1" name="billingCountry" readOnly value="United States" /></label>
       <label className="block text-sm font-bold sm:col-span-2">Billing phone <span className="font-normal text-slate-500">optional</span><input className="input mt-1" name="billingPhone" /></label>

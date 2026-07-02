@@ -1,4 +1,4 @@
-﻿import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 const mode = process.argv[2] || 'smoke';
 const files = [];
@@ -59,6 +59,30 @@ if(mode==='lint'){
   const requiredCheckoutText = ['Card number', 'Expiration date MM/YY', 'Security code', 'Name on card', 'Use shipping address as billing address', 'Test payment mode: use mock card numbers. No real payment is processed.'];
   const missingCheckoutText = requiredCheckoutText.filter((text) => !checkout.includes(text));
   if(missingCheckoutText.length){ console.error('Checkout UI missing required payment text: ' + missingCheckoutText.join(', ')); process.exit(1); }
+  const stateConstants = readFileSync('lib/checkout/us-states.ts', 'utf8');
+  const checkoutActions = readFileSync('lib/checkout/actions.ts', 'utf8');
+  const requiredStateDropdownText = [
+    'function StateSelect',
+    '<select className="input mt-1" name={name}',
+    '<option value="">Select state</option>',
+    'name="state" value={address.state}',
+    'onChange={(value) => updateAddress("state", value)}',
+    'name="billingState" value={billing.state}',
+    'onChange={(value) => updateBilling("state", value)}',
+    '{state.code} — {state.name}',
+    'Date of birth',
+  ];
+  const missingStateDropdownText = requiredStateDropdownText.filter((text) => !checkout.includes(text));
+  if(missingStateDropdownText.length){ console.error('Checkout UI missing required state dropdown behavior: ' + missingStateDropdownText.join(', ')); process.exit(1); }
+  for (const forbidden of ['name="state" maxLength={2}', 'name="billingState" maxLength={2}']) {
+    if(checkout.includes(forbidden)){ console.error(`Checkout state field is still free text: ${forbidden}`); process.exit(1); }
+  }
+  const requiredStateConstants = ['{ code: "TX", name: "Texas" }', '{ code: "HI", name: "Hawaii" }', '{ code: "MA", name: "Massachusetts" }', '{ code: "DC", name: "District of Columbia" }', 'export function isValidUsStateCode', 'export function normalizeUsStateCode'];
+  const missingStateConstants = requiredStateConstants.filter((text) => !stateConstants.includes(text));
+  if(missingStateConstants.length){ console.error('US state constants missing required checkout state coverage: ' + missingStateConstants.join(', ')); process.exit(1); }
+  const requiredBackendStateValidation = ['normalizeUsStateCode(required(formData, "state"))', '!isValidUsStateCode(state)', 'redirect("/checkout?error=address")', 'normalizeUsStateCode(required(formData, "billingState"))', '!isValidUsStateCode(billingState)'];
+  const missingBackendStateValidation = requiredBackendStateValidation.filter((text) => !checkoutActions.includes(text));
+  if(missingBackendStateValidation.length){ console.error('Checkout backend missing required invalid state rejection: ' + missingBackendStateValidation.join(', ')); process.exit(1); }
   for (const forbidden of ['AgeChecker', 'Sezzle', 'Buy Now Pay Later', 'I confirm I am at least 18 years old', 'ageAttestation']) {
     if(checkout.includes(forbidden)){ console.error(`Checkout UI contains forbidden text: ${forbidden}`); process.exit(1); }
   }
