@@ -32,7 +32,7 @@ export default async function OrderAdmin({ params }: { params: Promise<{ id: str
       <section className="card p-5">
         <SectionHeader eyebrow="Order detail" title={order.orderNumber}>Created {fmt(order.createdAt)}</SectionHeader>
         <div className="grid gap-3 text-sm md:grid-cols-2">
-          <p><b>Current status:</b> <StatusBadge tone={statusTone(order.status)}>{order.status}</StatusBadge></p><p><b>Payment:</b> Not collected · {order.paymentMode ?? "order_request"}</p>
+          <p><b>Current status:</b> <StatusBadge tone={statusTone(order.status)}>{order.status}</StatusBadge></p><p><b>Payment:</b> Gateway · {order.paymentMode ?? "authorize_net_emulator"}</p>
           <p><b>Fulfillment release:</b> {order.status === "PAID" || order.status === "SHIPPED" ? "Released" : "Not released"} · {order.fulfillmentStatus}</p><p><b>Restricted item:</b> {restricted ? "Yes" : "No"}</p>
           <p><b>Customer:</b> {order.customerName ?? address?.name ?? order.user?.name ?? "—"}</p><p><b>Email:</b> {order.customerEmail ?? order.user?.email ?? "—"}</p>
           <p><b>Phone:</b> {order.customerPhone ?? address?.phone ?? "—"}</p><p><b>State/ZIP:</b> {address?.state ?? "—"} {address?.postalCode ?? "—"}</p>

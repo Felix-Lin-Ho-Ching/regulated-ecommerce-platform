@@ -1,4 +1,5 @@
 import { TaxJarClient } from "@/lib/tax/taxjar-client";
+import { TaxJarEmulator } from "@/lib/tax/taxjar-emulator";
 import type { CalculateTaxInput, TaxAddress, TaxCalculationResult, TaxMode, TaxProvider } from "@/lib/tax/types";
 
 export class TaxCalculationError extends Error {
@@ -30,15 +31,13 @@ export function getShipFromAddress(): TaxAddress {
   };
 }
 
-export function createTaxProvider(mode = getTaxMode()): TaxProvider | null {
-  if (mode === "disabled") return null;
+export function createTaxProvider(mode = getTaxMode()): TaxProvider {
   const apiKey = process.env.TAXJAR_API_KEY;
-  if (!apiKey) throw new TaxCalculationError("Tax provider is not configured. TAXJAR_API_KEY is required.");
+  if (!apiKey || mode === "disabled") return new TaxJarEmulator();
   return new TaxJarClient({ apiKey, apiUrl: getTaxJarApiUrl(mode) });
 }
 
 export async function calculateCheckoutTax(input: Omit<CalculateTaxInput, "fromAddress">, provider = createTaxProvider()): Promise<TaxCalculationResult> {
-  if (!provider) return { taxCents: 0, provider: "disabled", snapshot: { mode: "disabled" } };
   try {
     return await provider.calculateTax({ ...input, fromAddress: getShipFromAddress() });
   } catch (error) {

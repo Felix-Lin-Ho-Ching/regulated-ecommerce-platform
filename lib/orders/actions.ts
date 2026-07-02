@@ -26,8 +26,7 @@ export async function createOrderRequestAction() {
     redirect("/checkout/verification");
   }
 
-  const order = await createOrderRequestFromCart();
-  redirect(`/checkout/success?order=${encodeURIComponent(order.orderNumber)}`);
+  redirect("/checkout");
 }
 
 export async function continueFromEligibilityAction(formData: FormData) {

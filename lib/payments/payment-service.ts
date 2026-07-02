@@ -1,38 +1,13 @@
 import { prisma } from "@/lib/db/prisma";
-import { createMockAuthorizeNetTransaction, createMockCardTransaction, type MockCardInput } from "@/lib/payments/providers/mock-authorize-net";
+import { paymentGateway, type PaymentGateway } from "@/lib/payments/gateways/payment-gateway";
+import type { AuthorizeNetChargeRequest } from "@/lib/payments/gateways/authorize-net-types";
 
-export type PaymentMode = "order_request" | "mock_approved" | "mock_declined" | "mock_review" | "mock_card";
-
-export function normalizePaymentMode(mode = process.env.PAYMENT_MODE || "order_request"): PaymentMode {
-  const normalized = mode.trim().toLowerCase().replaceAll("-", "_");
-  if (normalized === "mock_approved" || normalized === "mock_declined" || normalized === "mock_review" || normalized === "mock_card") return normalized;
-  return "order_request";
-}
-
-export function isMockApprovedPaymentMode(mode = process.env.PAYMENT_MODE || "order_request") {
-  return normalizePaymentMode(mode) === "mock_approved";
-}
-
-export async function processOrderPayment(tx: any, order: { id: string; orderNumber: string; totalCents: number }, mode = process.env.PAYMENT_MODE || "order_request", card?: MockCardInput) {
-  const paymentMode = normalizePaymentMode(mode);
-
-  if (paymentMode === "order_request") {
-    return { mode: paymentMode, paymentAttempt: await tx.paymentAttempt.create({ data: { orderId: order.id, provider: "ORDER_REQUEST", providerStatus: "DISABLED", status: "ORDER_REQUEST", amountCents: order.totalCents, livePaymentEnabled: false, providerReference: `order-request-${order.orderNumber}` } }) };
-  }
-
-  const response = paymentMode === "mock_card"
-    ? createMockCardTransaction({ orderNumber: order.orderNumber, amountCents: order.totalCents }, card)
-    : createMockAuthorizeNetTransaction({ orderNumber: order.orderNumber, amountCents: order.totalCents }, paymentMode);
-  const status = response.status === "APPROVED" ? "APPROVED" : response.status === "DECLINED" ? "DECLINED" : "MANUAL_REVIEW";
-
-  return { mode: paymentMode, response, paymentAttempt: await tx.paymentAttempt.create({ data: { orderId: order.id, provider: "AUTHORIZE_NET_MOCK", providerStatus: response.providerStatus, status, amountCents: response.amountCents, livePaymentEnabled: false, providerReference: `${response.transId}:${response.accountType}:${response.accountNumber}` } }) };
-}
-
-export async function createApprovedMockPaymentAttemptIfNeeded(tx: any, order: { id: string; orderNumber: string; totalCents: number }) {
-  const latest = await tx.paymentAttempt.findFirst({ where: { orderId: order.id }, orderBy: { createdAt: "desc" } });
-  if (latest?.provider === "AUTHORIZE_NET_MOCK" && latest.status === "APPROVED") return latest;
-  const response = createMockAuthorizeNetTransaction({ orderNumber: order.orderNumber, amountCents: order.totalCents }, "mock_approved");
-  return tx.paymentAttempt.create({ data: { orderId: order.id, provider: "AUTHORIZE_NET_MOCK", providerStatus: response.providerStatus, status: "APPROVED", amountCents: response.amountCents, livePaymentEnabled: false, providerReference: response.transId } });
+export async function processOrderPayment(tx: any, order: { id: string; orderNumber: string; totalCents: number }, charge: Omit<AuthorizeNetChargeRequest, "amountCents" | "orderNumber">, gateway: PaymentGateway = paymentGateway) {
+  const response = await gateway.charge({ ...charge, amountCents: order.totalCents, orderNumber: order.orderNumber });
+  const status = response.approved ? "APPROVED" : response.heldForReview ? "MANUAL_REVIEW" : "DECLINED";
+  const providerStatus = response.heldForReview ? "MANUAL_REVIEW" : "DEVELOPMENT_APPROVED";
+  const paymentAttempt = await tx.paymentAttempt.create({ data: { orderId: order.id, provider: "AUTHORIZE_NET_MOCK", providerStatus, status, amountCents: order.totalCents, livePaymentEnabled: false, providerReference: [response.transId, response.accountType, response.accountNumber].filter(Boolean).join(":") } });
+  return { response, paymentAttempt };
 }
 
 export { prisma };

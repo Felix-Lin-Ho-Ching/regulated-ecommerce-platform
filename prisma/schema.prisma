@@ -580,7 +580,7 @@ model Order {
   customerPhone             String?
   liveCheckoutEnabled       Boolean                    @default(false)
   liveFulfillmentEnabled    Boolean                    @default(false)
-  paymentMode               String                     @default("order_request")
+  paymentMode               String                     @default("authorize_net_emulator")
   eligibilityResult         String?
   carrier                   String?
   trackingNumber            String?

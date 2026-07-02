@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { shipOrders, shipSingleOrder } from "../lib/fulfillment/ship-orders";
 import { getFulfillmentOrdersForAdmin } from "../lib/fulfillment/admin-queries";
 import { processOrderPayment } from "../lib/payments/payment-service";
+import { createPaymentOpaqueData } from "../lib/payments/client/create-payment-opaque-data";
 import { releaseOrderAfterPaymentApproval } from "../lib/orders/order-service";
 import type { AdminSession } from "../lib/admin/auth";
 
@@ -37,6 +38,14 @@ async function cleanup() {
   await prisma.adminUser.deleteMany({ where: { email: { endsWith: "@pipeline-smoke.local" } } });
 }
 
+
+function chargeInput(cardNumber = "4111111111111111", expiration = "12/30", cvv = "123", postalCode = "78701") {
+  const [expirationMonth, expirationYear] = expiration.split("/");
+  const billingAddress = { firstName: "Pipeline", lastName: "Buyer", line1: "1 Congress Ave", city: "Austin", state: "TX", postalCode, country: "US" };
+  const { opaqueData } = createPaymentOpaqueData({ cardNumber, expirationMonth, expirationYear, cvv, nameOnCard: "Pipeline Buyer", billingAddress });
+  return { opaqueData, billingAddress, shippingAddress: billingAddress, customerEmail: "buyer@pipeline-smoke.local" };
+}
+
 async function reserve(order: any, inventoryId: string) {
   await prisma.inventory.update({ where: { id: inventoryId }, data: { reserved: { increment: 1 }, reservations: { create: { orderItemId: order.items[0].id, quantity: 1 } }, transactions: { create: { type: "RESERVATION", quantity: 1, reason: `${order.orderNumber} pipeline smoke reservation` } } } });
 }
@@ -66,11 +75,11 @@ async function main() {
   assert(variant.inventory, "Seed inventory was not created.");
   const actor: AdminSession = { adminId: admin.id, email: admin.email, name: admin.name, role: "FULFILLMENT", demo: false };
 
-  const approved = await createOrder(product, variant, "PENDING_PAYMENT", "mock_approved");
-  await processOrderPayment(prisma, approved, "mock_approved");
+  const approved = await createOrder(product, variant, "PENDING_PAYMENT", "authorize_net_approved");
+  await processOrderPayment(prisma, approved, chargeInput());
   await releaseOrderAfterPaymentApproval(approved.id, { email: "pipeline-smoke", role: "SYSTEM" });
   const paid = await prisma.order.findUniqueOrThrow({ where: { id: approved.id }, include: { paymentAttempts: { orderBy: { createdAt: "desc" } } } });
-  assert(paid.status === "PAID" && paid.fulfillmentStatus === "READY_TO_SHIP" && paid.liveFulfillmentEnabled, "mock_approved did not release to fulfillment.");
+  assert(paid.status === "PAID" && paid.fulfillmentStatus === "READY_TO_SHIP" && paid.liveFulfillmentEnabled, "authorize_net_approved did not release to fulfillment.");
   assert(paid.paymentAttempts[0].provider === "AUTHORIZE_NET_MOCK" && paid.paymentAttempts[0].status === "APPROVED", "Approved mock payment attempt missing.");
 
   const dashboard = await getFulfillmentOrdersForAdmin(actor);
@@ -94,33 +103,33 @@ async function main() {
   const batchRejected = await shipOrders({ orderIds: [batchA.id, batchB.id], actor, carrier: "UPS", trackingNumber: "1ZSHARED" });
   assert(batchRejected.errors.some((error) => error.includes("Batch shipping with one shared tracking number is disabled")), "Batch shipping with one shared tracking number was not rejected.");
 
-  const declined = await createOrder(product, variant, "PENDING_PAYMENT", "mock_declined");
+  const declined = await createOrder(product, variant, "PENDING_PAYMENT", "authorize_net_declined");
   await reserve(declined, variant.inventory.id);
-  await processOrderPayment(prisma, declined, "mock_declined");
+  await processOrderPayment(prisma, declined, chargeInput("4111111111111111", "12/30", "123", "46282"));
   await prisma.order.update({ where: { id: declined.id }, data: { status: "PAYMENT_FAILED" } });
-  assert(!(await getFulfillmentOrdersForAdmin(actor)).some((order) => order.id === declined.id), "mock_declined order appeared in fulfillment dashboard.");
+  assert(!(await getFulfillmentOrdersForAdmin(actor)).some((order) => order.id === declined.id), "authorize_net_declined order appeared in fulfillment dashboard.");
 
-  const cardApproved = await createOrder(product, variant, "PENDING_PAYMENT", "mock_card");
-  const cardApprovedResult = await processOrderPayment(prisma, cardApproved, "mock_card", { cardNumber: "4111111111111111", expiration: "12/30", cvv: "123", nameOnCard: "Manual Buyer", postalCode: "78701" });
+  const cardApproved = await createOrder(product, variant, "PENDING_PAYMENT", "authorize_net_card");
+  const cardApprovedResult = await processOrderPayment(prisma, cardApproved, chargeInput("4111111111111111", "12/30", "123", "78701"));
   assert(cardApprovedResult.paymentAttempt.status === "APPROVED", "Approved mock card was not approved.");
   assert(!cardApprovedResult.paymentAttempt.providerReference?.includes("4111111111111111"), "Full card number was stored.");
   assert(!cardApprovedResult.paymentAttempt.providerReference?.includes("123"), "CVV was stored.");
   await releaseOrderAfterPaymentApproval(cardApproved.id, { email: "pipeline-smoke", role: "SYSTEM" });
   const cardPaid = await prisma.order.findUniqueOrThrow({ where: { id: cardApproved.id } });
-  assert(cardPaid.status === "PAID" && cardPaid.fulfillmentStatus === "READY_TO_SHIP" && cardPaid.liveFulfillmentEnabled, "Approved mock_card did not release fulfillment.");
+  assert(cardPaid.status === "PAID" && cardPaid.fulfillmentStatus === "READY_TO_SHIP" && cardPaid.liveFulfillmentEnabled, "Approved authorize_net_card did not release fulfillment.");
 
   for (const [label, card] of Object.entries({ zip: { cardNumber: "4111111111111111", expiration: "12/30", cvv: "123", nameOnCard: "Manual Buyer", postalCode: "46282" }, cvv: { cardNumber: "4111111111111111", expiration: "12/30", cvv: "901", nameOnCard: "Manual Buyer", postalCode: "78701" }, expired: { cardNumber: "4111111111111111", expiration: "01/20", cvv: "123", nameOnCard: "Manual Buyer", postalCode: "78701" }, invalid: { cardNumber: "4111111111111112", expiration: "12/30", cvv: "123", nameOnCard: "Manual Buyer", postalCode: "78701" } })) {
-    const cardDeclined = await createOrder(product, variant, "PENDING_PAYMENT", `mock_card_${label}`);
-    const result = await processOrderPayment(prisma, cardDeclined, "mock_card", card);
+    const cardDeclined = await createOrder(product, variant, "PENDING_PAYMENT", `authorize_net_card_${label}`);
+    const result = await processOrderPayment(prisma, cardDeclined, chargeInput(card.cardNumber, card.expiration, card.cvv, card.postalCode));
     await prisma.order.update({ where: { id: cardDeclined.id }, data: { status: "PAYMENT_FAILED", fulfillmentStatus: "FULFILLMENT_HOLD", liveFulfillmentEnabled: false } });
     assert(result.paymentAttempt.status === "DECLINED", `${label} mock card did not decline.`);
     assert(!(await getFulfillmentOrdersForAdmin(actor)).some((order) => order.id === cardDeclined.id), `${label} declined mock card appeared in fulfillment dashboard.`);
   }
 
-  const requested = await createOrder(product, variant, "READY_FOR_PAYMENT", "order_request");
+  const requested = await createOrder(product, variant, "READY_FOR_PAYMENT", "authorize_net_declined_request");
   await reserve(requested, variant.inventory.id);
-  await processOrderPayment(prisma, requested, "order_request");
-  assert(!(await getFulfillmentOrdersForAdmin(actor)).some((order) => order.id === requested.id), "order_request order appeared in fulfillment dashboard.");
+  await processOrderPayment(prisma, requested, chargeInput("4111111111111111", "12/30", "123", "46282"));
+  assert(!(await getFulfillmentOrdersForAdmin(actor)).some((order) => order.id === requested.id), "authorize_net_declined_request order appeared in fulfillment dashboard.");
 
   console.log(`Pipeline smoke passed for ${approved.orderNumber}.`);
 }

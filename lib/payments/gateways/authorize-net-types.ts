@@ -1,0 +1,4 @@
+import type { PaymentOpaqueData } from "@/lib/payments/client/create-payment-opaque-data";
+export type PaymentAddress = { firstName: string; lastName: string; line1: string; line2?: string; city: string; state: string; postalCode: string; country: string; phone?: string };
+export type AuthorizeNetChargeRequest = { amountCents: number; opaqueData: PaymentOpaqueData; billingAddress: PaymentAddress; shippingAddress: PaymentAddress; customerEmail: string; orderNumber: string };
+export type AuthorizeNetChargeResponse = { approved: boolean; declined: boolean; heldForReview: boolean; responseCode: "1" | "2" | "4"; authCode?: string; transId: string; avsResultCode: string; cvvResultCode: string; messages: string[]; accountType?: string; accountNumber?: string; rawResponse: Record<string, unknown> };
