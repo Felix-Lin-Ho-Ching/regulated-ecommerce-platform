@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import type { CatalogProduct } from "@/lib/db/catalog";
 import { money } from "@/lib/utils";

@@ -6,6 +6,7 @@ import { evaluateCheckoutDestinationFromConfiguredRules } from "@/lib/checkout/e
 import { createOrderRequestFromCart, saveShippingDraft } from "@/lib/orders/order-service";
 import { calculateCheckoutTax } from "@/lib/tax/tax-service";
 import { normalizePaymentMode } from "@/lib/payments/payment-service";
+import { isValidUsStateCode, normalizeUsStateCode } from "@/lib/checkout/us-states";
 
 function required(formData: FormData, name: string) {
   return String(formData.get(name) || "").trim();
@@ -78,11 +79,11 @@ export async function submitCheckoutAction(formData: FormData) {
   const line1 = required(formData, "line1");
   const line2 = required(formData, "line2") || undefined;
   const city = required(formData, "city");
-  const state = required(formData, "state").trim().toUpperCase().slice(0, 2);
+  const state = normalizeUsStateCode(required(formData, "state"));
   const postalCode = required(formData, "postalCode");
   const phone = required(formData, "phone") || undefined;
 
-  if (!email || !firstName || !lastName || !line1 || !city || !state || !postalCode) {
+  if (!email || !firstName || !lastName || !line1 || !city || !state || !postalCode || !isValidUsStateCode(state)) {
     redirect("/checkout?error=address");
   }
 
@@ -99,7 +100,8 @@ export async function submitCheckoutAction(formData: FormData) {
     if (!cardNumber || !expiration || !cvv || !nameOnCard) redirect("/checkout?error=address");
     if (!billingSame) {
       const requiredBilling = ["billingFirstName", "billingLastName", "billingLine1", "billingCity", "billingState", "billingPostalCode"];
-      if (requiredBilling.some((field) => !required(formData, field))) redirect("/checkout?error=address");
+      const billingState = normalizeUsStateCode(required(formData, "billingState"));
+      if (requiredBilling.some((field) => !required(formData, field)) || !isValidUsStateCode(billingState)) redirect("/checkout?error=address");
     }
     card = { cardNumber, expiration, cvv, nameOnCard, postalCode: billingSame ? postalCode : required(formData, "billingPostalCode") };
   }
