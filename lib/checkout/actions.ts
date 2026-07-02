@@ -5,7 +5,6 @@ import { getCartSnapshot } from "@/lib/cart/cart-service";
 import { evaluateCheckoutDestinationFromConfiguredRules } from "@/lib/checkout/eligibility";
 import { createOrderRequestFromCart, saveShippingDraft } from "@/lib/orders/order-service";
 import { calculateCheckoutTax } from "@/lib/tax/tax-service";
-import { normalizePaymentMode } from "@/lib/payments/payment-service";
 import { isValidUsStateCode, normalizeUsStateCode } from "@/lib/checkout/us-states";
 
 function required(formData: FormData, name: string) {
@@ -89,22 +88,21 @@ export async function submitCheckoutAction(formData: FormData) {
 
   await saveShippingDraft({ name, line1, line2, city, state, postalCode, phone });
 
-  const paymentMode = normalizePaymentMode(process.env.PAYMENT_MODE || "order_request");
-  let card;
-  if (paymentMode === "mock_card") {
-    const billingSame = formData.get("billingSame") === "on";
-    const cardNumber = required(formData, "cardNumber");
-    const expiration = required(formData, "cardExpiration");
-    const cvv = required(formData, "cardCvv");
-    const nameOnCard = required(formData, "nameOnCard");
-    if (!cardNumber || !expiration || !cvv || !nameOnCard) redirect("/checkout?error=address");
-    if (!billingSame) {
-      const requiredBilling = ["billingFirstName", "billingLastName", "billingLine1", "billingCity", "billingState", "billingPostalCode"];
-      const billingState = normalizeUsStateCode(required(formData, "billingState"));
-      if (requiredBilling.some((field) => !required(formData, field)) || !isValidUsStateCode(billingState)) redirect("/checkout?error=address");
-    }
-    card = { cardNumber, expiration, cvv, nameOnCard, postalCode: billingSame ? postalCode : required(formData, "billingPostalCode") };
-  }
+  const billingSame = formData.get("billingSame") === "on";
+  const billingState = billingSame ? state : normalizeUsStateCode(required(formData, "billingState"));
+  const billingAddress = billingSame ? { name, line1, line2, city, state, postalCode, phone } : {
+    name: `${required(formData, "billingFirstName")} ${required(formData, "billingLastName")}`.trim(),
+    line1: required(formData, "billingLine1"),
+    line2: required(formData, "billingLine2") || undefined,
+    city: required(formData, "billingCity"),
+    state: billingState,
+    postalCode: required(formData, "billingPostalCode"),
+  };
+  if (!billingSame && (!billingAddress.name || !billingAddress.line1 || !billingAddress.city || !billingAddress.postalCode || !isValidUsStateCode(billingState))) redirect("/checkout?error=address");
+  const opaqueData = { dataDescriptor: required(formData, "opaqueDataDescriptor"), dataValue: required(formData, "opaqueDataValue") };
+  if (opaqueData.dataDescriptor !== "COMMON.ACCEPT.INAPP.PAYMENT" || !opaqueData.dataValue) redirect("/checkout?error=address");
+  let cardSummary;
+  try { cardSummary = JSON.parse(required(formData, "cardSummary")); } catch { redirect("/checkout?error=address"); }
 
   const restrictedLines = cart.lines.filter((line) => line.product.restricted);
   if (restrictedLines.length > 0) {
@@ -125,11 +123,11 @@ export async function submitCheckoutAction(formData: FormData) {
 
   let order;
   try {
-    order = await createOrderRequestFromCart({ card });
+    order = await createOrderRequestFromCart({ opaqueData: opaqueData as any, cardSummary, billingAddress });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Checkout could not be completed.";
     if (message.startsWith("Only ")) redirect(`/checkout?error=stock&message=${encodeURIComponent(message)}`);
-    const safe = message.toLowerCase().includes("tax") ? "tax" : "blocked";
+    const safe = message.toLowerCase().includes("tax") ? "tax" : message.toLowerCase().includes("payment") || message.toLowerCase().includes("declined") || message.toLowerCase().includes("card") || message.toLowerCase().includes("cvv") || message.toLowerCase().includes("zip") ? "payment" : "blocked";
     redirect(`/checkout?error=${safe}`);
   }
   redirect(`/checkout/success?order=${encodeURIComponent(order.orderNumber)}`);

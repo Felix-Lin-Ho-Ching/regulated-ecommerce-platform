@@ -6,6 +6,7 @@ import type { CartSnapshot } from "@/lib/cart/cart-service";
 import { estimateCheckoutTaxAction, evaluateCheckoutDestinationAction, submitCheckoutAction } from "@/lib/checkout/actions";
 import type { CheckoutDestinationResult } from "@/lib/checkout/eligibility";
 import { US_STATES } from "@/lib/checkout/us-states";
+import { createPaymentOpaqueData } from "@/lib/payments/client/create-payment-opaque-data";
 import { money } from "@/lib/utils";
 
 type AddressState = {
@@ -27,10 +28,10 @@ const BLOCKED_DESTINATION_WARNING = "This item is not available for your shippin
 const PENDING_DESTINATION_WARNING = "Checking configured destination rules. Try again in a moment.";
 const AGE_WARNING = "Enter a valid date of birth showing you are at least 18 years old.";
 
-type CheckoutWarning = "address" | "blocked" | "pending" | "verification" | "tax" | null;
+type CheckoutWarning = "address" | "blocked" | "pending" | "verification" | "tax" | "payment" | null;
 
 function warningFromError(error?: string): CheckoutWarning {
-  if (error === "address" || error === "blocked" || error === "verification" || error === "tax") return error;
+  if (error === "address" || error === "blocked" || error === "verification" || error === "tax" || error === "payment") return error;
   return null;
 }
 
@@ -68,7 +69,7 @@ function getDobMessage(status: DobStatus) {
   return "Select your date of birth.";
 }
 
-export function OnePageCheckout({ cart, error, message, paymentMode }: { cart: CartSnapshot; error?: string; message?: string; paymentMode?: string }) {
+export function OnePageCheckout({ cart, error, message }: { cart: CartSnapshot; error?: string; message?: string; paymentMode?: string }) {
   const router = useRouter();
   const [address, setAddress] = useState<AddressState>({ email: "", firstName: "", lastName: "", line1: "", city: "", state: "", postalCode: "" });
   const [dob, setDob] = useState("");
@@ -78,6 +79,8 @@ export function OnePageCheckout({ cart, error, message, paymentMode }: { cart: C
   const [isDestinationPending, setIsDestinationPending] = useState(false);
   const [checkoutWarning, setCheckoutWarning] = useState<CheckoutWarning>(() => warningFromError(error));
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tokenized, setTokenized] = useState(false);
+  const [paymentToken, setPaymentToken] = useState<{ opaqueDataValue: string; cardSummary: string } | null>(null);
   const [taxEstimate, setTaxEstimate] = useState<{ taxCents: number; totalCents: number; provider: string } | null>(null);
   const [taxError, setTaxError] = useState<string | null>(null);
   const hasRestricted = cart.hasRestrictedItems;
@@ -122,10 +125,9 @@ export function OnePageCheckout({ cart, error, message, paymentMode }: { cart: C
       .catch(() => { if (current) { setTaxEstimate(null); setTaxError("Tax calculation is unavailable. Payment is blocked until tax can be calculated."); } });
     return () => { current = false; };
   }, [addressComplete, address.line1, address.city, address.state, address.postalCode, destination.status]);
-  const isMockCard = paymentMode === "mock_card";
   const dobStatus = getDobStatus(dob);
   const ageComplete = !hasRestricted || dobStatus === "verified";
-  const paymentComplete = !isMockCard || Boolean(payment.cardNumber && payment.expiration && payment.cvv && payment.nameOnCard);
+  const paymentComplete = Boolean(payment.cardNumber && payment.expiration && payment.cvv && payment.nameOnCard);
   const billingComplete = billing.same || Boolean(billing.firstName && billing.lastName && billing.line1 && billing.city && billing.state && billing.postalCode);
   const blocked = destination.status === "blocked";
   const visibleCheckoutWarning = blocked ? "blocked" : checkoutWarning === "blocked" && destination.status === "allowed" ? null : checkoutWarning;
@@ -149,7 +151,7 @@ export function OnePageCheckout({ cart, error, message, paymentMode }: { cart: C
     return null;
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     const warning = getCheckoutWarning();
     if (warning) {
       event.preventDefault();
@@ -157,6 +159,18 @@ export function OnePageCheckout({ cart, error, message, paymentMode }: { cart: C
       return;
     }
 
+    if (!tokenized) {
+      event.preventDefault();
+      const [expirationMonth = "", expirationYear = ""] = payment.expiration.split("/").map((part) => part.trim());
+      const billingAddress = billing.same
+        ? { name: `${address.firstName} ${address.lastName}`.trim(), line1: address.line1, city: address.city, state: address.state, postalCode: address.postalCode, country: "US" }
+        : { name: `${billing.firstName} ${billing.lastName}`.trim(), line1: billing.line1, city: billing.city, state: billing.state, postalCode: billing.postalCode, country: "US" };
+      const token = await createPaymentOpaqueData({ cardNumber: payment.cardNumber, expirationMonth, expirationYear, cvv: payment.cvv, nameOnCard: payment.nameOnCard, billingAddress });
+      setPaymentToken({ opaqueDataValue: token.opaqueData.dataValue, cardSummary: JSON.stringify(token.cardSummary) });
+      setTokenized(true);
+      window.setTimeout(() => event.currentTarget.requestSubmit(), 0);
+      return;
+    }
     setCheckoutWarning(null);
     setIsSubmitting(true);
   }
@@ -196,7 +210,10 @@ export function OnePageCheckout({ cart, error, message, paymentMode }: { cart: C
         </section>
 
         <section className="card p-5"><h2 className="text-xl font-black">Shipping method</h2><ShippingMethod addressComplete={addressComplete} destination={destination} shipping={cart.shipping} pending={isDestinationPending} /></section>
-        <section className="card p-5"><h2 className="text-xl font-black">Payment</h2><PaymentBlock disabled={blocked} isMockCard={isMockCard} payment={payment} setPayment={setPayment} billing={billing} setBilling={setBilling} /></section>
+        <section className="card p-5"><h2 className="text-xl font-black">Payment</h2><PaymentBlock disabled={blocked} payment={payment} setPayment={setPayment} billing={billing} setBilling={setBilling} /></section>
+        <input type="hidden" name="opaqueDataDescriptor" value="COMMON.ACCEPT.INAPP.PAYMENT" />
+        <input type="hidden" name="opaqueDataValue" value={paymentToken?.opaqueDataValue ?? ""} />
+        <input type="hidden" name="cardSummary" value={paymentToken?.cardSummary ?? ""} />
 
         {hasRestricted ? (
           <section className="card p-5">
@@ -206,7 +223,7 @@ export function OnePageCheckout({ cart, error, message, paymentMode }: { cart: C
           </section>
         ) : null}
 
-        <button className="btn btn-primary w-full" disabled={isSubmitting} type="submit">Submit order request</button>
+        <button className="btn btn-primary w-full" disabled={isSubmitting} type="submit">Complete checkout</button>
       </div>
       <OrderSummary cart={cart} taxEstimate={taxEstimate} taxError={taxError} />
     </form>
@@ -295,17 +312,14 @@ function ShippingMethod({ addressComplete, destination, shipping, pending }: { a
   return <p className="mt-2 text-sm font-bold text-amber-900">{destination.message}</p>;
 }
 
-function PaymentBlock({ disabled, isMockCard, payment, setPayment, billing, setBilling }: { disabled: boolean; isMockCard: boolean; payment: PaymentState; setPayment: Dispatch<SetStateAction<PaymentState>>; billing: BillingState; setBilling: Dispatch<SetStateAction<BillingState>> }) {
-  if (!isMockCard) return <div className="mt-4 rounded-2xl border border-stone-200 bg-stone-50 p-4"><p className="font-bold text-slate-800">Payment is not collected online yet.</p><p className="mt-2 text-sm text-slate-600">Submit an order request now. Allowed requests automatically become ready for a future payment step; payment is not collected and fulfillment is not released.</p><input type="hidden" name="paymentMode" value="order_request" /></div>;
+function PaymentBlock({ disabled, payment, setPayment, billing, setBilling }: { disabled: boolean; payment: PaymentState; setPayment: Dispatch<SetStateAction<PaymentState>>; billing: BillingState; setBilling: Dispatch<SetStateAction<BillingState>> }) {
   const updatePayment = (field: keyof PaymentState, value: string) => setPayment((current) => ({ ...current, [field]: value }));
   const updateBilling = (field: keyof BillingState, value: string | boolean) => setBilling((current) => ({ ...current, [field]: value }));
   return <fieldset disabled={disabled} className="mt-4 space-y-4 rounded-2xl border border-stone-200 bg-stone-50 p-4">
-    <input type="hidden" name="paymentMode" value="mock_card" />
-    <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900">Test payment mode: use mock card numbers. No real payment is processed.</p>
     <div className="grid gap-3 sm:grid-cols-2">
-      <label className="block text-sm font-bold sm:col-span-2">Card number<input autoComplete="cc-number" className="input mt-1" name="cardNumber" inputMode="numeric" required value={payment.cardNumber} onChange={(e) => updatePayment("cardNumber", e.target.value)} /></label>
-      <label className="block text-sm font-bold">Expiration date MM/YY<input autoComplete="cc-exp" className="input mt-1" name="cardExpiration" placeholder="MM/YY" required value={payment.expiration} onChange={(e) => updatePayment("expiration", e.target.value)} /></label>
-      <label className="block text-sm font-bold">Security code<input autoComplete="cc-csc" className="input mt-1" name="cardCvv" inputMode="numeric" required value={payment.cvv} onChange={(e) => updatePayment("cvv", e.target.value)} /></label>
+      <label className="block text-sm font-bold sm:col-span-2">Card number<input autoComplete="cc-number" className="input mt-1" inputMode="numeric" required value={payment.cardNumber} onChange={(e) => updatePayment("cardNumber", e.target.value)} /></label>
+      <label className="block text-sm font-bold">Expiration date MM/YY<input autoComplete="cc-exp" className="input mt-1" placeholder="MM/YY" required value={payment.expiration} onChange={(e) => updatePayment("expiration", e.target.value)} /></label>
+      <label className="block text-sm font-bold">Security code<input autoComplete="cc-csc" className="input mt-1" inputMode="numeric" required value={payment.cvv} onChange={(e) => updatePayment("cvv", e.target.value)} /></label>
       <label className="block text-sm font-bold sm:col-span-2">Name on card<input autoComplete="cc-name" className="input mt-1" name="nameOnCard" required value={payment.nameOnCard} onChange={(e) => updatePayment("nameOnCard", e.target.value)} /></label>
     </div>
     <label className="flex gap-3 text-sm font-bold"><input checked={billing.same} name="billingSame" type="checkbox" onChange={(e) => updateBilling("same", e.target.checked)} /> Use shipping address as billing address</label>
@@ -317,8 +331,6 @@ function PaymentBlock({ disabled, isMockCard, payment, setPayment, billing, setB
       <label className="block text-sm font-bold">Billing city<input className="input mt-1" name="billingCity" required value={billing.city} onChange={(e) => updateBilling("city", e.target.value)} /></label>
       <label className="block text-sm font-bold">Billing state<StateSelect name="billingState" value={billing.state} onChange={(value) => updateBilling("state", value)} /></label>
       <label className="block text-sm font-bold">Billing ZIP code<input className="input mt-1" name="billingPostalCode" required value={billing.postalCode} onChange={(e) => updateBilling("postalCode", e.target.value)} /></label>
-      <label className="block text-sm font-bold">Billing country<input className="input mt-1" name="billingCountry" readOnly value="United States" /></label>
-      <label className="block text-sm font-bold sm:col-span-2">Billing phone <span className="font-normal text-slate-500">optional</span><input className="input mt-1" name="billingPhone" /></label>
     </div> : null}
   </fieldset>;
 }
@@ -331,6 +343,7 @@ function CheckoutWarningNotice({ warning }: { warning: Exclude<CheckoutWarning, 
   if (warning === "address") return <CheckoutNotice tone="warning">{ADDRESS_WARNING}</CheckoutNotice>;
   if (warning === "pending") return <CheckoutNotice tone="warning">{PENDING_DESTINATION_WARNING}</CheckoutNotice>;
   if (warning === "tax") return <CheckoutNotice tone="danger">Tax calculation is unavailable. Payment is blocked until tax can be calculated.</CheckoutNotice>;
+  if (warning === "payment") return <CheckoutNotice tone="danger">Payment was declined. Check your card details or billing address and try again.</CheckoutNotice>;
   return <CheckoutNotice tone="warning">{AGE_WARNING}</CheckoutNotice>;
 }
 function CheckoutNotice({ children, tone }: { children: React.ReactNode; tone: "warning" | "danger" }) { return <div className={`rounded-2xl border p-4 text-sm font-bold ${tone === "danger" ? "border-red-200 bg-red-50 text-red-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>{children}</div>; }
