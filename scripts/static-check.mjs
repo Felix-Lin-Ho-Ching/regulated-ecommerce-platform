@@ -56,7 +56,7 @@ if(mode==='lint'){
   const routeCount = files.filter(f=>f.endsWith('page.tsx')).length;
   if(routeCount < 40){ console.error(`Expected at least 40 routes, found ${routeCount}`); process.exit(1); }
   const checkout = readFileSync('components/checkout/one-page-checkout.tsx', 'utf8');
-  const requiredCheckoutText = ['Card number', 'Expiration date MM/YY', 'Security code', 'Name on card', 'Use shipping address as billing address', 'Test payment mode: use mock card numbers. No real payment is processed.'];
+  const requiredCheckoutText = ['Card number', 'Expiration date MM/YY', 'Security code', 'Name on card', 'Use shipping address as billing address', 'Complete checkout'];
   const missingCheckoutText = requiredCheckoutText.filter((text) => !checkout.includes(text));
   if(missingCheckoutText.length){ console.error('Checkout UI missing required payment text: ' + missingCheckoutText.join(', ')); process.exit(1); }
   const stateConstants = readFileSync('lib/checkout/us-states.ts', 'utf8');
