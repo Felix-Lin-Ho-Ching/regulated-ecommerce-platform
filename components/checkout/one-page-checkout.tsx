@@ -151,7 +151,13 @@ export function OnePageCheckout({ cart, error, message }: { cart: CartSnapshot; 
     return null;
   }
 
+  useEffect(() => {
+    setTokenized(false);
+    setPaymentToken(null);
+  }, [address, billing, payment]);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    const form = event.currentTarget;
     const warning = getCheckoutWarning();
     if (warning) {
       event.preventDefault();
@@ -161,14 +167,21 @@ export function OnePageCheckout({ cart, error, message }: { cart: CartSnapshot; 
 
     if (!tokenized) {
       event.preventDefault();
+      setIsSubmitting(true);
       const [expirationMonth = "", expirationYear = ""] = payment.expiration.split("/").map((part) => part.trim());
       const billingAddress = billing.same
         ? { name: `${address.firstName} ${address.lastName}`.trim(), line1: address.line1, city: address.city, state: address.state, postalCode: address.postalCode, country: "US" }
         : { name: `${billing.firstName} ${billing.lastName}`.trim(), line1: billing.line1, city: billing.city, state: billing.state, postalCode: billing.postalCode, country: "US" };
-      const token = await createPaymentOpaqueData({ cardNumber: payment.cardNumber, expirationMonth, expirationYear, cvv: payment.cvv, nameOnCard: payment.nameOnCard, billingAddress });
-      setPaymentToken({ opaqueDataValue: token.opaqueData.dataValue, cardSummary: JSON.stringify(token.cardSummary) });
-      setTokenized(true);
-      window.setTimeout(() => event.currentTarget.requestSubmit(), 0);
+      try {
+        const token = await createPaymentOpaqueData({ cardNumber: payment.cardNumber, expirationMonth, expirationYear, cvv: payment.cvv, nameOnCard: payment.nameOnCard, billingAddress });
+        setPaymentToken({ opaqueDataValue: token.opaqueData.dataValue, cardSummary: JSON.stringify(token.cardSummary) });
+        setTokenized(true);
+        setCheckoutWarning(null);
+        window.setTimeout(() => form.requestSubmit(), 0);
+      } catch {
+        setCheckoutWarning("payment");
+        setIsSubmitting(false);
+      }
       return;
     }
     setCheckoutWarning(null);
