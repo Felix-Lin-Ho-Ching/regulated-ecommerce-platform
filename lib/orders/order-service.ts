@@ -216,12 +216,15 @@ function buildOrderNumber() {
   return `SF-${Date.now().toString().slice(-6)}`;
 }
 
-export async function createOrderRequestFromCart(options: { opaqueData?: PaymentOpaqueData; cardSummary?: PaymentCardSummary; billingAddress?: PaymentAddress } = {}): Promise<CustomerOrderSummary> {
+export async function createOrderRequestFromCart(options: { opaqueData?: PaymentOpaqueData; cardSummary?: PaymentCardSummary; billingAddress?: PaymentAddress; shippingAddress?: PaymentAddress; customerEmail?: string; customerName?: string } = {}): Promise<CustomerOrderSummary> {
   const [session, cart, shipping] = await Promise.all([
     getCustomerSession(),
     getCartSnapshot(),
     getShippingDraft(),
   ]);
+  const checkoutShipping = options.shippingAddress ?? shipping;
+  const customerEmail = options.customerEmail?.trim().toLowerCase() || session?.email;
+  const customerName = options.customerName?.trim() || checkoutShipping.name || session?.name;
 
   if (cart.lines.length === 0) {
     throw new Error("Cart is empty.");
@@ -231,7 +234,7 @@ export async function createOrderRequestFromCart(options: { opaqueData?: Payment
   const subtotalCents = toCents(cart.subtotal);
   const shippingCents = toCents(cart.shipping);
   const taxInput = {
-    toAddress: { name: shipping.name, line1: shipping.line1, line2: shipping.line2, city: shipping.city, state: shipping.state, postalCode: shipping.postalCode, country: "US" },
+    toAddress: { name: checkoutShipping.name, line1: checkoutShipping.line1, line2: checkoutShipping.line2, city: checkoutShipping.city, state: checkoutShipping.state, postalCode: checkoutShipping.postalCode, country: "US" },
     shippingCents,
     orderReference: orderNumber,
     lineItems: cart.lines.map((line) => ({ id: line.product.variantId, productId: line.product.id, sku: line.product.sku, name: line.product.name, quantity: line.quantity, unitPriceCents: toCents(line.product.price), productTaxCode: line.product.taxCode, categoryTaxCode: line.product.categoryTaxCode })),
@@ -260,24 +263,24 @@ export async function createOrderRequestFromCart(options: { opaqueData?: Payment
         taxCalculationId: tax.calculationId,
         taxSnapshot: tax.snapshot as any,
         totalCents: subtotalCents + shippingCents + tax.taxCents,
-        customerEmail: session?.email,
-        customerName: shipping.name || session?.name,
-        customerPhone: shipping.phone,
+        customerEmail,
+        customerName,
+        customerPhone: checkoutShipping.phone,
         liveCheckoutEnabled: true,
         liveFulfillmentEnabled: false,
         paymentMode: "authorize_net",
         eligibilityResult: "AUTO_ELIGIBLE",
         shippingAddress: {
           create: {
-            name: shipping.name,
-            line1: shipping.line1,
-            line2: shipping.line2,
-            city: shipping.city,
-            state: shipping.state,
-            postalCode: shipping.postalCode,
+            name: checkoutShipping.name,
+            line1: checkoutShipping.line1,
+            line2: checkoutShipping.line2,
+            city: checkoutShipping.city,
+            state: checkoutShipping.state,
+            postalCode: checkoutShipping.postalCode,
             normalized: true,
             deliverable: true,
-            phone: shipping.phone,
+            phone: checkoutShipping.phone,
           },
         },
         items: {
@@ -297,7 +300,7 @@ export async function createOrderRequestFromCart(options: { opaqueData?: Payment
     await prisma.order.update({ where: { id: order.id }, data: { status: "AUTO_ELIGIBLE" } });
     let readyOrder = await prisma.order.update({ where: { id: order.id }, data: { status: "PENDING_PAYMENT" }, include: { items: { include: { product: { select: { restricted: true } } } }, shippingAddress: true } });
     if (!options.opaqueData || !options.billingAddress) throw new Error("Payment token is required.");
-    const charge = await paymentGateway.charge({ amountCents: readyOrder.totalCents, opaqueData: options.opaqueData, billingAddress: options.billingAddress, shippingAddress: { name: shipping.name, line1: shipping.line1, line2: shipping.line2, city: shipping.city, state: shipping.state, postalCode: shipping.postalCode, country: "US", phone: shipping.phone }, customerEmail: session?.email ?? "guest@stunfry.example", orderNumber });
+    const charge = await paymentGateway.charge({ amountCents: readyOrder.totalCents, opaqueData: options.opaqueData, billingAddress: options.billingAddress, shippingAddress: { name: checkoutShipping.name, line1: checkoutShipping.line1, line2: checkoutShipping.line2, city: checkoutShipping.city, state: checkoutShipping.state, postalCode: checkoutShipping.postalCode, country: "US", phone: checkoutShipping.phone }, customerEmail: customerEmail ?? "", orderNumber });
     const attemptStatus = charge.status === "approved" ? "APPROVED" : charge.status === "held_for_review" ? "MANUAL_REVIEW" : charge.status === "declined" ? "DECLINED" : "FAILED";
     await prisma.paymentAttempt.create({ data: { orderId: readyOrder.id, provider: "AUTHORIZE_NET_MOCK", providerStatus: charge.status === "held_for_review" ? "MANUAL_REVIEW" : "DEVELOPMENT_APPROVED", status: attemptStatus, amountCents: readyOrder.totalCents, livePaymentEnabled: false, providerReference: JSON.stringify({ transId: charge.transId, card: options.cardSummary, responseCode: charge.responseCode, avsResultCode: charge.avsResultCode, cvvResultCode: charge.cvvResultCode }) } });
 
@@ -316,8 +319,8 @@ export async function createOrderRequestFromCart(options: { opaqueData?: Payment
     }
 
     const confirmation = buildOrderConfirmationEmail({ orderNumber: readyOrder.orderNumber, createdAt: readyOrder.createdAt, items: readyOrder.items, totalCents: readyOrder.totalCents, shippingAddress: readyOrder.shippingAddress!, hasRestrictedItems: readyOrder.items.some((item: { product: { restricted: boolean } }) => item.product.restricted) });
-    await logDebugEmail({ type: "ORDER_REQUEST_CONFIRMATION", to: session?.email ?? "guest@stunfry.example", subject: confirmation.subject, text: confirmation.text, orderId: readyOrder.id, metadata: { orderNumber: readyOrder.orderNumber } }).catch(() => undefined);
-    const adminEmail = buildAdminNewOrderEmail({ orderNumber: readyOrder.orderNumber, customerEmail: session?.email, totalCents: readyOrder.totalCents, hasRestrictedItems: readyOrder.items.some((item: { product: { restricted: boolean } }) => item.product.restricted), shippingState: readyOrder.shippingAddress?.state, shippingPostalCode: readyOrder.shippingAddress?.postalCode, adminOrderUrl: `/admin/orders/${readyOrder.orderNumber}` });
+    await logDebugEmail({ type: "ORDER_REQUEST_CONFIRMATION", to: readyOrder.customerEmail ?? customerEmail ?? "", subject: confirmation.subject, text: confirmation.text, orderId: readyOrder.id, metadata: { orderNumber: readyOrder.orderNumber } }).catch(() => undefined);
+    const adminEmail = buildAdminNewOrderEmail({ orderNumber: readyOrder.orderNumber, customerEmail: readyOrder.customerEmail ?? customerEmail, totalCents: readyOrder.totalCents, hasRestrictedItems: readyOrder.items.some((item: { product: { restricted: boolean } }) => item.product.restricted), shippingState: readyOrder.shippingAddress?.state, shippingPostalCode: readyOrder.shippingAddress?.postalCode, adminOrderUrl: `/admin/orders/${readyOrder.orderNumber}` });
     await logDebugEmail({ type: "ADMIN_NEW_ORDER", to: process.env.ADMIN_ORDER_EMAIL || process.env.ADMIN_EMAIL || "linhochingfelix@gmail.com", subject: adminEmail.subject, text: adminEmail.text, orderId: readyOrder.id, metadata: { orderNumber: readyOrder.orderNumber } }).catch(() => undefined);
 
     const recipients = await prisma.notificationRecipient.findMany({ where: { enabled: true, orderAlerts: true } });

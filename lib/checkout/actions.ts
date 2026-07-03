@@ -123,7 +123,7 @@ export async function submitCheckoutAction(formData: FormData) {
 
   let order;
   try {
-    order = await createOrderRequestFromCart({ opaqueData: opaqueData as any, cardSummary, billingAddress });
+    order = await createOrderRequestFromCart({ opaqueData: opaqueData as any, cardSummary, billingAddress, shippingAddress: { name, line1, line2, city, state, postalCode, country: "US", phone }, customerEmail: email, customerName: name });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Checkout could not be completed.";
     if (message.startsWith("Only ")) redirect(`/checkout?error=stock&message=${encodeURIComponent(message)}`);

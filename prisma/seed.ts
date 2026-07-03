@@ -34,19 +34,33 @@ async function main() {
     update: {},
     create: { id: "role_fulfillment", code: "FULFILLMENT", name: "Fulfillment", description: "Shipping dashboard and shipment action access." },
   });
-  // Local development seed credential only. Replace before production.
-  const ownerPasswordHash = hashPassword("linhochingfelix");
-  const owner = await prisma.adminUser.upsert({
-    where: { email: "linhochingfelix@gmail.com" },
-    update: { name: "Felix Lin", passwordHash: ownerPasswordHash, roleId: ownerRole.id, status: "ACTIVE" },
-    create: { id: "admin_owner", email: "linhochingfelix@gmail.com", name: "Felix Lin", passwordHash: ownerPasswordHash, roleId: ownerRole.id, status: "ACTIVE" },
-  });
-  const shippingPasswordHash = hashPassword("shipping123");
-  await prisma.adminUser.upsert({
-    where: { email: "shipping@example.com" },
-    update: { name: "Shipping Employee", passwordHash: shippingPasswordHash, roleId: fulfillmentRole.id, status: "ACTIVE" },
-    create: { id: "admin_fulfillment", email: "shipping@example.com", name: "Shipping Employee", passwordHash: shippingPasswordHash, roleId: fulfillmentRole.id, status: "ACTIVE" },
-  });
+  let owner: { id: string } | null = null;
+  if (process.env.NODE_ENV === "production") {
+    if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
+      const productionPasswordHash = hashPassword(process.env.ADMIN_PASSWORD);
+      owner = await prisma.adminUser.upsert({
+        where: { email: process.env.ADMIN_EMAIL.trim().toLowerCase() },
+        update: { name: "Production Admin", passwordHash: productionPasswordHash, roleId: ownerRole.id, status: "ACTIVE" },
+        create: { id: "admin_owner", email: process.env.ADMIN_EMAIL.trim().toLowerCase(), name: "Production Admin", passwordHash: productionPasswordHash, roleId: ownerRole.id, status: "ACTIVE" },
+      });
+    } else {
+      console.warn("Skipping production admin seed because ADMIN_EMAIL and ADMIN_PASSWORD are not configured.");
+    }
+  } else {
+    // Local development seed credential only. Replace before production.
+    const ownerPasswordHash = hashPassword("linhochingfelix");
+    owner = await prisma.adminUser.upsert({
+      where: { email: "linhochingfelix@gmail.com" },
+      update: { name: "Felix Lin", passwordHash: ownerPasswordHash, roleId: ownerRole.id, status: "ACTIVE" },
+      create: { id: "admin_owner", email: "linhochingfelix@gmail.com", name: "Felix Lin", passwordHash: ownerPasswordHash, roleId: ownerRole.id, status: "ACTIVE" },
+    });
+    const shippingPasswordHash = hashPassword("shipping123");
+    await prisma.adminUser.upsert({
+      where: { email: "shipping@example.com" },
+      update: { name: "Shipping Employee", passwordHash: shippingPasswordHash, roleId: fulfillmentRole.id, status: "ACTIVE" },
+      create: { id: "admin_fulfillment", email: "shipping@example.com", name: "Shipping Employee", passwordHash: shippingPasswordHash, roleId: fulfillmentRole.id, status: "ACTIVE" },
+    });
+  }
 
   await prisma.storefrontSettings.upsert({
     where: { key: "default" },
@@ -295,7 +309,7 @@ async function main() {
   }
   await prisma.paymentAttempt.create({ data: { id: "pay_mock_dev_seed", order: { create: { id: "order_seed_payment", orderNumber: "DEV-PAYMENT-SEED", status: "READY_FOR_PAYMENT", totalCents: 0, liveCheckoutEnabled: false, liveFulfillmentEnabled: false } }, provider: "AUTHORIZE_NET_MOCK", providerStatus: "DEVELOPMENT_APPROVED", status: "APPROVED", amountCents: 0, livePaymentEnabled: false, providerReference: "MOCK-TXN-DEV-PAYMENT-SEED" } }).catch(() => undefined);
   await prisma.paymentAttempt.create({ data: { id: "pay_nmi_manual_review_seed", order: { connect: { id: "order_seed_payment" } }, provider: "NMI", providerStatus: "MANUAL_REVIEW", status: "MANUAL_REVIEW", amountCents: 0, livePaymentEnabled: false, providerReference: "nmi-manual-review-until-approved" } }).catch(() => undefined);
-  await prisma.auditLog.create({ data: { actorAdminId: owner.id, action: "SEED", entityType: "database", entityId: "phase_2b", note: "Seeded Phase 2B storefront content and owner-admin examples on top of Phase 1 foundation with manual-review legal defaults and disabled launch gates." } });
+  await prisma.auditLog.create({ data: { actorAdminId: owner?.id, action: "SEED", entityType: "database", entityId: "phase_2b", note: "Seeded Phase 2B storefront content and owner-admin examples on top of Phase 1 foundation with manual-review legal defaults and disabled launch gates." } });
 }
 
 main().finally(async () => prisma.$disconnect());
