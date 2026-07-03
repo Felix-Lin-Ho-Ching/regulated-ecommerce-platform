@@ -1,0 +1,103 @@
+import { PrismaClient } from "@prisma/client";
+import { getCatalogProducts } from "../lib/db/catalog";
+import { processOrderPayment } from "../lib/payments/payment-service";
+import { releaseOrderAfterPaymentApproval } from "../lib/orders/order-service";
+import { getFulfillmentOrdersForAdmin } from "../lib/fulfillment/admin-queries";
+import { shipSingleOrder } from "../lib/fulfillment/ship-orders";
+import { createProduct, updateProduct } from "../lib/products/service";
+import type { ProductFormInput } from "../lib/products/validation";
+import type { AdminSession } from "../lib/admin/auth";
+
+const prisma = new PrismaClient();
+const run = `regression-${Date.now()}`;
+const slug = `${run}-draft-device`;
+const sku = `REG-${Date.now()}`;
+function assert(condition: unknown, message: string): asserts condition { if (!condition) throw new Error(message); }
+
+async function cleanup() {
+  if (!process.env.DATABASE_URL) return;
+  const orders = await prisma.order.findMany({ where: { orderNumber: { startsWith: "REG-" } }, select: { id: true } });
+  const orderIds = orders.map((o: { id: string }) => o.id);
+  const orderItemIds = orderIds.length ? (await prisma.orderItem.findMany({ where: { orderId: { in: orderIds } }, select: { id: true } })).map((i: { id: string }) => i.id) : [];
+  if (orderIds.length) {
+    await prisma.emailLog.deleteMany({ where: { orderId: { in: orderIds } } });
+    await prisma.fulfillmentToken.deleteMany({ where: { orderId: { in: orderIds } } });
+    await prisma.inventoryReservation.deleteMany({ where: { orderItemId: { in: orderItemIds } } });
+    await prisma.paymentAttempt.deleteMany({ where: { orderId: { in: orderIds } } });
+    await prisma.shippingAddress.deleteMany({ where: { orderId: { in: orderIds } } });
+    await prisma.orderItem.deleteMany({ where: { orderId: { in: orderIds } } });
+    await prisma.auditLog.deleteMany({ where: { entityType: "Order", entityId: { in: orderIds } } });
+    await prisma.order.deleteMany({ where: { id: { in: orderIds } } });
+  }
+  const products = await prisma.product.findMany({ where: { slug: { startsWith: "regression-" } }, include: { variants: true } });
+  const productIds = products.map((p: { id: string }) => p.id);
+  const variantIds = products.flatMap((p: { variants: Array<{ id: string }> }) => p.variants.map((v: { id: string }) => v.id));
+  if (variantIds.length) {
+    const invIds = (await prisma.inventory.findMany({ where: { variantId: { in: variantIds } }, select: { id: true } })).map((i: { id: string }) => i.id);
+    await prisma.inventoryReservation.deleteMany({ where: { inventoryId: { in: invIds } } });
+    await prisma.inventoryTransaction.deleteMany({ where: { inventoryId: { in: invIds } } });
+    await prisma.inventory.deleteMany({ where: { variantId: { in: variantIds } } });
+    await prisma.productVariant.deleteMany({ where: { id: { in: variantIds } } });
+  }
+  if (productIds.length) {
+    await prisma.productFeature.deleteMany({ where: { productId: { in: productIds } } });
+    await prisma.productMedia.deleteMany({ where: { productId: { in: productIds } } });
+    await prisma.productContentSection.deleteMany({ where: { productId: { in: productIds } } });
+    await prisma.productIncludedItem.deleteMany({ where: { productId: { in: productIds } } });
+    await prisma.productSpec.deleteMany({ where: { productId: { in: productIds } } });
+    await prisma.productFAQ.deleteMany({ where: { productId: { in: productIds } } });
+    await prisma.product.deleteMany({ where: { id: { in: productIds } } });
+  }
+  await prisma.adminUser.deleteMany({ where: { email: { endsWith: "@regression.local" } } });
+}
+
+async function productInput(categoryId: string, overrides: Partial<ProductFormInput> = {}): Promise<ProductFormInput> {
+  return { name: "Regression Draft Device", slug, brand: "Stun Fry", categoryId, restrictedClass: "STUN_GUN", description: "Regression product", status: "DRAFT", restricted: true, sku, priceCents: 4999, stockQuantity: 5, lowStockThreshold: 1, auditNote: "regression", features: [{ code: "safe", label: "Safety", value: "Preserved", restrictedRelevant: true }], media: [], contentSections: [{ sectionKey: "overview", title: "Overview", body: "Preserved section", sortOrder: 0 }], includedItems: [{ label: "Cable", quantity: 1, sortOrder: 0 }], specs: [{ label: "Battery", value: "Rechargeable", sortOrder: 0 }], faqs: [{ question: "Works?", answer: "Yes", sortOrder: 0 }], ...overrides };
+}
+
+async function makeOrder(product: any, variant: any, mode: string, state = "TX") {
+  return prisma.order.create({ data: { orderNumber: `REG-${mode}-${Date.now()}-${Math.floor(Math.random()*1000)}`, status: "PENDING_PAYMENT", fulfillmentStatus: "FULFILLMENT_HOLD", subtotalCents: 4999, shippingCents: 0, taxCents: 0, totalCents: 4999, customerEmail: "buyer@regression.local", customerName: "Regression Buyer", liveCheckoutEnabled: false, liveFulfillmentEnabled: false, paymentMode: mode, eligibilityResult: state === "TX" ? "AUTO_ELIGIBLE" : "BLOCKED", shippingAddress: { create: { name: "Regression Buyer", line1: "1 Main", city: "Austin", state, postalCode: state === "TX" ? "78701" : "96801", normalized: true, deliverable: true } }, items: { create: { productId: product.id, variantId: variant.id, name: product.name, sku, quantity: 1, unitPriceCents: 4999 } } }, include: { items: true } });
+}
+
+async function main() {
+  if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required for regression smoke tests.");
+  await cleanup();
+  const category = await prisma.productCategory.upsert({ where: { slug: "stun-guns" }, update: {}, create: { slug: "stun-guns", name: "Stun Guns" } });
+  const id = await createProduct(await productInput(category.id));
+  assert(!(await getCatalogProducts()).some((p) => p.id === id), "Draft product appeared on storefront.");
+  await updateProduct(await productInput(category.id, { id, status: "ACTIVE", media: [{ type: "IMAGE", url: "/uploads/regression.jpg", alt: "Regression image", title: "Image", sortOrder: 0 }, { type: "YOUTUBE", url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", youtubeVideoId: "dQw4w9WgXcQ", title: "Video", sortOrder: 1 }] }));
+  let saved = await prisma.product.findUniqueOrThrow({ where: { id }, include: { media: { orderBy: { sortOrder: "asc" } }, contentSections: true, includedItems: true, specs: true, faqs: true, features: true, variants: { include: { inventory: true } } } });
+  assert(saved.status === "ACTIVE" && saved.media.length === 2 && saved.media[1].type === "YOUTUBE" && saved.media[1].youtubeVideoId === "dQw4w9WgXcQ", "Active product media did not persist/reload.");
+  assert((await getCatalogProducts()).some((p) => p.id === id && p.media.some((m) => m.type === "YOUTUBE" && m.youtubeVideoId)), "Active product with media did not render in storefront catalog data.");
+  await updateProduct(await productInput(category.id, { id, status: "ACTIVE", name: "Regression Renamed", media: saved.media.map((m: any) => ({ type: m.type === "YOUTUBE" ? "YOUTUBE" : "IMAGE", url: m.url, thumbnailUrl: m.thumbnailUrl ?? undefined, youtubeVideoId: m.youtubeVideoId ?? undefined, alt: m.alt ?? undefined, title: m.title ?? undefined, sortOrder: m.sortOrder })) }));
+  saved = await prisma.product.findUniqueOrThrow({ where: { id }, include: { media: true, contentSections: true, includedItems: true, specs: true, faqs: true, features: true, variants: { include: { inventory: true } } } });
+  assert(saved.media.length === 2 && saved.contentSections.length === 1 && saved.includedItems.length === 1 && saved.specs.length === 1 && saved.faqs.length === 1 && saved.features.length === 1, "Unrelated product save wiped media or repeatable content.");
+  await updateProduct(await productInput(category.id, { id, status: "ARCHIVED", auditNote: "archive regression", media: saved.media.map((m: any) => ({ type: m.type === "YOUTUBE" ? "YOUTUBE" : "IMAGE", url: m.url, youtubeVideoId: m.youtubeVideoId ?? undefined, sortOrder: m.sortOrder })) }));
+  assert(!(await getCatalogProducts()).some((p) => p.id === id), "Archived product appeared on storefront.");
+
+  const role = await prisma.adminRole.upsert({ where: { code: "FULFILLMENT" }, update: {}, create: { code: "FULFILLMENT", name: "Fulfillment" } });
+  const admin = await prisma.adminUser.create({ data: { email: `${run}@regression.local`, name: "Regression Fulfillment", passwordHash: "x", roleId: role.id } });
+  const actor: AdminSession = { adminId: admin.id, email: admin.email, name: admin.name, role: "FULFILLMENT", demo: false };
+  const variant = saved.variants[0];
+  const approved = await makeOrder(saved, variant, "approved");
+  const approvedPayment = await processOrderPayment(prisma, approved, "mock_card", { cardNumber: "4111111111111111", expiration: "12/30", cvv: "123", nameOnCard: "Regression Buyer", postalCode: "78701" });
+  assert(approvedPayment.paymentAttempt.status === "APPROVED" && !JSON.stringify(approvedPayment.paymentAttempt).includes("4111111111111111") && !JSON.stringify(approvedPayment.paymentAttempt).includes("123"), "Approved payment failed or stored raw card data.");
+  await releaseOrderAfterPaymentApproval(approved.id, { email: "regression", role: "SYSTEM" });
+  const paid = await prisma.order.findUniqueOrThrow({ where: { id: approved.id }, include: { paymentAttempts: true, shippingAddress: true } });
+  assert(paid.status === "PAID" && paid.fulfillmentStatus === "READY_TO_SHIP" && paid.paymentAttempts.some((p: { status: string }) => p.status === "APPROVED"), "Approved order/payment state is inconsistent.");
+  assert((await getFulfillmentOrdersForAdmin(actor)).some((o) => o.id === approved.id), "Paid approved order was not released to fulfillment.");
+  await prisma.order.update({ where: { id: approved.id }, data: { fulfillmentStatus: "PICKING", assignedFulfillmentUserId: admin.id, assignedAt: new Date() } });
+  const shipped = await shipSingleOrder({ orderId: approved.id, actor, carrier: "UPS", trackingNumber: "1ZREGRESSION" });
+  assert(shipped.shipped, "Claimed paid order did not ship.");
+
+  for (const [label, card] of Object.entries({ zip: { cardNumber: "4111111111111111", expiration: "12/30", cvv: "123", nameOnCard: "Regression Buyer", postalCode: "46282" }, cvv: { cardNumber: "4111111111111111", expiration: "12/30", cvv: "901", nameOnCard: "Regression Buyer", postalCode: "78701" }, expired: { cardNumber: "4111111111111111", expiration: "01/20", cvv: "123", nameOnCard: "Regression Buyer", postalCode: "78701" } })) {
+    const order = await makeOrder(saved, variant, `declined-${label}`);
+    const result = await processOrderPayment(prisma, order, "mock_card", card);
+    assert(result.paymentAttempt.status === "DECLINED", `${label} did not decline.`);
+    assert(!(await getFulfillmentOrdersForAdmin(actor)).some((o) => o.id === order.id), `${label} declined order entered fulfillment.`);
+  }
+  const blocked = await makeOrder(saved, variant, "blocked-hi", "HI");
+  assert(blocked.eligibilityResult === "BLOCKED" && !(await getFulfillmentOrdersForAdmin(actor)).some((o) => o.id === blocked.id), "Blocked-state order entered fulfillment.");
+  console.log("Regression smoke passed: product persistence/media, storefront visibility, payment, fulfillment, and consistency checks.");
+}
+main().catch((e) => { console.error(e); process.exitCode = 1; }).finally(async () => { await cleanup().catch((e) => console.error("Cleanup failed", e)); await prisma.$disconnect(); });
