@@ -20,9 +20,9 @@ type AdminProductRow = {
   status: string;
   restricted: boolean;
   archivedAt: Date | null;
-  variants: Array<{ id: string; sku: string; priceCents: number; inventory: { onHand: number; reserved: number } | null }>;
+  variants: Array<{ id: string; sku: string; priceCents: number; inventory: { onHand: number; reserved: number; reorderThreshold: number } | null }>;
   features: Array<{ code: string; label: string; value: string; restrictedRelevant: boolean }>;
-  media: Array<{ id: string; type: "IMAGE" | "VIDEO"; url: string; thumbnailUrl: string | null; alt: string | null; title: string | null; sortOrder: number }>;
+  media: Array<{ id: string; type: "IMAGE" | "VIDEO" | "YOUTUBE"; url: string; thumbnailUrl: string | null; youtubeVideoId: string | null; alt: string | null; title: string | null; sortOrder: number }>;
   contentSections: Array<{ sectionKey: string; eyebrow: string | null; title: string; body: string | null; imageUrl: string | null; videoUrl: string | null; ctaLabel: string | null; ctaHref: string | null; sortOrder: number }>;
   includedItems: Array<{ label: string; description: string | null; quantity: number; sortOrder: number }>;
   specs: Array<{ label: string; value: string; group: string | null; sortOrder: number }>;
@@ -50,7 +50,7 @@ function toAdminProductDetail(product: AdminProductRow): AdminProductDetail {
     stock: variant?.inventory?.onHand ?? 0,
     reserved: variant?.inventory?.reserved ?? 0,
     features: product.features.map((feature) => ({ code: feature.code, label: feature.label, value: feature.value, restrictedRelevant: feature.restrictedRelevant })),
-    media: product.media.map((media) => ({ type: media.type, url: media.url, thumbnailUrl: media.thumbnailUrl ?? undefined, alt: media.alt ?? undefined, title: media.title ?? undefined, sortOrder: media.sortOrder })),
+    media: product.media.map((media) => ({ type: media.type, url: media.url, thumbnailUrl: media.thumbnailUrl ?? undefined, youtubeVideoId: media.youtubeVideoId ?? undefined, alt: media.alt ?? undefined, title: media.title ?? undefined, sortOrder: media.sortOrder })),
     contentSections: product.contentSections.map((section) => ({ sectionKey: section.sectionKey, eyebrow: section.eyebrow ?? undefined, title: section.title, body: section.body ?? undefined, imageUrl: section.imageUrl ?? undefined, videoUrl: section.videoUrl ?? undefined, ctaLabel: section.ctaLabel ?? undefined, ctaHref: section.ctaHref ?? undefined, sortOrder: section.sortOrder })),
     includedItems: product.includedItems.map((item) => ({ label: item.label, description: item.description ?? undefined, quantity: item.quantity, sortOrder: item.sortOrder })),
     specs: product.specs.map((spec) => ({ label: spec.label, value: spec.value, group: spec.group ?? undefined, sortOrder: spec.sortOrder })),
@@ -116,6 +116,7 @@ async function replaceMedia(productId: string, mediaRows: ProductMediaInput[]) {
         thumbnailUrl: media.thumbnailUrl,
         alt: media.alt,
         title: media.title,
+        youtubeVideoId: media.youtubeVideoId,
         sortOrder: media.sortOrder,
       },
     });
@@ -152,7 +153,7 @@ export async function createProduct(input: ProductFormInput): Promise<string> {
           name: "Default",
           priceCents: input.priceCents,
           status: input.status === "ARCHIVED" ? "ARCHIVED" : "ACTIVE",
-          inventory: { create: { onHand: 0, reserved: 0, reorderThreshold: 0 } },
+          inventory: { create: { onHand: input.stockQuantity, reserved: 0, reorderThreshold: input.lowStockThreshold } },
         },
       },
     },
@@ -190,7 +191,7 @@ export async function updateProduct(input: ProductFormInput) {
   if (variant) {
     await prisma.productVariant.update({
       where: { id: variant.id },
-      data: { sku: input.sku, priceCents: input.priceCents },
+      data: { sku: input.sku, priceCents: input.priceCents, inventory: { upsert: { create: { onHand: input.stockQuantity, reserved: 0, reorderThreshold: input.lowStockThreshold }, update: { onHand: input.stockQuantity, reorderThreshold: input.lowStockThreshold } } } },
     });
   } else {
     await prisma.productVariant.create({
@@ -200,7 +201,7 @@ export async function updateProduct(input: ProductFormInput) {
         name: "Default",
         priceCents: input.priceCents,
         status: "ACTIVE",
-        inventory: { create: { onHand: 0, reserved: 0, reorderThreshold: 0 } },
+        inventory: { create: { onHand: input.stockQuantity, reserved: 0, reorderThreshold: input.lowStockThreshold } },
       },
     });
   }

@@ -9,9 +9,10 @@ export type CatalogSpec = { label: string; value: string; group?: string; sortOr
 export type CatalogFAQ = { question: string; answer: string; sortOrder: number };
 
 export type CatalogProductMedia = {
-  type: "IMAGE" | "VIDEO";
+  type: "IMAGE" | "VIDEO" | "YOUTUBE";
   url: string;
   thumbnailUrl?: string;
+  youtubeVideoId?: string;
   alt?: string;
   title?: string;
   sortOrder: number;
@@ -44,7 +45,7 @@ type CatalogProductRow = {
     restrictedRelevant: boolean;
   }>;
   media: Array<{
-    type: "IMAGE" | "VIDEO";
+    type: "IMAGE" | "VIDEO" | "YOUTUBE";
     url: string;
     thumbnailUrl: string | null;
     alt: string | null;

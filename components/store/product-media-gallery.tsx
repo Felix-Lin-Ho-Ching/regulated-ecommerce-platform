@@ -5,6 +5,9 @@ import { useMemo, useState } from "react";
 import type { CatalogProductMedia } from "@/lib/db/catalog";
 
 function MediaViewer({ media, productName }: { media: CatalogProductMedia; productName: string }) {
+  if (media.type === "YOUTUBE" && media.youtubeVideoId) {
+    return <div className="aspect-video w-full overflow-hidden rounded-[1.75rem] bg-black"><iframe className="h-full w-full" src={`https://www.youtube-nocookie.com/embed/${media.youtubeVideoId}`} title={media.title ?? `${productName} YouTube video`} aria-label={media.title ?? `${productName} YouTube video`} allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen /></div>;
+  }
   if (media.type === "VIDEO") {
     return <video className="aspect-video w-full rounded-[1.75rem] bg-black object-contain" controls poster={media.thumbnailUrl} preload="metadata"><source src={media.url} />Your browser does not support video playback.</video>;
   }
@@ -27,8 +30,8 @@ export function ProductMediaGallery({ media, productName }: { media: CatalogProd
       <div className="grid grid-cols-4 gap-3 sm:grid-cols-5" role="list" aria-label="Product media thumbnails">
         {orderedMedia.map((item, index) => (
           <button className={`relative overflow-hidden rounded-2xl border-2 bg-stone-100 p-1 text-left focus-ring ${activeIndex === index ? "border-teal-800" : "border-transparent"}`} key={`${item.url}-${item.sortOrder}`} onClick={() => setActiveIndex(index)} type="button">
-            {item.type === "VIDEO" ? <span className="absolute left-2 top-2 rounded-full bg-black/75 px-2 py-1 text-[10px] font-black uppercase text-white">Video</span> : null}
-            <img className="aspect-square w-full rounded-xl object-cover" src={item.thumbnailUrl ?? item.url} alt={item.alt ?? `${productName} media ${index + 1}`} />
+            {item.type !== "IMAGE" ? <span className="absolute left-2 top-2 rounded-full bg-black/75 px-2 py-1 text-[10px] font-black uppercase text-white">{item.type === "YOUTUBE" ? "YouTube" : "Video"}</span> : null}
+            <img className="aspect-square w-full rounded-xl object-cover" src={item.thumbnailUrl ?? (item.type === "YOUTUBE" && item.youtubeVideoId ? `https://img.youtube.com/vi/${item.youtubeVideoId}/hqdefault.jpg` : item.url)} alt={item.alt ?? `${productName} media ${index + 1}`} />
           </button>
         ))}
       </div>

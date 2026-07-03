@@ -18,7 +18,9 @@ function ProductImagePlaceholder({ name }: { name: string }) {
 function ProductCardMedia({ product }: { product: CatalogProduct }) {
   const image = product.media.find((media) => media.type === "IMAGE");
   const videoThumbnail = product.media.find((media) => media.type === "VIDEO" && media.thumbnailUrl)?.thumbnailUrl;
-  const imageUrl = image?.url ?? videoThumbnail;
+  const youtube = product.media.find((media) => media.type === "YOUTUBE" && media.youtubeVideoId);
+  const youtubeThumbnail = youtube?.thumbnailUrl ?? (youtube?.youtubeVideoId ? `https://img.youtube.com/vi/${youtube.youtubeVideoId}/hqdefault.jpg` : undefined);
+  const imageUrl = image?.url ?? videoThumbnail ?? youtubeThumbnail;
   if (!imageUrl) return <ProductImagePlaceholder name={product.name} />;
 
   return (
