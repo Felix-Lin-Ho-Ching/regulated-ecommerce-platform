@@ -9,6 +9,12 @@ import { parseProductForm, ProductFormValidationError, type ProductMediaType } f
 import { requireAdminSession } from "@/lib/admin/auth";
 import { PRODUCT_IMAGE_MAX_BYTES, PRODUCT_IMAGE_MEDIA_TYPES, ProductMediaStorageError, storeProductMediaFile } from "@/lib/storage/product-media-storage";
 
+function productSaveError(error: unknown): ProductActionState {
+  const message = error instanceof Error ? error.message : "Product could not be saved.";
+  if (message.includes("Unique constraint") || message.includes("P2002")) return { error: "Product could not be saved: slug and SKU must be unique." };
+  return { error: message };
+}
+
 export type ProductActionState = AdminActionState;
 
 async function saveProductMediaUpload(file: File, type: ProductMediaType, role: "media" | "thumbnail"): Promise<string> {
@@ -39,7 +45,12 @@ export async function createProductAction(_state: ProductActionState, formData: 
     throw error;
   }
   const note = optionalAuditNote(input.auditNote, "Owner created product.");
-  const productId = await createProduct(input);
+  let productId: string;
+  try {
+    productId = await createProduct(input);
+  } catch (error) {
+    return productSaveError(error);
+  }
 
   await createAuditLog({ action: "CREATE", entityType: "Product", entityId: productId, note, metadata: { restricted: input.restricted, status: input.status } });
 
@@ -65,7 +76,11 @@ export async function updateProductAction(_state: ProductActionState, formData: 
   const noteResult = requiresManualReason ? validateManualReason(input.auditNote) : { note: optionalAuditNote(input.auditNote, "Owner updated product details.") };
   if ("error" in noteResult) return noteResult;
 
-  await updateProduct(input);
+  try {
+    await updateProduct(input);
+  } catch (error) {
+    return productSaveError(error);
+  }
   await createAuditLog({ action: "UPDATE", entityType: "Product", entityId: input.id, note: noteResult.note, metadata: { restricted: input.restricted, status: input.status } });
 
   revalidatePath("/admin/products");

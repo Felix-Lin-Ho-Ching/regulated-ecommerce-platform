@@ -1,9 +1,11 @@
 import { detectMediaKindFromUpload, isUploadFile } from "@/lib/media/upload-detection";
 
-export const productStatuses = ["DRAFT", "ACTIVE", "INACTIVE", "ARCHIVED", "RESTRICTED_REVIEW"] as const;
+export const productStatuses = ["DRAFT", "ACTIVE", "ARCHIVED"] as const;
 export const restrictedClassOptions = ["STUN_GUN"] as const;
 export const productMediaTypes = ["IMAGE", "YOUTUBE"] as const;
-export const maxProductMediaRows = 12;
+export const maxProductImageRows = 8;
+export const maxProductYoutubeRows = 2;
+export const maxProductMediaRows = 10;
 export const maxProductContentRows = 10;
 export const maxProductIncludedRows = 12;
 export const maxProductSpecRows = 30;
@@ -179,6 +181,12 @@ async function parseMediaRows(formData: FormData, resolveUpload?: MediaUploadRes
     });
   }
 
+  const imageCount = rows.filter((row) => row.type === "IMAGE").length;
+  const youtubeCount = rows.filter((row) => row.type === "YOUTUBE").length;
+  if (imageCount > maxProductImageRows) throw new ProductFormValidationError(`Product media limit reached: use at most ${maxProductImageRows} images.`);
+  if (youtubeCount > maxProductYoutubeRows) throw new ProductFormValidationError(`Product media limit reached: use at most ${maxProductYoutubeRows} YouTube videos.`);
+  if (rows.length > maxProductMediaRows) throw new ProductFormValidationError(`Product media limit reached: use at most ${maxProductMediaRows} total media items.`);
+
   return rows;
 }
 
@@ -209,21 +217,38 @@ function parseFaqs(formData: FormData): ProductFAQInput[] {
 }
 
 export async function parseProductForm(formData: FormData, resolveUpload?: MediaUploadResolver): Promise<ProductFormInput> {
-  const name = text(formData, "name") || "Untitled product";
+  const name = text(formData, "name");
+  const slug = slugify(text(formData, "slug") || name);
+  const sku = text(formData, "sku");
+  const categoryId = text(formData, "categoryId") || undefined;
+  const priceCents = centsFromDollars(text(formData, "price"));
   const restricted = formData.get("restricted") === "on";
+  const restrictedClass = restricted ? oneOf(text(formData, "restrictedClass"), restrictedClassOptions, "STUN_GUN") : undefined;
+  const intent = text(formData, "intent");
+  const status = intent === "draft" ? "DRAFT" : intent === "publish" ? "ACTIVE" : intent === "archive" ? "ARCHIVED" : oneOf(text(formData, "status"), productStatuses, "DRAFT");
+
+  const missing: string[] = [];
+  if (!name) missing.push("missing name");
+  if (!slug) missing.push("missing slug");
+  if (!sku) missing.push("missing SKU");
+  if (priceCents <= 0) missing.push("missing price");
+  if (!categoryId) missing.push("missing category");
+  if (restricted && !restrictedClass) missing.push("missing compliance class for restricted product");
+  if (status === "ACTIVE" && missing.length) throw new ProductFormValidationError(`Cannot publish product: ${missing.join(", ")}.`);
+  if (missing.length) throw new ProductFormValidationError(`Product details need fixes: ${missing.join(", ")}.`);
 
   return {
     id: text(formData, "id") || undefined,
     name,
-    slug: slugify(text(formData, "slug") || name),
+    slug,
     brand: text(formData, "brand") || "Stun Fry",
-    categoryId: text(formData, "categoryId") || undefined,
-    restrictedClass: restricted ? oneOf(text(formData, "restrictedClass"), restrictedClassOptions, "STUN_GUN") : undefined,
+    categoryId,
+    restrictedClass,
     description: text(formData, "description") || "Owner-managed product description pending.",
-    status: text(formData, "intent") === "draft" ? "DRAFT" : text(formData, "intent") === "publish" ? "ACTIVE" : oneOf(text(formData, "status"), productStatuses, "DRAFT"),
+    status,
     restricted,
-    sku: text(formData, "sku") || slugify(name).toUpperCase(),
-    priceCents: centsFromDollars(text(formData, "price")),
+    sku,
+    priceCents,
     stockQuantity: Math.max(0, intOrDefault(text(formData, "stockQuantity"), 0)),
     lowStockThreshold: Math.max(0, intOrDefault(text(formData, "lowStockThreshold"), 0)),
     features: Array.from({ length: maxProductFeatureRows }, (_, index) => ({
