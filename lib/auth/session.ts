@@ -13,7 +13,11 @@ const sessionCookieName = "stun_fry_customer";
 const fallbackSecret = "stun-fry-local-mvp-session-secret";
 
 function getSessionSecret() {
-  return process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || fallbackSecret;
+  const configuredSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+  if (process.env.NODE_ENV === "production" && !configuredSecret) {
+    throw new Error("AUTH_SECRET is required in production.");
+  }
+  return configuredSecret || fallbackSecret;
 }
 
 function signPayload(payload: string) {

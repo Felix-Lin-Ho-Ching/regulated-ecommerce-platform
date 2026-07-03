@@ -19,7 +19,11 @@ const adminSessionCookieName = "stun_fry_admin";
 const fallbackSecret = "stun-fry-local-mvp-admin-session-secret";
 
 function getSessionSecret() {
-  return process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || fallbackSecret;
+  const configuredSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+  if (process.env.NODE_ENV === "production" && !configuredSecret) {
+    throw new Error("AUTH_SECRET is required in production.");
+  }
+  return configuredSecret || fallbackSecret;
 }
 
 function signPayload(payload: string) {
@@ -64,6 +68,9 @@ function safeEquals(a: string, b: string) {
 }
 
 function getConfiguredAdminCredentials() {
+  if (process.env.NODE_ENV === "production" && (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD)) {
+    throw new Error("Admin credentials must be configured in production.");
+  }
   // Local development seed credential only. Replace before production.
   return {
     email: (process.env.ADMIN_EMAIL || "linhochingfelix@gmail.com").trim().toLowerCase(),

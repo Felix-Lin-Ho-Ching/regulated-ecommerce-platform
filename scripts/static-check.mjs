@@ -48,6 +48,39 @@ if(mode==='lint'){
     if(!seedText.includes(state)){ console.error(`Seed is missing required blocked stun-gun state ${state}.`); process.exit(1); }
   }
 
+
+  const adminAuth = readFileSync('lib/admin/auth.ts', 'utf8');
+  const customerSession = readFileSync('lib/auth/session.ts', 'utf8');
+  const orderService = readFileSync('lib/orders/order-service.ts', 'utf8');
+  if (!adminAuth.includes('process.env.NODE_ENV === "production" && !configuredSecret') || !customerSession.includes('process.env.NODE_ENV === "production" && !configuredSecret')) {
+    console.error('Production auth code must reject missing AUTH_SECRET before using fallback secrets.');
+    process.exit(1);
+  }
+  if (!adminAuth.includes('process.env.NODE_ENV === "production" && (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD)')) {
+    console.error('Production admin fallback auth must require ADMIN_EMAIL and ADMIN_PASSWORD.');
+    process.exit(1);
+  }
+  const productionSeedBranch = seedText.match(/if \(process\.env\.NODE_ENV === "production"\) \{[\s\S]*?\n  \} else \{/);
+  if (!productionSeedBranch) {
+    console.error('Seed must guard local default admin passwords behind a non-production branch.');
+    process.exit(1);
+  }
+  if (productionSeedBranch[0].includes('linhochingfelix') || productionSeedBranch[0].includes('shipping123')) {
+    console.error('Production seed branch must not create known default admin passwords.');
+    process.exit(1);
+  }
+  if (orderService.includes('customerEmail: session?.email') || orderService.includes('guest@stunfry.example')) {
+    console.error('Checkout order creation must use submitted customerEmail and must not fall back to guest@stunfry.example.');
+    process.exit(1);
+  }
+  const checkoutActionsForEmail = readFileSync('lib/checkout/actions.ts', 'utf8');
+  for (const requiredCheckoutEmailText of ['customerEmail: email', 'customerName: name', 'shippingAddress: { name, line1, line2, city, state, postalCode, country: "US", phone }']) {
+    if (!checkoutActionsForEmail.includes(requiredCheckoutEmailText)) {
+      console.error(`Checkout submit action missing submitted customer data: ${requiredCheckoutEmailText}`);
+      process.exit(1);
+    }
+  }
+
   const productForm = readFileSync('components/admin/products/product-form.tsx', 'utf8');
   const validation = readFileSync('lib/products/validation.ts', 'utf8');
   const gallery = readFileSync('components/store/product-media-gallery.tsx', 'utf8');
