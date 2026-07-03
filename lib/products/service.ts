@@ -191,7 +191,7 @@ export async function updateProduct(input: ProductFormInput) {
   if (variant) {
     await prisma.productVariant.update({
       where: { id: variant.id },
-      data: { sku: input.sku, priceCents: input.priceCents, inventory: { upsert: { create: { onHand: input.stockQuantity, reserved: 0, reorderThreshold: input.lowStockThreshold }, update: { onHand: input.stockQuantity, reorderThreshold: input.lowStockThreshold } } } },
+      data: { sku: input.sku, priceCents: input.priceCents, status: input.status === "ARCHIVED" ? "ARCHIVED" : "ACTIVE", inventory: { upsert: { create: { onHand: input.stockQuantity, reserved: 0, reorderThreshold: input.lowStockThreshold }, update: { onHand: input.stockQuantity, reorderThreshold: input.lowStockThreshold } } } },
     });
   } else {
     await prisma.productVariant.create({
