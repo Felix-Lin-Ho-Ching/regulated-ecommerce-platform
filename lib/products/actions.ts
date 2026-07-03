@@ -7,14 +7,14 @@ import { optionalAuditNote, reasonRequiredMessage, validateManualReason, type Ad
 import { archiveProduct, createProduct, getAdminProductById, restoreProduct, updateProduct } from "@/lib/products/service";
 import { parseProductForm, ProductFormValidationError, type ProductMediaType } from "@/lib/products/validation";
 import { requireAdminSession } from "@/lib/admin/auth";
-import { PRODUCT_IMAGE_MAX_BYTES, PRODUCT_IMAGE_MEDIA_TYPES, PRODUCT_VIDEO_MAX_BYTES, PRODUCT_VIDEO_MEDIA_TYPES, ProductMediaStorageError, storeProductMediaFile } from "@/lib/storage/product-media-storage";
+import { PRODUCT_IMAGE_MAX_BYTES, PRODUCT_IMAGE_MEDIA_TYPES, ProductMediaStorageError, storeProductMediaFile } from "@/lib/storage/product-media-storage";
 
 export type ProductActionState = AdminActionState;
 
 async function saveProductMediaUpload(file: File, type: ProductMediaType, role: "media" | "thumbnail"): Promise<string> {
   try {
-    const allowedTypes = role === "thumbnail" || type === "IMAGE" ? PRODUCT_IMAGE_MEDIA_TYPES : PRODUCT_VIDEO_MEDIA_TYPES;
-    const maxBytes = role === "thumbnail" || type === "IMAGE" ? PRODUCT_IMAGE_MAX_BYTES : PRODUCT_VIDEO_MAX_BYTES;
+    const allowedTypes = PRODUCT_IMAGE_MEDIA_TYPES;
+    const maxBytes = PRODUCT_IMAGE_MAX_BYTES;
     return (await storeProductMediaFile(file, { allowedTypes, maxBytes })).publicPath;
   } catch (error) {
     if (error instanceof ProductMediaStorageError) throw error;

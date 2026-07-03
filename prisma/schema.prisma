@@ -356,6 +356,7 @@ model ProductImage {
 enum ProductMediaType {
   IMAGE
   VIDEO
+  YOUTUBE
 }
 
 model HomepageMedia {
@@ -364,6 +365,7 @@ model HomepageMedia {
   type         ProductMediaType @default(IMAGE)
   url          String
   thumbnailUrl String?
+  youtubeVideoId String?
   alt          String?
   title        String?
   subtitle     String?
@@ -384,6 +386,7 @@ model ProductMedia {
   type         ProductMediaType @default(IMAGE)
   url          String
   thumbnailUrl String?
+  youtubeVideoId String?
   alt          String?
   title        String?
   sortOrder    Int              @default(0)

@@ -2,7 +2,7 @@ import { detectMediaKindFromUpload, isUploadFile } from "@/lib/media/upload-dete
 
 export const productStatuses = ["DRAFT", "ACTIVE", "INACTIVE", "ARCHIVED", "RESTRICTED_REVIEW"] as const;
 export const restrictedClassOptions = ["STUN_GUN"] as const;
-export const productMediaTypes = ["IMAGE", "VIDEO"] as const;
+export const productMediaTypes = ["IMAGE", "YOUTUBE"] as const;
 export const maxProductMediaRows = 6;
 export const maxProductContentRows = 7;
 export const maxProductIncludedRows = 8;
@@ -26,6 +26,7 @@ export type ProductMediaInput = {
   type: ProductMediaType;
   url: string;
   thumbnailUrl?: string;
+  youtubeVideoId?: string;
   alt?: string;
   title?: string;
   sortOrder: number;
@@ -48,6 +49,8 @@ export type ProductFormInput = {
   restricted: boolean;
   sku: string;
   priceCents: number;
+  stockQuantity: number;
+  lowStockThreshold: number;
   features: ProductFeatureInput[];
   media: ProductMediaInput[];
   contentSections: ProductContentSectionInput[];
@@ -87,6 +90,26 @@ function slugify(value: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
+export function extractYouTubeVideoId(value: string): string | undefined {
+  try {
+    const parsed = new URL(value);
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+    if (host === "youtu.be") return parsed.pathname.split("/").filter(Boolean)[0];
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      if (parsed.pathname === "/watch") return parsed.searchParams.get("v") || undefined;
+      const parts = parsed.pathname.split("/").filter(Boolean);
+      if (["embed", "shorts", "live"].includes(parts[0])) return parts[1];
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
+function isValidYouTubeVideoId(value: string): boolean {
+  return /^[A-Za-z0-9_-]{11}$/.test(value);
+}
+
 function isValidMediaUrl(value: string): boolean {
   if (value.startsWith("/")) return !value.startsWith("//");
   try {
@@ -106,6 +129,7 @@ async function parseMediaRows(formData: FormData, resolveUpload?: MediaUploadRes
     let type = oneOf(text(formData, `mediaType${index}`), productMediaTypes, "IMAGE");
     const url = text(formData, `mediaUrl${index}`);
     const thumbnailUrl = text(formData, `mediaThumbnailUrl${index}`);
+    const youtubeUrl = text(formData, `mediaYoutubeUrl${index}`);
     const alt = text(formData, `mediaAlt${index}`);
     const title = text(formData, `mediaTitle${index}`);
     const sortOrderValue = text(formData, `mediaSortOrder${index}`);
@@ -114,12 +138,15 @@ async function parseMediaRows(formData: FormData, resolveUpload?: MediaUploadRes
     const hasUpload = isUploadFile(uploadFile);
     const hasThumbnailUpload = isUploadFile(thumbnailUploadFile);
     const detectedMediaType = detectMediaKindFromUpload(uploadFile);
-    const hasVisibleInput = Boolean(url || thumbnailUrl || alt || title || sortOrderValue || hasUpload || hasThumbnailUpload);
+    const hasVisibleInput = Boolean(url || youtubeUrl || thumbnailUrl || alt || title || sortOrderValue || hasUpload || hasThumbnailUpload);
 
     if (!hasVisibleInput) continue;
-    if (hasUpload && !detectedMediaType) throw new ProductFormValidationError(`Media row ${index + 1}: Unsupported media file. Upload a JPEG, PNG, WebP, MP4, WebM, or MOV file.`);
-    if (detectedMediaType) type = detectedMediaType;
-    if (!url && !hasUpload) throw new ProductFormValidationError(`Media row ${index + 1}: Media URL or uploaded file is required when media details are provided.`);
+    if (hasUpload && !detectedMediaType) throw new ProductFormValidationError(`Media row ${index + 1}: Unsupported media file. Upload a JPEG, PNG, or WebP image.`);
+    if (detectedMediaType) type = "IMAGE";
+    const youtubeVideoId = youtubeUrl ? extractYouTubeVideoId(youtubeUrl) : undefined;
+    if (youtubeUrl) type = "YOUTUBE";
+    if (youtubeUrl && (!youtubeVideoId || !isValidYouTubeVideoId(youtubeVideoId))) throw new ProductFormValidationError(`Media row ${index + 1}: enter a valid YouTube URL.`);
+    if (!url && !youtubeUrl && !hasUpload) throw new ProductFormValidationError(`Media row ${index + 1}: Media URL, YouTube URL, or uploaded image is required when media details are provided.`);
     if (url && !isValidMediaUrl(url)) throw new ProductFormValidationError(`Media row ${index + 1}: enter a valid http(s) or local URL.`);
     if (thumbnailUrl && !isValidMediaUrl(thumbnailUrl)) throw new ProductFormValidationError(`Media row ${index + 1}: enter a valid thumbnail URL.`);
 
@@ -142,8 +169,9 @@ async function parseMediaRows(formData: FormData, resolveUpload?: MediaUploadRes
 
     rows.push({
       type,
-      url: finalUrl,
+      url: type === "YOUTUBE" ? youtubeUrl : finalUrl,
       thumbnailUrl: finalThumbnailUrl || undefined,
+      youtubeVideoId,
       alt: alt || undefined,
       title: title || undefined,
       sortOrder: sortOrderValue ? intOrDefault(sortOrderValue, index) : index,
@@ -191,10 +219,12 @@ export async function parseProductForm(formData: FormData, resolveUpload?: Media
     categoryId: text(formData, "categoryId") || undefined,
     restrictedClass: restricted ? oneOf(text(formData, "restrictedClass"), restrictedClassOptions, "STUN_GUN") : undefined,
     description: text(formData, "description") || "Owner-managed product description pending.",
-    status: oneOf(text(formData, "status"), productStatuses, "DRAFT"),
+    status: text(formData, "intent") === "draft" ? "DRAFT" : text(formData, "intent") === "publish" ? "ACTIVE" : oneOf(text(formData, "status"), productStatuses, "DRAFT"),
     restricted,
     sku: text(formData, "sku") || slugify(name).toUpperCase(),
     priceCents: centsFromDollars(text(formData, "price")),
+    stockQuantity: Math.max(0, intOrDefault(text(formData, "stockQuantity"), 0)),
+    lowStockThreshold: Math.max(0, intOrDefault(text(formData, "lowStockThreshold"), 0)),
     features: [0, 1, 2, 3, 4]
       .map((index) => ({
         code: text(formData, `featureCode${index}`),

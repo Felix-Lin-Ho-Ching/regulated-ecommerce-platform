@@ -47,6 +47,19 @@ if(mode==='lint'){
   for (const state of ['DC', 'HI', 'MA']) {
     if(!seedText.includes(state)){ console.error(`Seed is missing required blocked stun-gun state ${state}.`); process.exit(1); }
   }
+
+  const productForm = readFileSync('components/admin/products/product-form.tsx', 'utf8');
+  const validation = readFileSync('lib/products/validation.ts', 'utf8');
+  const gallery = readFileSync('components/store/product-media-gallery.tsx', 'utf8');
+  const requiredProductFormText = ['Basic product info', 'Pricing and inventory', 'Compliance', 'Product media', 'Product page content', 'SEO', 'Save / publish controls', 'mediaYoutubeUrl', 'STUN_GUN'];
+  const missingProductFormText = requiredProductFormText.filter((text) => !productForm.includes(text));
+  if(missingProductFormText.length){ console.error('Admin product form missing grouped UX text: ' + missingProductFormText.join(', ')); process.exit(1); }
+  const requiredYoutubeValidationText = ['extractYouTubeVideoId', 'youtu.be', '/watch', 'enter a valid YouTube URL'];
+  const missingYoutubeValidationText = requiredYoutubeValidationText.filter((text) => !validation.includes(text));
+  if(missingYoutubeValidationText.length){ console.error('YouTube validation missing: ' + missingYoutubeValidationText.join(', ')); process.exit(1); }
+  const requiredGalleryText = ['youtube-nocookie.com/embed', 'allowFullScreen', 'aria-label', 'img.youtube.com/vi'];
+  const missingGalleryText = requiredGalleryText.filter((text) => !gallery.includes(text));
+  if(missingGalleryText.length){ console.error('Product gallery missing YouTube embed behavior: ' + missingGalleryText.join(', ')); process.exit(1); }
   console.log(`Static lint passed for ${files.length} files.`);
 } else if(mode==='typecheck'){
   const text = files.filter(f=>/\.(tsx|ts)$/.test(f)).map(f=>readFileSync(f,'utf8')).join('\n');
