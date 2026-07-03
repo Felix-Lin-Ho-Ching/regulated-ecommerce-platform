@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/audit/audit-service";
-import { deleteHomepageSlide, upsertHomepageSlide, type HomepageMediaType, type HomepageSlide } from "@/lib/storefront/homepage-slides";
+import { HERO_SLIDE_MAX, deleteHomepageSlide, getHomepageSlidesForAdmin, upsertHomepageSlide, type HomepageMediaType, type HomepageSlide } from "@/lib/storefront/homepage-slides";
 import { IMAGE_MEDIA_TYPES, LocalMediaUploadError, MAX_IMAGE_UPLOAD_BYTES, MAX_VIDEO_UPLOAD_BYTES, detectMediaKindFromUpload, saveLocalMediaUpload, VIDEO_MEDIA_TYPES, isUploadFile } from "@/lib/media/local-upload";
 
 export type HomepageMediaFormState = { ok: boolean; errors: Record<string, string> };
@@ -21,6 +21,9 @@ export async function saveHomepageMediaAction(_prev: HomepageMediaFormState, for
     revalidatePath("/"); revalidatePath("/admin/storefront");
     return { ok: true, errors: {} };
   }
+
+  const slides = await getHomepageSlidesForAdmin();
+  if (id === "new" && slides.length >= HERO_SLIDE_MAX) return { ok: false, errors: { homepageUrl: `Maximum reached: ${HERO_SLIDE_MAX} hero slides. Remove a slide before adding another.` } };
 
   const enabled = formData.get("homepageEnabled") === "on";
   const selectedType: HomepageMediaType = text(formData, "homepageType") === "VIDEO" ? "VIDEO" : "IMAGE";
@@ -54,7 +57,7 @@ export async function saveHomepageMediaAction(_prev: HomepageMediaFormState, for
     catch (error) { return { ok: false, errors: { homepageThumbnailUpload: error instanceof LocalMediaUploadError ? error.message : "Fallback image upload failed. Try again or use an image URL." } }; }
   }
 
-  const slide: HomepageSlide = { id, slot: "hero-slide", type, url, thumbnailUrl, headline: text(formData, "homepageHeadline") || "Homepage slide", subheadline: text(formData, "homepageSubheadline"), ctaLabel: text(formData, "homepageCtaLabel") || "Shop products", ctaHref, badge1: text(formData, "homepageBadge1"), badge2: text(formData, "homepageBadge2"), badge3: text(formData, "homepageBadge3"), enabled, sortOrder: int(formData, "homepageSortOrder") };
+  const slide: HomepageSlide = { id, slot: "hero-slide", type, url, thumbnailUrl, headline: text(formData, "homepageHeadline") || "Homepage slide", subheadline: text(formData, "homepageSubheadline"), ctaLabel: text(formData, "homepageCtaLabel") || "Shop products", ctaHref, badge1: text(formData, "homepageBadge1"), badge2: text(formData, "homepageBadge2"), badge3: text(formData, "homepageBadge3"), enabled, sortOrder: Math.max(0, int(formData, "homepageSortOrder")) };
   const savedId = await upsertHomepageSlide(slide);
   await createAuditLog({ action: "UPDATE", entityType: "HomepageMedia", entityId: savedId, note: text(formData, "homepageAuditNote") || "Owner updated homepage hero slide.", metadata: { type, enabled, sortOrder: slide.sortOrder } });
   revalidatePath("/"); revalidatePath("/admin/storefront");
