@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import type { HomepageSlide } from "@/lib/storefront/homepage-slides";
+import { AdminSubmitButton } from "@/components/admin/admin-submit-button";
 import { saveHomepageMediaAction, type HomepageMediaFormState } from "@/lib/storefront/homepage-media-actions";
 
 function ErrorText({ message }: { message?: string }) {
@@ -37,7 +38,7 @@ function Field({
 
 function SlideForm({ slide, isNew = false }: { slide: HomepageSlide; isNew?: boolean }) {
   const initial: HomepageMediaFormState = { ok: false, errors: {} };
-  const [state, action, pending] = useActionState(saveHomepageMediaAction, initial);
+  const [state, action] = useActionState(saveHomepageMediaAction, initial);
 
   return (
     <form
@@ -117,13 +118,9 @@ function SlideForm({ slide, isNew = false }: { slide: HomepageSlide; isNew?: boo
       </label>
 
       <div className="md:col-span-2 flex flex-wrap gap-3">
-        <button className="btn btn-primary" name="intent" value="save" disabled={pending} type="submit">
-          {pending ? "Saving..." : "Save slide"}
-        </button>
+        <AdminSubmitButton className="btn btn-primary" name="intent" value="save" pendingLabel="Saving..." success={state.ok} successLabel="Saved">Save slide</AdminSubmitButton>
         {!isNew ? (
-          <button className="btn btn-secondary" name="intent" value="delete" disabled={pending} type="submit" onClick={(event) => { if (!window.confirm("Remove this saved homepage slide?")) event.preventDefault(); }}>
-            Delete slide
-          </button>
+          <AdminSubmitButton className="btn btn-secondary" name="intent" value="delete" pendingLabel="Removing..." onClick={(event) => { if (!window.confirm("Remove this saved homepage slide?")) event.preventDefault(); }}>Remove slide</AdminSubmitButton>
         ) : null}
       </div>
     </form>
@@ -134,6 +131,7 @@ export function HomepageMediaForm({ slides }: { slides: HomepageSlide[] }) {
   const maxSlides = 5;
   const [items, setItems] = useState(() => slides.map((slide) => ({ ...slide, editing: false, localKey: slide.id })));
   const [adding, setAdding] = useState(false);
+  const [status, setStatus] = useState<string>();
   const nextOrder = items.length;
   const blank: HomepageSlide & { localKey?: string; editing?: boolean } = {
     id: "new",
@@ -152,12 +150,15 @@ export function HomepageMediaForm({ slides }: { slides: HomepageSlide[] }) {
     localKey: "new-slide",
     editing: true,
   };
+  const showStatus = (message: string) => { setStatus(message); window.setTimeout(() => setStatus(undefined), 1800); };
   const move = (index: number, delta: number) => {
     const target = index + delta;
     if (target < 0 || target >= items.length) return;
+    showStatus("Updating...");
     const next = [...items];
     [next[index], next[target]] = [next[target], next[index]];
     setItems(next.map((slide, sortOrder) => ({ ...slide, sortOrder })));
+    showStatus("Updated. Save each edited slide to persist the new order.");
   };
 
   return (
@@ -165,6 +166,7 @@ export function HomepageMediaForm({ slides }: { slides: HomepageSlide[] }) {
       <div>
         <h2 className="text-xl font-black">Homepage slideshow</h2>
         <p className="text-sm text-slate-600">Manage current slides as a dynamic list. Use + Add slide, then edit, remove, or reorder. Recommended max: 5 slides.</p>
+          {status ? <p className="mt-2 rounded-xl bg-teal-50 px-3 py-2 text-sm font-bold text-teal-800" role="status" aria-live="polite">{status}</p> : null}
       </div>
       {items.length === 0 ? <p className="rounded-2xl bg-stone-50 p-4 text-sm font-bold text-slate-600">No homepage slides exist. Add a slide to show slideshow media.</p> : null}
       <div className="grid gap-3">
@@ -185,7 +187,7 @@ export function HomepageMediaForm({ slides }: { slides: HomepageSlide[] }) {
           </article>
         ))}
       </div>
-      {adding ? <SlideForm slide={blank} isNew /> : items.length >= maxSlides ? <p className="text-sm font-bold text-amber-700">Maximum reached: 5 hero slides. Remove a slide before adding another.</p> : <button className="btn btn-secondary w-fit" type="button" onClick={() => setAdding(true)}>+ Add slide</button>}
+      {adding ? <SlideForm slide={blank} isNew /> : items.length >= maxSlides ? <p className="text-sm font-bold text-amber-700">Maximum reached: 5 hero slides. Remove a slide before adding another.</p> : <button className="btn btn-secondary w-fit" type="button" onClick={() => { showStatus("Adding..."); setAdding(true); showStatus("Added. Fill in details, then save slide."); }}>+ Add slide</button>}
     </section>
   );
 }

@@ -2,6 +2,7 @@ export type AdminActionState = {
   ok?: boolean;
   error?: string;
   success?: string;
+  intent?: string;
 };
 
 export const reasonRequiredMessage = "Reason is required for this action.";
