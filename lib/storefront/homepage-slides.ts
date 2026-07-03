@@ -21,6 +21,7 @@ export type HomepageSlide = {
 };
 
 export const HERO_SLIDE_SLOT = "hero-slide";
+export const HERO_SLIDE_MAX = 5;
 
 export const defaultHomepageSlides: HomepageSlide[] = [
   {
@@ -92,7 +93,7 @@ function normalize(row: HomepageMediaRow): HomepageSlide {
 
 export async function getHomepageSlides(): Promise<HomepageSlide[]> {
   if (!isDatabaseConfigured) return defaultHomepageSlides;
-  const rows = await prisma.homepageMedia.findMany({ where: { slot: HERO_SLIDE_SLOT, enabled: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], take: 3 });
+  const rows = await prisma.homepageMedia.findMany({ where: { slot: HERO_SLIDE_SLOT, enabled: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], take: HERO_SLIDE_MAX });
   return rows.map((row: unknown) => normalize(row as HomepageMediaRow));
 }
 

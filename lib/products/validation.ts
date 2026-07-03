@@ -3,11 +3,12 @@ import { detectMediaKindFromUpload, isUploadFile } from "@/lib/media/upload-dete
 export const productStatuses = ["DRAFT", "ACTIVE", "INACTIVE", "ARCHIVED", "RESTRICTED_REVIEW"] as const;
 export const restrictedClassOptions = ["STUN_GUN"] as const;
 export const productMediaTypes = ["IMAGE", "YOUTUBE"] as const;
-export const maxProductMediaRows = 6;
-export const maxProductContentRows = 7;
-export const maxProductIncludedRows = 8;
-export const maxProductSpecRows = 12;
-export const maxProductFAQRows = 8;
+export const maxProductMediaRows = 12;
+export const maxProductContentRows = 10;
+export const maxProductIncludedRows = 12;
+export const maxProductSpecRows = 30;
+export const maxProductFAQRows = 20;
+export const maxProductFeatureRows = 12;
 export const productSectionKeys = ["overview", "features_design", "whats_included", "specs", "comparison", "state_requirements", "faq"] as const;
 
 type ProductStatus = (typeof productStatuses)[number];
@@ -174,7 +175,7 @@ async function parseMediaRows(formData: FormData, resolveUpload?: MediaUploadRes
       youtubeVideoId,
       alt: alt || undefined,
       title: title || undefined,
-      sortOrder: sortOrderValue ? intOrDefault(sortOrderValue, index) : index,
+      sortOrder: rows.length,
     });
   }
 
@@ -191,20 +192,20 @@ function parseContentSections(formData: FormData): ProductContentSectionInput[] 
     videoUrl: text(formData, `sectionVideoUrl${index}`) || undefined,
     ctaLabel: text(formData, `sectionCtaLabel${index}`) || undefined,
     ctaHref: text(formData, `sectionCtaHref${index}`) || undefined,
-    sortOrder: intOrDefault(text(formData, `sectionSortOrder${index}`), index),
+    sortOrder: index,
   })).filter((section) => section.title);
 }
 
 function parseIncludedItems(formData: FormData): ProductIncludedItemInput[] {
-  return Array.from({ length: maxProductIncludedRows }, (_, index) => ({ label: text(formData, `includedLabel${index}`), description: text(formData, `includedDescription${index}`) || undefined, quantity: intOrDefault(text(formData, `includedQuantity${index}`), 1), sortOrder: intOrDefault(text(formData, `includedSortOrder${index}`), index) })).filter((item) => item.label);
+  return Array.from({ length: maxProductIncludedRows }, (_, index) => ({ label: text(formData, `includedLabel${index}`), description: text(formData, `includedDescription${index}`) || undefined, quantity: intOrDefault(text(formData, `includedQuantity${index}`), 1), sortOrder: index })).filter((item) => item.label);
 }
 
 function parseSpecs(formData: FormData): ProductSpecInput[] {
-  return Array.from({ length: maxProductSpecRows }, (_, index) => ({ label: text(formData, `specLabel${index}`), value: text(formData, `specValue${index}`), group: text(formData, `specGroup${index}`) || undefined, sortOrder: intOrDefault(text(formData, `specSortOrder${index}`), index) })).filter((spec) => spec.label && spec.value);
+  return Array.from({ length: maxProductSpecRows }, (_, index) => ({ label: text(formData, `specLabel${index}`), value: text(formData, `specValue${index}`), group: text(formData, `specGroup${index}`) || undefined, sortOrder: index })).filter((spec) => spec.label && spec.value);
 }
 
 function parseFaqs(formData: FormData): ProductFAQInput[] {
-  return Array.from({ length: maxProductFAQRows }, (_, index) => ({ question: text(formData, `faqQuestion${index}`), answer: text(formData, `faqAnswer${index}`), sortOrder: intOrDefault(text(formData, `faqSortOrder${index}`), index) })).filter((faq) => faq.question && faq.answer);
+  return Array.from({ length: maxProductFAQRows }, (_, index) => ({ question: text(formData, `faqQuestion${index}`), answer: text(formData, `faqAnswer${index}`), sortOrder: index })).filter((faq) => faq.question && faq.answer);
 }
 
 export async function parseProductForm(formData: FormData, resolveUpload?: MediaUploadResolver): Promise<ProductFormInput> {
@@ -225,8 +226,7 @@ export async function parseProductForm(formData: FormData, resolveUpload?: Media
     priceCents: centsFromDollars(text(formData, "price")),
     stockQuantity: Math.max(0, intOrDefault(text(formData, "stockQuantity"), 0)),
     lowStockThreshold: Math.max(0, intOrDefault(text(formData, "lowStockThreshold"), 0)),
-    features: [0, 1, 2, 3, 4]
-      .map((index) => ({
+    features: Array.from({ length: maxProductFeatureRows }, (_, index) => ({
         code: text(formData, `featureCode${index}`),
         label: text(formData, `featureLabel${index}`),
         value: text(formData, `featureValue${index}`),

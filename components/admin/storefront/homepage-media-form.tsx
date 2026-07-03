@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type { HomepageSlide } from "@/lib/storefront/homepage-slides";
 import { saveHomepageMediaAction, type HomepageMediaFormState } from "@/lib/storefront/homepage-media-actions";
 
@@ -65,7 +65,7 @@ function SlideForm({ slide, isNew = false }: { slide: HomepageSlide; isNew?: boo
           <option value="VIDEO">VIDEO</option>
         </select>
       </label>
-      <Field label="Sort order" name="homepageSortOrder" type="number" value={slide.sortOrder} />
+      <input type="hidden" name="homepageSortOrder" value={slide.sortOrder} />
 
       <div className="grid gap-2">
         <Field label="Media URL" name="homepageUrl" value={slide.url} error={state.errors.homepageUrl} />
@@ -121,7 +121,7 @@ function SlideForm({ slide, isNew = false }: { slide: HomepageSlide; isNew?: boo
           {pending ? "Saving..." : "Save slide"}
         </button>
         {!isNew ? (
-          <button className="btn btn-secondary" name="intent" value="delete" disabled={pending} type="submit">
+          <button className="btn btn-secondary" name="intent" value="delete" disabled={pending} type="submit" onClick={(event) => { if (!window.confirm("Remove this saved homepage slide?")) event.preventDefault(); }}>
             Delete slide
           </button>
         ) : null}
@@ -131,8 +131,11 @@ function SlideForm({ slide, isNew = false }: { slide: HomepageSlide; isNew?: boo
 }
 
 export function HomepageMediaForm({ slides }: { slides: HomepageSlide[] }) {
-  const nextOrder = Math.max(-1, ...slides.map((slide) => slide.sortOrder)) + 1;
-  const blank: HomepageSlide = {
+  const maxSlides = 5;
+  const [items, setItems] = useState(() => slides.map((slide) => ({ ...slide, editing: false, localKey: slide.id })));
+  const [adding, setAdding] = useState(false);
+  const nextOrder = items.length;
+  const blank: HomepageSlide & { localKey?: string; editing?: boolean } = {
     id: "new",
     slot: "hero-slide",
     type: "IMAGE",
@@ -146,18 +149,43 @@ export function HomepageMediaForm({ slides }: { slides: HomepageSlide[] }) {
     badge3: "Verified at checkout",
     enabled: false,
     sortOrder: nextOrder,
+    localKey: "new-slide",
+    editing: true,
+  };
+  const move = (index: number, delta: number) => {
+    const target = index + delta;
+    if (target < 0 || target >= items.length) return;
+    const next = [...items];
+    [next[index], next[target]] = [next[target], next[index]];
+    setItems(next.map((slide, sortOrder) => ({ ...slide, sortOrder })));
   };
 
   return (
     <section className="grid gap-5">
       <div>
         <h2 className="text-xl font-black">Homepage slideshow</h2>
-        <p className="text-sm text-slate-600">Manage image and video slides. Disabled slides may be saved without media.</p>
+        <p className="text-sm text-slate-600">Manage current slides as a dynamic list. Use + Add slide, then edit, remove, or reorder. Recommended max: 5 slides.</p>
       </div>
-      {slides.map((slide) => (
-        <SlideForm key={slide.id} slide={slide} />
-      ))}
-      <SlideForm slide={blank} isNew />
+      {items.length === 0 ? <p className="rounded-2xl bg-stone-50 p-4 text-sm font-bold text-slate-600">No homepage slides exist. Add a slide to show slideshow media.</p> : null}
+      <div className="grid gap-3">
+        {items.map((slide, index) => (
+          <article className="card grid gap-3 p-4" key={slide.localKey}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="font-black">{index + 1}. {slide.headline || "Homepage slide"}</h3>
+                <p className="text-sm text-slate-600">{slide.enabled ? "Enabled" : "Disabled"} · {slide.type}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button className="btn btn-secondary px-3 py-2" type="button" onClick={() => setItems(items.map((row) => row.id === slide.id ? { ...row, editing: !row.editing } : row))}>{slide.editing ? "Done" : "Edit"}</button>
+                <button className="btn btn-secondary px-3 py-2" type="button" disabled={index === 0} onClick={() => move(index, -1)}>Move up</button>
+                <button className="btn btn-secondary px-3 py-2" type="button" disabled={index === items.length - 1} onClick={() => move(index, 1)}>Move down</button>
+              </div>
+            </div>
+            {slide.editing ? <SlideForm slide={slide} /> : <p className="text-sm text-slate-600">Open Edit to change this slide, save its current order, or remove it.</p>}
+          </article>
+        ))}
+      </div>
+      {adding ? <SlideForm slide={blank} isNew /> : items.length >= maxSlides ? <p className="text-sm font-bold text-amber-700">Maximum reached: 5 hero slides. Remove a slide before adding another.</p> : <button className="btn btn-secondary w-fit" type="button" onClick={() => setAdding(true)}>+ Add slide</button>}
     </section>
   );
 }
