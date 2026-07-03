@@ -48,6 +48,7 @@ type CatalogProductRow = {
     type: "IMAGE" | "VIDEO" | "YOUTUBE";
     url: string;
     thumbnailUrl: string | null;
+    youtubeVideoId: string | null;
     alt: string | null;
     title: string | null;
     sortOrder: number;
@@ -276,6 +277,7 @@ export async function getCatalogProducts(
         type: media.type,
         url: media.url,
         thumbnailUrl: media.thumbnailUrl ?? undefined,
+        youtubeVideoId: media.youtubeVideoId ?? undefined,
         alt: media.alt ?? undefined,
         title: media.title ?? undefined,
         sortOrder: media.sortOrder,

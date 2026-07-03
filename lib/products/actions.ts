@@ -9,10 +9,15 @@ import { parseProductForm, ProductFormValidationError, type ProductMediaType } f
 import { requireAdminSession } from "@/lib/admin/auth";
 import { PRODUCT_IMAGE_MAX_BYTES, PRODUCT_IMAGE_MEDIA_TYPES, ProductMediaStorageError, storeProductMediaFile } from "@/lib/storage/product-media-storage";
 
-function productSaveError(error: unknown): ProductActionState {
+function actionIntent(formData: FormData): string | undefined {
+  const intent = formData.get("intent");
+  return typeof intent === "string" ? intent : undefined;
+}
+
+function productSaveError(error: unknown, intent?: string): ProductActionState {
   const message = error instanceof Error ? error.message : "Product could not be saved.";
-  if (message.includes("Unique constraint") || message.includes("P2002")) return { error: "Product could not be saved: slug and SKU must be unique." };
-  return { error: message };
+  if (message.includes("Unique constraint") || message.includes("P2002")) return { error: "Product could not be saved: slug and SKU must be unique.", intent };
+  return { error: message, intent };
 }
 
 export type ProductActionState = AdminActionState;
@@ -41,7 +46,7 @@ export async function createProductAction(_state: ProductActionState, formData: 
   try {
     input = await parseProductForm(formData, saveProductMediaUpload);
   } catch (error) {
-    if (error instanceof ProductFormValidationError) return { error: error.message };
+    if (error instanceof ProductFormValidationError) return { error: error.message, intent: actionIntent(formData) };
     throw error;
   }
   const note = optionalAuditNote(input.auditNote, "Owner created product.");
@@ -49,7 +54,7 @@ export async function createProductAction(_state: ProductActionState, formData: 
   try {
     productId = await createProduct(input);
   } catch (error) {
-    return productSaveError(error);
+    return productSaveError(error, actionIntent(formData));
   }
 
   await createAuditLog({ action: "CREATE", entityType: "Product", entityId: productId, note, metadata: { restricted: input.restricted, status: input.status } });
@@ -64,13 +69,13 @@ export async function updateProductAction(_state: ProductActionState, formData: 
   try {
     input = await parseProductForm(formData, saveProductMediaUpload);
   } catch (error) {
-    if (error instanceof ProductFormValidationError) return { error: error.message };
+    if (error instanceof ProductFormValidationError) return { error: error.message, intent: actionIntent(formData) };
     throw error;
   }
-  if (!input.id) return { error: "Missing product id." };
+  if (!input.id) return { error: "Missing product id.", intent: actionIntent(formData) };
 
   const current = await getAdminProductById(input.id);
-  if (!current) return { error: "Product was not found." };
+  if (!current) return { error: "Product was not found.", intent: actionIntent(formData) };
 
   const requiresManualReason = current.restricted !== input.restricted || (current.status !== input.status && riskyStatuses.has(input.status));
   const noteResult = requiresManualReason ? validateManualReason(input.auditNote) : { note: optionalAuditNote(input.auditNote, "Owner updated product details.") };
@@ -79,13 +84,13 @@ export async function updateProductAction(_state: ProductActionState, formData: 
   try {
     await updateProduct(input);
   } catch (error) {
-    return productSaveError(error);
+    return productSaveError(error, actionIntent(formData));
   }
   await createAuditLog({ action: "UPDATE", entityType: "Product", entityId: input.id, note: noteResult.note, metadata: { restricted: input.restricted, status: input.status } });
 
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${input.id}`);
-  return { ok: true, success: "Product saved." };
+  return { ok: true, success: input.status === "ACTIVE" ? "Published. Product status is Active." : "Product saved.", intent: actionIntent(formData) };
 }
 
 export async function archiveProductAction(_state: ProductActionState, formData: FormData): Promise<ProductActionState> {
