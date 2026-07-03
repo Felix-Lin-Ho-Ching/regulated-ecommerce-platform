@@ -134,6 +134,10 @@ async function replaceContent(productId: string, sections: ProductContentSection
   for (const faq of faqs) await prisma.productFAQ.create({ data: { productId, ...faq } });
 }
 
+function shouldReplaceCollection<T>(rows: T[]) {
+  return rows.length > 0;
+}
+
 export async function createProduct(input: ProductFormInput): Promise<string> {
   if (!isDatabaseConfigured) return input.id ?? "mock-product";
 
@@ -206,9 +210,11 @@ export async function updateProduct(input: ProductFormInput) {
     });
   }
 
-  await replaceFeatures(input.id, input.features);
-  await replaceMedia(input.id, input.media);
-  await replaceContent(input.id, input.contentSections, input.includedItems, input.specs, input.faqs);
+  if (shouldReplaceCollection(input.features)) await replaceFeatures(input.id, input.features);
+  if (shouldReplaceCollection(input.media)) await replaceMedia(input.id, input.media);
+  if (shouldReplaceCollection(input.contentSections) || shouldReplaceCollection(input.includedItems) || shouldReplaceCollection(input.specs) || shouldReplaceCollection(input.faqs)) {
+    await replaceContent(input.id, input.contentSections, input.includedItems, input.specs, input.faqs);
+  }
 }
 
 export async function archiveProduct(productId: string): Promise<boolean> {

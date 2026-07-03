@@ -17,7 +17,7 @@ function clean(value?: string) { return value?.trim() || undefined; }
 function dateAtStart(value?: string) { const v = clean(value); if (!v) return undefined; const d = new Date(`${v}T00:00:00.000Z`); return Number.isNaN(d.getTime()) ? undefined : d; }
 function dateAtEnd(value?: string) { const v = clean(value); if (!v) return undefined; const d = new Date(`${v}T23:59:59.999Z`); return Number.isNaN(d.getTime()) ? undefined : d; }
 function hasRestricted(order: any) { return order.items.some((item: any) => item.product?.restricted); }
-function customerEmail(order: any) { return order.customerEmail ?? order.user?.email ?? "guest@stunfry.example"; }
+function customerEmail(order: any) { return order.customerEmail ?? order.user?.email ?? ""; }
 
 export async function getAdminOrders(filters: AdminOrderFilters = {}) {
   if (!isDatabaseConfigured) return { available: false as const, orders: [] };
