@@ -17,7 +17,8 @@
     "pipeline:test": "tsx scripts/pipeline-smoke.ts",
     "order:release": "tsx scripts/release-order.ts",
     "concurrency:test": "tsx scripts/concurrency-test.ts",
-    "compliance:test": "tsx scripts/compliance-rules-test.ts"
+    "compliance:test": "tsx scripts/compliance-rules-test.ts",
+    "regression:test": "tsx scripts/regression-smoke.ts"
   },
   "dependencies": {
     "next": "^15.5.6",
