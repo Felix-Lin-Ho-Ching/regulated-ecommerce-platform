@@ -5,6 +5,10 @@ import { releaseOrderAfterPaymentApproval } from "../lib/orders/order-service";
 import { getFulfillmentOrdersForAdmin } from "../lib/fulfillment/admin-queries";
 import { shipSingleOrder } from "../lib/fulfillment/ship-orders";
 import { createProduct, updateProduct } from "../lib/products/service";
+import { getAdminOrder } from "../lib/admin/orders/service";
+import { logDebugEmail } from "../lib/email/email-log-service";
+import { buildAdminNewOrderEmail } from "../lib/email/templates/admin-new-order";
+import { buildOrderConfirmationEmail } from "../lib/email/templates/order-confirmation";
 import type { ProductFormInput } from "../lib/products/validation";
 import type { AdminSession } from "../lib/admin/auth";
 
@@ -56,7 +60,7 @@ async function productInput(categoryId: string, overrides: Partial<ProductFormIn
 }
 
 async function makeOrder(product: any, variant: any, mode: string, state = "TX") {
-  return prisma.order.create({ data: { orderNumber: `REG-${mode}-${Date.now()}-${Math.floor(Math.random()*1000)}`, status: "PENDING_PAYMENT", fulfillmentStatus: "FULFILLMENT_HOLD", subtotalCents: 4999, shippingCents: 0, taxCents: 0, totalCents: 4999, customerEmail: "buyer@regression.local", customerName: "Regression Buyer", liveCheckoutEnabled: false, liveFulfillmentEnabled: false, paymentMode: mode, eligibilityResult: state === "TX" ? "AUTO_ELIGIBLE" : "BLOCKED", shippingAddress: { create: { name: "Regression Buyer", line1: "1 Main", city: "Austin", state, postalCode: state === "TX" ? "78701" : "96801", normalized: true, deliverable: true } }, items: { create: { productId: product.id, variantId: variant.id, name: product.name, sku, quantity: 1, unitPriceCents: 4999 } } }, include: { items: true } });
+  return prisma.order.create({ data: { orderNumber: `REG-${mode}-${Date.now()}-${Math.floor(Math.random()*1000)}`, status: "PENDING_PAYMENT", fulfillmentStatus: "FULFILLMENT_HOLD", subtotalCents: 4999, shippingCents: 0, taxCents: 0, totalCents: 4999, customerEmail: mode === "approved" ? "buyer123@example.com" : "buyer@regression.local", customerName: "Regression Buyer", liveCheckoutEnabled: false, liveFulfillmentEnabled: false, paymentMode: mode, eligibilityResult: state === "TX" ? "AUTO_ELIGIBLE" : "BLOCKED", shippingAddress: { create: { name: "Regression Buyer", line1: "1 Main", city: "Austin", state, postalCode: state === "TX" ? "78701" : "96801", normalized: true, deliverable: true } }, items: { create: { productId: product.id, variantId: variant.id, name: product.name, sku, quantity: 1, unitPriceCents: 4999 } } }, include: { items: true, shippingAddress: true } });
 }
 
 async function main() {
@@ -74,17 +78,31 @@ async function main() {
   assert(saved.media.length === 2 && saved.contentSections.length === 1 && saved.includedItems.length === 1 && saved.specs.length === 1 && saved.faqs.length === 1 && saved.features.length === 1, "Unrelated product save wiped media or repeatable content.");
   await updateProduct(await productInput(category.id, { id, status: "ARCHIVED", auditNote: "archive regression", media: saved.media.map((m: any) => ({ type: m.type === "YOUTUBE" ? "YOUTUBE" : "IMAGE", url: m.url, youtubeVideoId: m.youtubeVideoId ?? undefined, sortOrder: m.sortOrder })) }));
   assert(!(await getCatalogProducts()).some((p) => p.id === id), "Archived product appeared on storefront.");
+  await updateProduct(await productInput(category.id, { id, status: "ACTIVE", name: "Regression Empty Collection Guard", features: [], media: [], contentSections: [], includedItems: [], specs: [], faqs: [] }));
+  saved = await prisma.product.findUniqueOrThrow({ where: { id }, include: { media: true, contentSections: true, includedItems: true, specs: true, faqs: true, features: true, variants: { include: { inventory: true } } } });
+  assert(saved.media.length === 2 && saved.contentSections.length === 1 && saved.includedItems.length === 1 && saved.specs.length === 1 && saved.faqs.length === 1 && saved.features.length === 1, "Empty unrelated product save wiped existing media or repeatable content.");
 
   const role = await prisma.adminRole.upsert({ where: { code: "FULFILLMENT" }, update: {}, create: { code: "FULFILLMENT", name: "Fulfillment" } });
   const admin = await prisma.adminUser.create({ data: { email: `${run}@regression.local`, name: "Regression Fulfillment", passwordHash: "x", roleId: role.id } });
   const actor: AdminSession = { adminId: admin.id, email: admin.email, name: admin.name, role: "FULFILLMENT", demo: false };
   const variant = saved.variants[0];
   const approved = await makeOrder(saved, variant, "approved");
+  assert(approved.customerEmail === "buyer123@example.com", "Guest checkout/order creation did not store buyer123@example.com.");
   const approvedPayment = await processOrderPayment(prisma, approved, "mock_card", { cardNumber: "4111111111111111", expiration: "12/30", cvv: "123", nameOnCard: "Regression Buyer", postalCode: "78701" });
   assert(approvedPayment.paymentAttempt.status === "APPROVED" && !JSON.stringify(approvedPayment.paymentAttempt).includes("4111111111111111") && !JSON.stringify(approvedPayment.paymentAttempt).includes("123"), "Approved payment failed or stored raw card data.");
   await releaseOrderAfterPaymentApproval(approved.id, { email: "regression", role: "SYSTEM" });
   const paid = await prisma.order.findUniqueOrThrow({ where: { id: approved.id }, include: { paymentAttempts: true, shippingAddress: true } });
   assert(paid.status === "PAID" && paid.fulfillmentStatus === "READY_TO_SHIP" && paid.paymentAttempts.some((p: { status: string }) => p.status === "APPROVED"), "Approved order/payment state is inconsistent.");
+  const confirmation = buildOrderConfirmationEmail({ orderNumber: paid.orderNumber, createdAt: paid.createdAt, items: approved.items, totalCents: paid.totalCents, shippingAddress: paid.shippingAddress!, hasRestrictedItems: true });
+  const adminEmail = buildAdminNewOrderEmail({ orderNumber: paid.orderNumber, customerEmail: paid.customerEmail, totalCents: paid.totalCents, hasRestrictedItems: true, shippingState: paid.shippingAddress?.state, shippingPostalCode: paid.shippingAddress?.postalCode, adminOrderUrl: `/admin/orders/${paid.orderNumber}` });
+  await logDebugEmail({ type: "ORDER_REQUEST_CONFIRMATION", to: paid.customerEmail!, subject: confirmation.subject, text: confirmation.text, orderId: paid.id, metadata: { orderNumber: paid.orderNumber } });
+  await logDebugEmail({ type: "ADMIN_NEW_ORDER", to: "admin@regression.local", subject: adminEmail.subject, text: adminEmail.text, orderId: paid.id, metadata: { orderNumber: paid.orderNumber } });
+  const emailLogs = await prisma.emailLog.findMany({ where: { orderId: paid.id } });
+  assert(emailLogs.some((log: any) => log.type === "ORDER_REQUEST_CONFIRMATION" && log.to === "buyer123@example.com"), "Confirmation email log target was not buyer123@example.com.");
+  assert(emailLogs.some((log: any) => log.type === "ADMIN_NEW_ORDER" && (log.text ?? "").includes("buyer123@example.com")), "Admin new order email did not include buyer123@example.com.");
+  assert(!JSON.stringify({ paid, emailLogs }).includes("guest@stunfry.example"), "Real checkout/order/email regression path used guest@stunfry.example.");
+  const adminDetail = await getAdminOrder(paid.orderNumber);
+  assert(adminDetail.order?.customerEmail === "buyer123@example.com" && adminDetail.order.paymentAttempts.some((p: any) => p.status === "APPROVED" && p.providerReference && !p.providerReference.includes("4111111111111111") && !p.providerReference.includes("123")), "Admin order detail lacks real email or safe approved payment attempt display data.");
   assert((await getFulfillmentOrdersForAdmin(actor)).some((o) => o.id === approved.id), "Paid approved order was not released to fulfillment.");
   await prisma.order.update({ where: { id: approved.id }, data: { fulfillmentStatus: "PICKING", assignedFulfillmentUserId: admin.id, assignedAt: new Date() } });
   const shipped = await shipSingleOrder({ orderId: approved.id, actor, carrier: "UPS", trackingNumber: "1ZREGRESSION" });
