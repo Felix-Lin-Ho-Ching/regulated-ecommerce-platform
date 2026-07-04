@@ -51,7 +51,7 @@ function SlideForm({ slide, isNew = false }: { slide: HomepageSlide; isNew?: boo
       <div className="md:col-span-2 flex items-start justify-between gap-4">
         <div>
           <h3 className="text-lg font-black">{isNew ? "Add slideshow media" : slide.headline}</h3>
-          <p className="text-sm text-slate-600">Slides use media plus an accessibility label. Overlay copy is not shown on the public homepage.</p>
+          <p className="text-sm text-slate-600">Slides use image media or YouTube URLs plus an accessibility label. Overlay copy is not shown on the public homepage.</p>
           {state.ok ? <p className="mt-2 text-sm font-bold text-green-700">Slide saved.</p> : null}
         </div>
         <label className="flex items-center gap-2 text-sm font-bold">
@@ -63,21 +63,21 @@ function SlideForm({ slide, isNew = false }: { slide: HomepageSlide; isNew?: boo
         Media type
         <select className="input" name="homepageType" defaultValue={slide.type}>
           <option value="IMAGE">IMAGE</option>
-          <option value="VIDEO">VIDEO</option>
+          <option value="YOUTUBE">YOUTUBE</option>
         </select>
       </label>
       <input type="hidden" name="homepageSortOrder" value={slide.sortOrder} />
 
       <div className="grid gap-2">
-        <Field label="Media URL" name="homepageUrl" value={slide.url} error={state.errors.homepageUrl} />
+        <Field label="Image or YouTube URL" name="homepageUrl" value={slide.url} error={state.errors.homepageUrl} />
         <p className="text-center text-xs font-black uppercase text-slate-500">or</p>
         <label className="grid gap-2 text-sm font-bold text-slate-800">
-          Upload media file
+          Upload image file
           <input
             className="input"
             name="homepageUpload"
             type="file"
-            accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,.jpg,.jpeg,.png,.webp,.mp4,.webm,.mov"
+            accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
           />
           <ErrorText message={state.errors.homepageUpload} />
         </label>
@@ -85,7 +85,7 @@ function SlideForm({ slide, isNew = false }: { slide: HomepageSlide; isNew?: boo
 
       <div className="grid gap-2">
         <Field
-          label="Fallback image URL / video poster"
+          label="Optional thumbnail image URL"
           name="homepageThumbnailUrl"
           value={slide.thumbnailUrl}
           error={state.errors.homepageThumbnailUrl}

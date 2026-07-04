@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/audit/audit-service";
 import { HERO_SLIDE_MAX, deleteHomepageSlide, getHomepageSlidesForAdmin, upsertHomepageSlide, type HomepageMediaType, type HomepageSlide } from "@/lib/storefront/homepage-slides";
-import { IMAGE_MEDIA_TYPES, LocalMediaUploadError, MAX_IMAGE_UPLOAD_BYTES, MAX_VIDEO_UPLOAD_BYTES, detectMediaKindFromUpload, saveLocalMediaUpload, VIDEO_MEDIA_TYPES, isUploadFile } from "@/lib/media/local-upload";
+import { IMAGE_MEDIA_TYPES, LocalMediaUploadError, MAX_IMAGE_UPLOAD_BYTES, detectMediaKindFromUpload, saveLocalMediaUpload, isUploadFile } from "@/lib/media/local-upload";
+import { extractYouTubeVideoId } from "@/lib/products/validation";
 
 export type HomepageMediaFormState = { ok: boolean; errors: Record<string, string> };
 
@@ -26,8 +27,8 @@ export async function saveHomepageMediaAction(_prev: HomepageMediaFormState, for
   if (id === "new" && slides.length >= HERO_SLIDE_MAX) return { ok: false, errors: { homepageUrl: `Maximum reached: ${HERO_SLIDE_MAX} hero slides. Remove a slide before adding another.` } };
 
   const enabled = formData.get("homepageEnabled") === "on";
-  const selectedType: HomepageMediaType = text(formData, "homepageType") === "VIDEO" ? "VIDEO" : "IMAGE";
-  let type: HomepageMediaType = selectedType;
+  const selectedType: HomepageMediaType = text(formData, "homepageType") === "YOUTUBE" ? "YOUTUBE" : "IMAGE";
+  const type: HomepageMediaType = selectedType;
   let url = text(formData, "homepageUrl");
   let thumbnailUrl = text(formData, "homepageThumbnailUrl");
   const mediaFile = formData.get("homepageUpload");
@@ -35,21 +36,21 @@ export async function saveHomepageMediaAction(_prev: HomepageMediaFormState, for
   const ctaHref = text(formData, "homepageCtaHref") || "/products";
   const errors: Record<string, string> = {};
   const detectedMediaType = detectMediaKindFromUpload(mediaFile);
+  const youtubeVideoId = type === "YOUTUBE" ? extractYouTubeVideoId(url) : undefined;
 
-  if (isUploadFile(mediaFile) && !detectedMediaType) errors.homepageUpload = "Unsupported media file. Upload a JPEG, PNG, WebP, MP4, WebM, or MOV file.";
-  if (detectedMediaType) type = detectedMediaType;
+  if (isUploadFile(mediaFile) && (!detectedMediaType || detectedMediaType !== "IMAGE")) errors.homepageUpload = "Unsupported image file. Upload a JPEG, PNG, or WebP image.";
+  if (type === "YOUTUBE" && isUploadFile(mediaFile)) errors.homepageUpload = "YouTube slides use a YouTube URL only. Video file uploads are not supported.";
 
-  if (enabled && !url && !isUploadFile(mediaFile)) errors.homepageUrl = "Media URL or uploaded media file is required when this slide is enabled.";
+  if (enabled && !url && !isUploadFile(mediaFile)) errors.homepageUrl = type === "YOUTUBE" ? "YouTube URL is required when this slide is enabled." : "Image URL or uploaded image file is required when this slide is enabled.";
   if (url && !isSafeUrl(url)) errors.homepageUrl = "Enter a valid URL beginning with https://, http://, or /.";
+  if (type === "YOUTUBE" && url && !youtubeVideoId) errors.homepageUrl = "Enter a valid YouTube URL.";
   if (!optionalUrl(thumbnailUrl)) errors.homepageThumbnailUrl = "Enter a valid fallback image URL or leave it blank.";
   if (!isSafeUrl(ctaHref)) errors.homepageCtaHref = "Enter a valid CTA link beginning with https://, http://, or /.";
   if (Object.keys(errors).length > 0) return { ok: false, errors };
 
   if (isUploadFile(mediaFile)) {
     try {
-      const allowedTypes = type === "VIDEO" ? [...VIDEO_MEDIA_TYPES] : [...IMAGE_MEDIA_TYPES];
-      const maxBytes = type === "VIDEO" ? MAX_VIDEO_UPLOAD_BYTES : MAX_IMAGE_UPLOAD_BYTES;
-      url = (await saveLocalMediaUpload(mediaFile, { folder: "homepage", allowedTypes, maxBytes })).publicPath;
+      url = (await saveLocalMediaUpload(mediaFile, { folder: "homepage", allowedTypes: [...IMAGE_MEDIA_TYPES], maxBytes: MAX_IMAGE_UPLOAD_BYTES })).publicPath;
     } catch (error) { return { ok: false, errors: { homepageUpload: error instanceof LocalMediaUploadError ? error.message : "Upload failed. Try again or use a media URL." } }; }
   }
   if (isUploadFile(thumbnailFile)) {
@@ -57,7 +58,7 @@ export async function saveHomepageMediaAction(_prev: HomepageMediaFormState, for
     catch (error) { return { ok: false, errors: { homepageThumbnailUpload: error instanceof LocalMediaUploadError ? error.message : "Fallback image upload failed. Try again or use an image URL." } }; }
   }
 
-  const slide: HomepageSlide = { id, slot: "hero-slide", type, url, thumbnailUrl, headline: text(formData, "homepageHeadline") || "Homepage slide", subheadline: text(formData, "homepageSubheadline"), ctaLabel: text(formData, "homepageCtaLabel") || "Shop products", ctaHref, badge1: text(formData, "homepageBadge1"), badge2: text(formData, "homepageBadge2"), badge3: text(formData, "homepageBadge3"), enabled, sortOrder: Math.max(0, int(formData, "homepageSortOrder")) };
+  const slide: HomepageSlide = { id, slot: "hero-slide", type, url, thumbnailUrl, youtubeVideoId, headline: text(formData, "homepageHeadline") || "Homepage slide", subheadline: text(formData, "homepageSubheadline"), ctaLabel: text(formData, "homepageCtaLabel") || "Shop products", ctaHref, badge1: text(formData, "homepageBadge1"), badge2: text(formData, "homepageBadge2"), badge3: text(formData, "homepageBadge3"), enabled, sortOrder: Math.max(0, int(formData, "homepageSortOrder")) };
   const savedId = await upsertHomepageSlide(slide);
   await createAuditLog({ action: "UPDATE", entityType: "HomepageMedia", entityId: savedId, note: text(formData, "homepageAuditNote") || "Owner updated homepage hero slide.", metadata: { type, enabled, sortOrder: slide.sortOrder } });
   revalidatePath("/"); revalidatePath("/admin/storefront");

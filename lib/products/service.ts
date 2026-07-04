@@ -123,19 +123,31 @@ async function replaceMedia(productId: string, mediaRows: ProductMediaInput[]) {
   }
 }
 
-async function replaceContent(productId: string, sections: ProductContentSectionInput[], includedItems: ProductIncludedItemInput[], specs: ProductSpecInput[], faqs: ProductFAQInput[]) {
+async function replaceContentSections(productId: string, sections: ProductContentSectionInput[]) {
   await prisma.productContentSection.deleteMany({ where: { productId } });
-  await prisma.productIncludedItem.deleteMany({ where: { productId } });
-  await prisma.productSpec.deleteMany({ where: { productId } });
-  await prisma.productFAQ.deleteMany({ where: { productId } });
   for (const section of sections) await prisma.productContentSection.create({ data: { productId, ...section } });
+}
+
+async function replaceIncludedItems(productId: string, includedItems: ProductIncludedItemInput[]) {
+  await prisma.productIncludedItem.deleteMany({ where: { productId } });
   for (const item of includedItems) await prisma.productIncludedItem.create({ data: { productId, ...item } });
+}
+
+async function replaceSpecs(productId: string, specs: ProductSpecInput[]) {
+  await prisma.productSpec.deleteMany({ where: { productId } });
   for (const spec of specs) await prisma.productSpec.create({ data: { productId, ...spec } });
+}
+
+async function replaceFaqs(productId: string, faqs: ProductFAQInput[]) {
+  await prisma.productFAQ.deleteMany({ where: { productId } });
   for (const faq of faqs) await prisma.productFAQ.create({ data: { productId, ...faq } });
 }
 
-function shouldReplaceCollection<T>(rows: T[]) {
-  return rows.length > 0;
+async function replaceContent(productId: string, sections: ProductContentSectionInput[], includedItems: ProductIncludedItemInput[], specs: ProductSpecInput[], faqs: ProductFAQInput[]) {
+  await replaceContentSections(productId, sections);
+  await replaceIncludedItems(productId, includedItems);
+  await replaceSpecs(productId, specs);
+  await replaceFaqs(productId, faqs);
 }
 
 export async function createProduct(input: ProductFormInput): Promise<string> {
@@ -210,11 +222,12 @@ export async function updateProduct(input: ProductFormInput) {
     });
   }
 
-  if (shouldReplaceCollection(input.features)) await replaceFeatures(input.id, input.features);
-  if (shouldReplaceCollection(input.media)) await replaceMedia(input.id, input.media);
-  if (shouldReplaceCollection(input.contentSections) || shouldReplaceCollection(input.includedItems) || shouldReplaceCollection(input.specs) || shouldReplaceCollection(input.faqs)) {
-    await replaceContent(input.id, input.contentSections, input.includedItems, input.specs, input.faqs);
-  }
+  if (input.featuresSubmitted) await replaceFeatures(input.id, input.features);
+  if (input.mediaSubmitted) await replaceMedia(input.id, input.media);
+  if (input.contentSubmitted) await replaceContentSections(input.id, input.contentSections);
+  if (input.includedSubmitted) await replaceIncludedItems(input.id, input.includedItems);
+  if (input.specsSubmitted) await replaceSpecs(input.id, input.specs);
+  if (input.faqsSubmitted) await replaceFaqs(input.id, input.faqs);
 }
 
 export async function archiveProduct(productId: string): Promise<boolean> {

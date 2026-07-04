@@ -98,6 +98,49 @@ if(mode==='lint'){
     process.exit(1);
   }
 
+
+
+  const homepageForm = readFileSync('components/admin/storefront/homepage-media-form.tsx', 'utf8');
+  const homepageActions = readFileSync('lib/storefront/homepage-media-actions.ts', 'utf8');
+  const homepageSlide = readFileSync('components/storefront/home/hero-slide.tsx', 'utf8');
+  const productService = readFileSync('lib/products/service.ts', 'utf8');
+  const productDetail = readFileSync('components/store/product-detail.tsx', 'utf8');
+  for (const forbidden of ['video/mp4', 'video/webm', 'video/quicktime', '.mp4', '.webm', '.mov']) {
+    if (homepageForm.includes(forbidden) || homepageActions.includes(forbidden)) {
+      console.error(`Homepage editor must not accept video file uploads: ${forbidden}`);
+      process.exit(1);
+    }
+  }
+  if (!homepageForm.includes('<option value="YOUTUBE">YOUTUBE</option>') || homepageForm.includes('<option value="VIDEO">VIDEO</option>')) {
+    console.error('Homepage media editor must expose IMAGE and YOUTUBE options, not VIDEO upload.');
+    process.exit(1);
+  }
+  if (!homepageSlide.includes('youtube-nocookie.com/embed/${slide.youtubeVideoId}')) {
+    console.error('Homepage renderer must render YouTube slides with youtube-nocookie.com embeds.');
+    process.exit(1);
+  }
+  if (productService.includes('rows.length > 0') || productService.includes('shouldReplaceCollection')) {
+    console.error('Product update must not use rows.length > 0 as the only replace/delete condition.');
+    process.exit(1);
+  }
+  for (const marker of ['featuresSubmitted', 'mediaSubmitted', 'contentSubmitted', 'includedSubmitted', 'specsSubmitted', 'faqsSubmitted']) {
+    if (!validation.includes(marker) || !productService.includes(marker)) {
+      console.error(`Product repeatable collection marker missing: ${marker}`);
+      process.exit(1);
+    }
+  }
+  if (!productForm.includes('Top product summary') || !productForm.includes('State availability copy') || !productForm.includes('normalProductSectionKeys')) {
+    console.error('Product content editor must map hidden storefront sections to clear dedicated labels and normal section options.');
+    process.exit(1);
+  }
+  const exposedNormalKeys = ['features_design', 'comparison', 'custom_section'];
+  for (const key of exposedNormalKeys) {
+    if (!validation.includes(`"${key}"`) || !productDetail.includes('product.contentSections.filter')) {
+      console.error(`Product page content renderer/static options missing normal section key: ${key}`);
+      process.exit(1);
+    }
+  }
+
   const requiredProductFormText = ['Basic product info', 'Pricing and inventory', 'Compliance', 'Product media', 'Product page content', 'SEO', 'Save / publish controls', 'mediaYoutubeUrl', 'STUN_GUN'];
   const missingProductFormText = requiredProductFormText.filter((text) => !productForm.includes(text));
   if(missingProductFormText.length){ console.error('Admin product form missing grouped UX text: ' + missingProductFormText.join(', ')); process.exit(1); }
