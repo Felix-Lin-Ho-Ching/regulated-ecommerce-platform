@@ -1,4 +1,7 @@
-import { detectMediaKindFromUpload, isUploadFile } from "@/lib/media/upload-detection";
+import {
+  detectMediaKindFromUpload,
+  isUploadFile,
+} from "@/lib/media/upload-detection";
 
 export const productStatuses = ["DRAFT", "ACTIVE", "ARCHIVED"] as const;
 export const restrictedClassOptions = ["STUN_GUN"] as const;
@@ -11,8 +14,18 @@ export const maxProductIncludedRows = 12;
 export const maxProductSpecRows = 30;
 export const maxProductFAQRows = 20;
 export const maxProductFeatureRows = 12;
-export const productSectionKeys = ["overview", "features_design", "comparison", "custom_section", "state_requirements"] as const;
-export const normalProductSectionKeys = ["features_design", "comparison", "custom_section"] as const;
+export const productSectionKeys = [
+  "overview",
+  "features_design",
+  "comparison",
+  "custom_section",
+  "state_requirements",
+] as const;
+export const normalProductSectionKeys = [
+  "features_design",
+  "comparison",
+  "custom_section",
+] as const;
 
 type ProductStatus = (typeof productStatuses)[number];
 export type RestrictedClass = (typeof restrictedClassOptions)[number];
@@ -36,10 +49,34 @@ export type ProductMediaInput = {
   sortOrder: number;
 };
 
-export type ProductContentSectionInput = { sectionKey: ProductSectionKey; eyebrow?: string; title: string; body?: string; imageUrl?: string; videoUrl?: string; ctaLabel?: string; ctaHref?: string; sortOrder: number };
-export type ProductIncludedItemInput = { label: string; description?: string; quantity: number; sortOrder: number };
-export type ProductSpecInput = { label: string; value: string; group?: string; sortOrder: number };
-export type ProductFAQInput = { question: string; answer: string; sortOrder: number };
+export type ProductContentSectionInput = {
+  sectionKey: ProductSectionKey;
+  eyebrow?: string;
+  title: string;
+  body?: string;
+  imageUrl?: string;
+  videoUrl?: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+  sortOrder: number;
+};
+export type ProductIncludedItemInput = {
+  label: string;
+  description?: string;
+  quantity: number;
+  sortOrder: number;
+};
+export type ProductSpecInput = {
+  label: string;
+  value: string;
+  group?: string;
+  sortOrder: number;
+};
+export type ProductFAQInput = {
+  question: string;
+  answer: string;
+  sortOrder: number;
+};
 
 export type ProductFormInput = {
   id?: string;
@@ -72,13 +109,16 @@ export type ProductFormInput = {
 
 export class ProductFormValidationError extends Error {}
 
-
 function text(formData: FormData, key: string): string {
   const value = formData.get(key);
   return typeof value === "string" ? value.trim() : "";
 }
 
-function oneOf<T extends string>(value: string, values: readonly T[], fallback: T): T {
+function oneOf<T extends string>(
+  value: string,
+  values: readonly T[],
+  fallback: T,
+): T {
   return values.includes(value as T) ? (value as T) : fallback;
 }
 
@@ -93,7 +133,7 @@ function intOrDefault(value: string, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function slugify(value: string): string {
+export function slugify(value: string): string {
   return value
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
@@ -108,11 +148,17 @@ export function extractYouTubeVideoId(value: string): string | undefined {
     const parts = parsed.pathname.split("/").filter(Boolean);
 
     if (normalizedHost === "youtu.be") return parts[0];
-    if (["youtube.com", "m.youtube.com", "music.youtube.com"].includes(normalizedHost)) {
-      if (parsed.pathname === "/watch") return parsed.searchParams.get("v") || undefined;
+    if (
+      ["youtube.com", "m.youtube.com", "music.youtube.com"].includes(
+        normalizedHost,
+      )
+    ) {
+      if (parsed.pathname === "/watch")
+        return parsed.searchParams.get("v") || undefined;
       if (["embed", "shorts", "live"].includes(parts[0])) return parts[1];
     }
-    if (normalizedHost === "youtube-nocookie.com" && parts[0] === "embed") return parts[1];
+    if (normalizedHost === "youtube-nocookie.com" && parts[0] === "embed")
+      return parts[1];
   } catch {
     return undefined;
   }
@@ -133,13 +179,24 @@ function isValidMediaUrl(value: string): boolean {
   }
 }
 
-type MediaUploadResolver = (file: File, type: ProductMediaType, role: "media" | "thumbnail") => Promise<string>;
+type MediaUploadResolver = (
+  file: File,
+  type: ProductMediaType,
+  role: "media" | "thumbnail",
+) => Promise<string>;
 
-async function parseMediaRows(formData: FormData, resolveUpload?: MediaUploadResolver): Promise<ProductMediaInput[]> {
+async function parseMediaRows(
+  formData: FormData,
+  resolveUpload?: MediaUploadResolver,
+): Promise<ProductMediaInput[]> {
   const rows: ProductMediaInput[] = [];
 
   for (let index = 0; index < maxProductMediaRows; index += 1) {
-    let type = oneOf(text(formData, `mediaType${index}`), productMediaTypes, "IMAGE");
+    let type = oneOf(
+      text(formData, `mediaType${index}`),
+      productMediaTypes,
+      "IMAGE",
+    );
     const url = text(formData, `mediaUrl${index}`);
     const thumbnailUrl = text(formData, `mediaThumbnailUrl${index}`);
     const youtubeUrl = text(formData, `mediaYoutubeUrl${index}`);
@@ -151,35 +208,79 @@ async function parseMediaRows(formData: FormData, resolveUpload?: MediaUploadRes
     const hasUpload = isUploadFile(uploadFile);
     const hasThumbnailUpload = isUploadFile(thumbnailUploadFile);
     const detectedMediaType = detectMediaKindFromUpload(uploadFile);
-    const hasVisibleInput = Boolean(url || youtubeUrl || thumbnailUrl || alt || title || sortOrderValue || hasUpload || hasThumbnailUpload);
+    const hasVisibleInput = Boolean(
+      url ||
+      youtubeUrl ||
+      thumbnailUrl ||
+      alt ||
+      title ||
+      sortOrderValue ||
+      hasUpload ||
+      hasThumbnailUpload,
+    );
 
     if (!hasVisibleInput) continue;
-    if (hasUpload && !detectedMediaType) throw new ProductFormValidationError(`Media row ${index + 1}: Unsupported media file. Upload a JPEG, PNG, or WebP image.`);
+    if (hasUpload && !detectedMediaType)
+      throw new ProductFormValidationError(
+        `Media row ${index + 1}: Unsupported media file. Upload a JPEG, PNG, or WebP image.`,
+      );
     if (detectedMediaType) type = "IMAGE";
     const youtubeUrlFromMediaUrl = url ? extractYouTubeVideoId(url) : undefined;
     const youtubeSourceUrl = youtubeUrl || (youtubeUrlFromMediaUrl ? url : "");
-    const youtubeVideoId = youtubeSourceUrl ? extractYouTubeVideoId(youtubeSourceUrl) : undefined;
+    const youtubeVideoId = youtubeSourceUrl
+      ? extractYouTubeVideoId(youtubeSourceUrl)
+      : undefined;
     if (youtubeUrl || youtubeUrlFromMediaUrl) type = "YOUTUBE";
-    if ((youtubeUrl || type === "YOUTUBE") && (!youtubeVideoId || !isValidYouTubeVideoId(youtubeVideoId))) throw new ProductFormValidationError(`Media row ${index + 1}: enter a valid YouTube URL.`);
-    if (!url && !youtubeUrl && !hasUpload) throw new ProductFormValidationError(`Media row ${index + 1}: Media URL, YouTube URL, or uploaded image is required when media details are provided.`);
-    if (url && !isValidMediaUrl(url)) throw new ProductFormValidationError(`Media row ${index + 1}: enter a valid http(s) or local URL.`);
-    if (thumbnailUrl && !isValidMediaUrl(thumbnailUrl)) throw new ProductFormValidationError(`Media row ${index + 1}: enter a valid thumbnail URL.`);
+    if (
+      (youtubeUrl || type === "YOUTUBE") &&
+      (!youtubeVideoId || !isValidYouTubeVideoId(youtubeVideoId))
+    )
+      throw new ProductFormValidationError(
+        `Media row ${index + 1}: enter a valid YouTube URL.`,
+      );
+    if (!url && !youtubeUrl && !hasUpload)
+      throw new ProductFormValidationError(
+        `Media row ${index + 1}: Media URL, YouTube URL, or uploaded image is required when media details are provided.`,
+      );
+    if (url && !isValidMediaUrl(url))
+      throw new ProductFormValidationError(
+        `Media row ${index + 1}: enter a valid http(s) or local URL.`,
+      );
+    if (thumbnailUrl && !isValidMediaUrl(thumbnailUrl))
+      throw new ProductFormValidationError(
+        `Media row ${index + 1}: enter a valid thumbnail URL.`,
+      );
 
     let finalUrl = url;
     let finalThumbnailUrl = thumbnailUrl;
     try {
       if (hasUpload) {
-        if (!resolveUpload) throw new ProductFormValidationError("Upload handling is unavailable.");
+        if (!resolveUpload)
+          throw new ProductFormValidationError(
+            "Upload handling is unavailable.",
+          );
         finalUrl = await resolveUpload(uploadFile, type, "media");
       }
       if (hasThumbnailUpload) {
-        if (!resolveUpload) throw new ProductFormValidationError("Upload handling is unavailable.");
-        finalThumbnailUrl = await resolveUpload(thumbnailUploadFile, "IMAGE", "thumbnail");
+        if (!resolveUpload)
+          throw new ProductFormValidationError(
+            "Upload handling is unavailable.",
+          );
+        finalThumbnailUrl = await resolveUpload(
+          thumbnailUploadFile,
+          "IMAGE",
+          "thumbnail",
+        );
       }
     } catch (error) {
       if (error instanceof ProductFormValidationError) throw error;
-      const message = error instanceof Error ? error.message : "Upload failed. Try again or use a media URL.";
-      throw new ProductFormValidationError(`Media row ${index + 1}: ${message}`);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Upload failed. Try again or use a media URL.";
+      throw new ProductFormValidationError(
+        `Media row ${index + 1}: ${message}`,
+      );
     }
 
     rows.push({
@@ -195,16 +296,31 @@ async function parseMediaRows(formData: FormData, resolveUpload?: MediaUploadRes
 
   const imageCount = rows.filter((row) => row.type === "IMAGE").length;
   const youtubeCount = rows.filter((row) => row.type === "YOUTUBE").length;
-  if (imageCount > maxProductImageRows) throw new ProductFormValidationError(`Product media limit reached: use at most ${maxProductImageRows} images.`);
-  if (youtubeCount > maxProductYoutubeRows) throw new ProductFormValidationError(`Product media limit reached: use at most ${maxProductYoutubeRows} YouTube videos.`);
-  if (rows.length > maxProductMediaRows) throw new ProductFormValidationError(`Product media limit reached: use at most ${maxProductMediaRows} total media items.`);
+  if (imageCount > maxProductImageRows)
+    throw new ProductFormValidationError(
+      `Product media limit reached: use at most ${maxProductImageRows} images.`,
+    );
+  if (youtubeCount > maxProductYoutubeRows)
+    throw new ProductFormValidationError(
+      `Product media limit reached: use at most ${maxProductYoutubeRows} YouTube videos.`,
+    );
+  if (rows.length > maxProductMediaRows)
+    throw new ProductFormValidationError(
+      `Product media limit reached: use at most ${maxProductMediaRows} total media items.`,
+    );
 
   return rows;
 }
 
-function parseContentSections(formData: FormData): ProductContentSectionInput[] {
+function parseContentSections(
+  formData: FormData,
+): ProductContentSectionInput[] {
   return Array.from({ length: maxProductContentRows }, (_, index) => ({
-    sectionKey: oneOf(text(formData, `sectionKey${index}`), productSectionKeys, "overview"),
+    sectionKey: oneOf(
+      text(formData, `sectionKey${index}`),
+      productSectionKeys,
+      "overview",
+    ),
     eyebrow: text(formData, `sectionEyebrow${index}`) || undefined,
     title: text(formData, `sectionTitle${index}`),
     body: text(formData, `sectionBody${index}`) || undefined,
@@ -213,41 +329,81 @@ function parseContentSections(formData: FormData): ProductContentSectionInput[] 
     ctaLabel: text(formData, `sectionCtaLabel${index}`) || undefined,
     ctaHref: text(formData, `sectionCtaHref${index}`) || undefined,
     sortOrder: index,
-  })).filter((section) => section.title && (!["overview", "state_requirements"].includes(section.sectionKey) || Boolean(section.body)));
+  })).filter(
+    (section) =>
+      section.title &&
+      (!["overview", "state_requirements"].includes(section.sectionKey) ||
+        Boolean(section.body)),
+  );
 }
 
 function parseIncludedItems(formData: FormData): ProductIncludedItemInput[] {
-  return Array.from({ length: maxProductIncludedRows }, (_, index) => ({ label: text(formData, `includedLabel${index}`), description: text(formData, `includedDescription${index}`) || undefined, quantity: intOrDefault(text(formData, `includedQuantity${index}`), 1), sortOrder: index })).filter((item) => item.label);
+  return Array.from({ length: maxProductIncludedRows }, (_, index) => ({
+    label: text(formData, `includedLabel${index}`),
+    description: text(formData, `includedDescription${index}`) || undefined,
+    quantity: intOrDefault(text(formData, `includedQuantity${index}`), 1),
+    sortOrder: index,
+  })).filter((item) => item.label);
 }
 
 function parseSpecs(formData: FormData): ProductSpecInput[] {
-  return Array.from({ length: maxProductSpecRows }, (_, index) => ({ label: text(formData, `specLabel${index}`), value: text(formData, `specValue${index}`), group: text(formData, `specGroup${index}`) || undefined, sortOrder: index })).filter((spec) => spec.label && spec.value);
+  return Array.from({ length: maxProductSpecRows }, (_, index) => ({
+    label: text(formData, `specLabel${index}`),
+    value: text(formData, `specValue${index}`),
+    group: text(formData, `specGroup${index}`) || undefined,
+    sortOrder: index,
+  })).filter((spec) => spec.label && spec.value);
 }
 
 function parseFaqs(formData: FormData): ProductFAQInput[] {
-  return Array.from({ length: maxProductFAQRows }, (_, index) => ({ question: text(formData, `faqQuestion${index}`), answer: text(formData, `faqAnswer${index}`), sortOrder: index })).filter((faq) => faq.question && faq.answer);
+  return Array.from({ length: maxProductFAQRows }, (_, index) => ({
+    question: text(formData, `faqQuestion${index}`),
+    answer: text(formData, `faqAnswer${index}`),
+    sortOrder: index,
+  })).filter((faq) => faq.question && faq.answer);
 }
 
-export async function parseProductForm(formData: FormData, resolveUpload?: MediaUploadResolver): Promise<ProductFormInput> {
+export async function parseProductForm(
+  formData: FormData,
+  resolveUpload?: MediaUploadResolver,
+): Promise<ProductFormInput> {
   const name = text(formData, "name");
   const slug = slugify(text(formData, "slug") || name);
   const sku = text(formData, "sku");
   const categoryId = text(formData, "categoryId") || undefined;
   const priceCents = centsFromDollars(text(formData, "price"));
   const restricted = formData.get("restricted") === "on";
-  const restrictedClass = restricted ? oneOf(text(formData, "restrictedClass"), restrictedClassOptions, "STUN_GUN") : undefined;
+  const restrictedClass = restricted
+    ? oneOf(
+        text(formData, "restrictedClass"),
+        restrictedClassOptions,
+        "STUN_GUN",
+      )
+    : undefined;
   const intent = text(formData, "intent");
-  const status = intent === "draft" ? "DRAFT" : intent === "publish" ? "ACTIVE" : intent === "archive" ? "ARCHIVED" : oneOf(text(formData, "status"), productStatuses, "DRAFT");
+  const status =
+    intent === "draft"
+      ? "DRAFT"
+      : intent === "publish"
+        ? "ACTIVE"
+        : intent === "archive"
+          ? "ARCHIVED"
+          : oneOf(text(formData, "status"), productStatuses, "DRAFT");
 
   const missing: string[] = [];
   if (!name) missing.push("missing name");
-  if (!slug) missing.push("missing slug");
-  if (!sku) missing.push("missing SKU");
   if (priceCents <= 0) missing.push("missing price");
   if (!categoryId) missing.push("missing category");
-  if (restricted && !restrictedClass) missing.push("missing compliance class for restricted product");
-  if (status === "ACTIVE" && missing.length) throw new ProductFormValidationError(`Cannot publish product: ${missing.join(", ")}.`);
-  if (missing.length) throw new ProductFormValidationError(`Product details need fixes: ${missing.join(", ")}.`);
+  if (restricted && !restrictedClass)
+    missing.push("missing compliance class for restricted product");
+  if (status === "ACTIVE" && missing.length)
+    throw new ProductFormValidationError(
+      `Cannot publish product: ${missing.join(", ")}.`,
+    );
+  if (missing.length)
+    throw new ProductFormValidationError(
+      `Product details need fixes: ${missing.join(", ")}.`,
+    );
 
   return {
     id: text(formData, "id") || undefined,
@@ -256,19 +412,27 @@ export async function parseProductForm(formData: FormData, resolveUpload?: Media
     brand: text(formData, "brand") || "Stun Fry",
     categoryId,
     restrictedClass,
-    description: text(formData, "description") || "Owner-managed product description pending.",
+    description:
+      text(formData, "description") ||
+      "Owner-managed product description pending.",
     status,
     restricted,
     sku,
     priceCents,
-    stockQuantity: Math.max(0, intOrDefault(text(formData, "stockQuantity"), 0)),
-    lowStockThreshold: Math.max(0, intOrDefault(text(formData, "lowStockThreshold"), 0)),
+    stockQuantity: Math.max(
+      0,
+      intOrDefault(text(formData, "stockQuantity"), 0),
+    ),
+    lowStockThreshold: Math.max(
+      0,
+      intOrDefault(text(formData, "lowStockThreshold"), 0),
+    ),
     features: Array.from({ length: maxProductFeatureRows }, (_, index) => ({
-        code: text(formData, `featureCode${index}`),
-        label: text(formData, `featureLabel${index}`),
-        value: text(formData, `featureValue${index}`),
-        restrictedRelevant: formData.get(`featureRestricted${index}`) === "on",
-      }))
+      code: text(formData, `featureCode${index}`),
+      label: text(formData, `featureLabel${index}`),
+      value: text(formData, `featureValue${index}`),
+      restrictedRelevant: formData.get(`featureRestricted${index}`) === "on",
+    }))
       .filter((feature) => feature.code || feature.label || feature.value)
       .filter((feature) => feature.code && feature.label),
     media: await parseMediaRows(formData, resolveUpload),
