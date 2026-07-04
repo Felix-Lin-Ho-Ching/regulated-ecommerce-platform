@@ -35,7 +35,8 @@ requireText(checkout, 'if (destination.status !== "allowed") redirect("/checkout
 requireText(orderService, 'fulfillmentStatus: "FULFILLMENT_HOLD"', 'declined payments may leave fulfillment released.');
 if (/cardNumber\s*[:=]|cvv\s*[:=]/.test(readFileSync('prisma/schema.prisma', 'utf8'))) fail('schema appears able to persist raw card number or CVV.');
 requireText(catalog, 'status: { in: [...storefrontVisibleStatuses] }', 'draft products may appear on storefront.');
-requireText(productService, 'shouldReplaceCollection', 'product media/content may be wiped by unrelated save.');
+requireText(productService, 'featuresSubmitted', 'product media/content replace markers are missing.');
+if (productService.includes('shouldReplaceCollection') || productService.includes('rows.length > 0')) fail('product media/content may be wiped by unrelated save or final-row deletion may fail.');
 requireText(form, 'Save the product as draft before adding images or YouTube videos.', 'new product media controls are not disabled until product exists.');
 if (form.includes('accept="video/') || validation.includes('VIDEO')) fail('product video file upload appears to be enabled.');
 requireText(fulfillment, 'status: "PAID"', 'fulfillment queries/actions are not gated on paid orders.');

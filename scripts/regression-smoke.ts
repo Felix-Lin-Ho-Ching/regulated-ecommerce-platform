@@ -10,6 +10,7 @@ import { logDebugEmail } from "../lib/email/email-log-service";
 import { buildAdminNewOrderEmail } from "../lib/email/templates/admin-new-order";
 import { buildOrderConfirmationEmail } from "../lib/email/templates/order-confirmation";
 import { parseProductForm, ProductFormValidationError, type ProductFormInput } from "../lib/products/validation";
+import { deleteHomepageSlide, getHomepageSlides, upsertHomepageSlide } from "../lib/storefront/homepage-slides";
 import type { AdminSession } from "../lib/admin/auth";
 
 const prisma = new PrismaClient();
@@ -52,6 +53,7 @@ async function cleanup() {
     await prisma.productFAQ.deleteMany({ where: { productId: { in: productIds } } });
     await prisma.product.deleteMany({ where: { id: { in: productIds } } });
   }
+  await prisma.homepageMedia.deleteMany({ where: { title: { startsWith: "Regression" } } });
   await prisma.adminUser.deleteMany({ where: { email: { endsWith: "@regression.local" } } });
 }
 
@@ -120,6 +122,30 @@ async function main() {
   await updateProduct(await productInput(category.id, { id, status: "ACTIVE", name: "Regression Empty Collection Guard", features: [], media: [], contentSections: [], includedItems: [], specs: [], faqs: [] }));
   saved = await prisma.product.findUniqueOrThrow({ where: { id }, include: { media: true, contentSections: true, includedItems: true, specs: true, faqs: true, features: true, variants: { include: { inventory: true } } } });
   assert(saved.media.length === 2 && saved.contentSections.length === 1 && saved.includedItems.length === 1 && saved.specs.length === 1 && saved.faqs.length === 1 && saved.features.length === 1, "Empty unrelated product save wiped existing media or repeatable content.");
+
+  await updateProduct(await productInput(category.id, { id, status: "ACTIVE", featuresSubmitted: true, contentSubmitted: true, includedSubmitted: true, specsSubmitted: true, faqsSubmitted: true, features: [{ code: "updated", label: "Updated", value: "Feature", restrictedRelevant: false }], contentSections: [{ sectionKey: "features_design", title: "Updated page block", body: "Visible storefront content", sortOrder: 0 }, { sectionKey: "state_requirements", title: "State availability copy", body: "Updated state copy", sortOrder: 1 }, { sectionKey: "overview", title: "Top product summary", body: "Updated overview", sortOrder: 2 }], includedItems: [{ label: "Updated cable", quantity: 2, sortOrder: 0 }], specs: [{ label: "Updated battery", value: "USB-C", sortOrder: 0 }], faqs: [{ question: "Updated?", answer: "Yes", sortOrder: 0 }] }));
+  saved = await prisma.product.findUniqueOrThrow({ where: { id }, include: { contentSections: { orderBy: { sortOrder: "asc" } }, includedItems: true, specs: true, faqs: true, features: true, media: true, variants: { include: { inventory: true } } } });
+  assert(saved.features[0]?.code === "updated" && saved.includedItems[0]?.label === "Updated cable" && saved.specs[0]?.value === "USB-C" && saved.faqs[0]?.question === "Updated?", "Product repeatable content update did not persist.");
+  const catalogProduct = (await getCatalogProducts()).find((p) => p.id === id);
+  assert(catalogProduct?.contentSections.some((section) => section.sectionKey === "features_design" && section.body === "Visible storefront content"), "Normal product content section was not visible in storefront catalog data.");
+  assert(catalogProduct?.contentSections.some((section) => section.sectionKey === "overview" && section.body === "Updated overview") && catalogProduct?.contentSections.some((section) => section.sectionKey === "state_requirements" && section.body === "Updated state copy"), "Overview/state availability copy mapping did not persist for storefront rendering.");
+  await updateProduct(await productInput(category.id, { id, status: "ACTIVE", featuresSubmitted: true, contentSubmitted: true, includedSubmitted: true, specsSubmitted: true, faqsSubmitted: true, features: [], contentSections: [], includedItems: [], specs: [], faqs: [] }));
+  saved = await prisma.product.findUniqueOrThrow({ where: { id }, include: { media: true, contentSections: true, includedItems: true, specs: true, faqs: true, features: true, variants: { include: { inventory: true } } } });
+  assert(saved.contentSections.length === 0 && saved.includedItems.length === 0 && saved.specs.length === 0 && saved.faqs.length === 0 && saved.features.length === 0, "Submitted empty repeatable collections did not delete final rows from DB.");
+
+  const imageSlideId = await upsertHomepageSlide({ id: "new", slot: "hero-slide", type: "IMAGE", url: "/uploads/regression-home.jpg", thumbnailUrl: "/uploads/regression-home-thumb.jpg", headline: "Regression image slide", subheadline: "", ctaLabel: "Shop products", ctaHref: "/products", badge1: "", badge2: "", badge3: "", enabled: true, sortOrder: 98 });
+  let homeSlides = await getHomepageSlides();
+  assert(homeSlides.some((slide) => slide.id === imageSlideId && slide.type === "IMAGE"), "Homepage image slide create did not persist to storefront data.");
+  await upsertHomepageSlide({ id: imageSlideId, slot: "hero-slide", type: "IMAGE", url: "/uploads/regression-home-updated.jpg", thumbnailUrl: "/uploads/regression-home-thumb.jpg", headline: "Regression image slide updated", subheadline: "", ctaLabel: "Shop products", ctaHref: "/products", badge1: "", badge2: "", badge3: "", enabled: true, sortOrder: 98 });
+  homeSlides = await getHomepageSlides();
+  assert(homeSlides.some((slide) => slide.id === imageSlideId && slide.url === "/uploads/regression-home-updated.jpg"), "Homepage image slide update did not persist.");
+  await deleteHomepageSlide(imageSlideId);
+  assert(!(await getHomepageSlides()).some((slide) => slide.id === imageSlideId), "Homepage image slide delete/delete-final did not persist.");
+  const youtubeSlideId = await upsertHomepageSlide({ id: "new", slot: "hero-slide", type: "YOUTUBE", url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", youtubeVideoId: "dQw4w9WgXcQ", thumbnailUrl: "/uploads/regression-youtube-thumb.jpg", headline: "Regression YouTube slide", subheadline: "", ctaLabel: "Shop products", ctaHref: "/products", badge1: "", badge2: "", badge3: "", enabled: true, sortOrder: 99 });
+  homeSlides = await getHomepageSlides();
+  assert(homeSlides.some((slide) => slide.id === youtubeSlideId && slide.type === "YOUTUBE" && slide.youtubeVideoId === "dQw4w9WgXcQ"), "Homepage YouTube slide create did not persist to storefront data.");
+  await deleteHomepageSlide(youtubeSlideId);
+  assert(!(await getHomepageSlides()).some((slide) => slide.id === youtubeSlideId), "Homepage YouTube slide delete/delete-final did not persist.");
 
   const role = await prisma.adminRole.upsert({ where: { code: "FULFILLMENT" }, update: {}, create: { code: "FULFILLMENT", name: "Fulfillment" } });
   const admin = await prisma.adminUser.create({ data: { email: `${run}@regression.local`, name: "Regression Fulfillment", passwordHash: "x", roleId: role.id } });

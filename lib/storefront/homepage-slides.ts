@@ -1,6 +1,6 @@
 import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
 
-export type HomepageMediaType = "IMAGE" | "VIDEO";
+export type HomepageMediaType = "IMAGE" | "YOUTUBE";
 
 export type HomepageSlide = {
   id: string;
@@ -8,6 +8,7 @@ export type HomepageSlide = {
   type: HomepageMediaType;
   url: string;
   thumbnailUrl?: string;
+  youtubeVideoId?: string;
   alt?: string;
   headline: string;
   subheadline: string;
@@ -78,7 +79,7 @@ export const defaultHomepageSlides: HomepageSlide[] = [
 ];
 
 type HomepageMediaRow = {
-  id: string; slot: string; type: HomepageMediaType; url: string; thumbnailUrl: string | null; alt: string | null; title: string | null; subtitle: string | null; ctaLabel: string | null; ctaHref: string | null; enabled: boolean; sortOrder: number;
+  id: string; slot: string; type: HomepageMediaType; url: string; thumbnailUrl: string | null; youtubeVideoId: string | null; alt: string | null; title: string | null; subtitle: string | null; ctaLabel: string | null; ctaHref: string | null; enabled: boolean; sortOrder: number;
 };
 
 function badgeValues(alt: string | null | undefined): [string, string, string] {
@@ -88,7 +89,7 @@ function badgeValues(alt: string | null | undefined): [string, string, string] {
 
 function normalize(row: HomepageMediaRow): HomepageSlide {
   const [badge1, badge2, badge3] = badgeValues(row.alt);
-  return { id: row.id, slot: row.slot, type: row.type, url: row.url, thumbnailUrl: row.thumbnailUrl ?? undefined, alt: row.title ?? undefined, headline: row.title || defaultHomepageSlides[0].headline, subheadline: row.subtitle || defaultHomepageSlides[0].subheadline, ctaLabel: row.ctaLabel || "Shop devices", ctaHref: row.ctaHref || "/products", badge1, badge2, badge3, enabled: row.enabled, sortOrder: row.sortOrder };
+  return { id: row.id, slot: row.slot, type: row.type === "YOUTUBE" ? "YOUTUBE" : "IMAGE", url: row.url, thumbnailUrl: row.thumbnailUrl ?? undefined, youtubeVideoId: row.youtubeVideoId ?? undefined, alt: row.title ?? undefined, headline: row.title || defaultHomepageSlides[0].headline, subheadline: row.subtitle || defaultHomepageSlides[0].subheadline, ctaLabel: row.ctaLabel || "Shop devices", ctaHref: row.ctaHref || "/products", badge1, badge2, badge3, enabled: row.enabled, sortOrder: row.sortOrder };
 }
 
 export async function getHomepageSlides(): Promise<HomepageSlide[]> {
@@ -105,7 +106,7 @@ export async function getHomepageSlidesForAdmin(): Promise<HomepageSlide[]> {
 
 export async function upsertHomepageSlide(slide: HomepageSlide): Promise<string> {
   if (!isDatabaseConfigured) return slide.id;
-  const data = { slot: HERO_SLIDE_SLOT, type: slide.type, url: slide.url, thumbnailUrl: slide.thumbnailUrl || null, alt: [slide.badge1, slide.badge2, slide.badge3].filter(Boolean).join(" | "), title: slide.headline, subtitle: slide.subheadline, ctaLabel: slide.ctaLabel, ctaHref: slide.ctaHref, enabled: slide.enabled, sortOrder: slide.sortOrder };
+  const data = { slot: HERO_SLIDE_SLOT, type: slide.type, url: slide.url, thumbnailUrl: slide.thumbnailUrl || null, youtubeVideoId: slide.youtubeVideoId || null, alt: [slide.badge1, slide.badge2, slide.badge3].filter(Boolean).join(" | "), title: slide.headline, subtitle: slide.subheadline, ctaLabel: slide.ctaLabel, ctaHref: slide.ctaHref, enabled: slide.enabled, sortOrder: slide.sortOrder };
   if (slide.id && slide.id !== "new") {
     await prisma.homepageMedia.update({ where: { id: slide.id }, data });
     return slide.id;

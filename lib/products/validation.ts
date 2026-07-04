@@ -11,7 +11,8 @@ export const maxProductIncludedRows = 12;
 export const maxProductSpecRows = 30;
 export const maxProductFAQRows = 20;
 export const maxProductFeatureRows = 12;
-export const productSectionKeys = ["overview", "features_design", "whats_included", "specs", "comparison", "state_requirements", "faq"] as const;
+export const productSectionKeys = ["overview", "features_design", "comparison", "custom_section", "state_requirements"] as const;
+export const normalProductSectionKeys = ["features_design", "comparison", "custom_section"] as const;
 
 type ProductStatus = (typeof productStatuses)[number];
 export type RestrictedClass = (typeof restrictedClassOptions)[number];
@@ -60,6 +61,12 @@ export type ProductFormInput = {
   includedItems: ProductIncludedItemInput[];
   specs: ProductSpecInput[];
   faqs: ProductFAQInput[];
+  featuresSubmitted?: boolean;
+  mediaSubmitted?: boolean;
+  contentSubmitted?: boolean;
+  includedSubmitted?: boolean;
+  specsSubmitted?: boolean;
+  faqsSubmitted?: boolean;
   auditNote: string;
 };
 
@@ -206,7 +213,7 @@ function parseContentSections(formData: FormData): ProductContentSectionInput[] 
     ctaLabel: text(formData, `sectionCtaLabel${index}`) || undefined,
     ctaHref: text(formData, `sectionCtaHref${index}`) || undefined,
     sortOrder: index,
-  })).filter((section) => section.title);
+  })).filter((section) => section.title && (!["overview", "state_requirements"].includes(section.sectionKey) || Boolean(section.body)));
 }
 
 function parseIncludedItems(formData: FormData): ProductIncludedItemInput[] {
@@ -269,6 +276,12 @@ export async function parseProductForm(formData: FormData, resolveUpload?: Media
     includedItems: parseIncludedItems(formData),
     specs: parseSpecs(formData),
     faqs: parseFaqs(formData),
+    featuresSubmitted: formData.has("featuresSubmitted"),
+    mediaSubmitted: formData.has("mediaSubmitted"),
+    contentSubmitted: formData.has("contentSubmitted"),
+    includedSubmitted: formData.has("includedSubmitted"),
+    specsSubmitted: formData.has("specsSubmitted"),
+    faqsSubmitted: formData.has("faqsSubmitted"),
     auditNote: text(formData, "auditNote"),
   };
 }
