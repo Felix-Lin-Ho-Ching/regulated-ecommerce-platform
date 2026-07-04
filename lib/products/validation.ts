@@ -96,13 +96,16 @@ function slugify(value: string): string {
 export function extractYouTubeVideoId(value: string): string | undefined {
   try {
     const parsed = new URL(value);
-    const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
-    if (host === "youtu.be") return parsed.pathname.split("/").filter(Boolean)[0];
-    if (host === "youtube.com" || host === "m.youtube.com") {
+    const host = parsed.hostname.toLowerCase();
+    const normalizedHost = host.replace(/^www\./, "");
+    const parts = parsed.pathname.split("/").filter(Boolean);
+
+    if (normalizedHost === "youtu.be") return parts[0];
+    if (["youtube.com", "m.youtube.com", "music.youtube.com"].includes(normalizedHost)) {
       if (parsed.pathname === "/watch") return parsed.searchParams.get("v") || undefined;
-      const parts = parsed.pathname.split("/").filter(Boolean);
       if (["embed", "shorts", "live"].includes(parts[0])) return parts[1];
     }
+    if (normalizedHost === "youtube-nocookie.com" && parts[0] === "embed") return parts[1];
   } catch {
     return undefined;
   }
@@ -146,9 +149,11 @@ async function parseMediaRows(formData: FormData, resolveUpload?: MediaUploadRes
     if (!hasVisibleInput) continue;
     if (hasUpload && !detectedMediaType) throw new ProductFormValidationError(`Media row ${index + 1}: Unsupported media file. Upload a JPEG, PNG, or WebP image.`);
     if (detectedMediaType) type = "IMAGE";
-    const youtubeVideoId = youtubeUrl ? extractYouTubeVideoId(youtubeUrl) : undefined;
-    if (youtubeUrl) type = "YOUTUBE";
-    if (youtubeUrl && (!youtubeVideoId || !isValidYouTubeVideoId(youtubeVideoId))) throw new ProductFormValidationError(`Media row ${index + 1}: enter a valid YouTube URL.`);
+    const youtubeUrlFromMediaUrl = url ? extractYouTubeVideoId(url) : undefined;
+    const youtubeSourceUrl = youtubeUrl || (youtubeUrlFromMediaUrl ? url : "");
+    const youtubeVideoId = youtubeSourceUrl ? extractYouTubeVideoId(youtubeSourceUrl) : undefined;
+    if (youtubeUrl || youtubeUrlFromMediaUrl) type = "YOUTUBE";
+    if ((youtubeUrl || type === "YOUTUBE") && (!youtubeVideoId || !isValidYouTubeVideoId(youtubeVideoId))) throw new ProductFormValidationError(`Media row ${index + 1}: enter a valid YouTube URL.`);
     if (!url && !youtubeUrl && !hasUpload) throw new ProductFormValidationError(`Media row ${index + 1}: Media URL, YouTube URL, or uploaded image is required when media details are provided.`);
     if (url && !isValidMediaUrl(url)) throw new ProductFormValidationError(`Media row ${index + 1}: enter a valid http(s) or local URL.`);
     if (thumbnailUrl && !isValidMediaUrl(thumbnailUrl)) throw new ProductFormValidationError(`Media row ${index + 1}: enter a valid thumbnail URL.`);
@@ -172,7 +177,7 @@ async function parseMediaRows(formData: FormData, resolveUpload?: MediaUploadRes
 
     rows.push({
       type,
-      url: type === "YOUTUBE" ? youtubeUrl : finalUrl,
+      url: type === "YOUTUBE" ? youtubeSourceUrl : finalUrl,
       thumbnailUrl: finalThumbnailUrl || undefined,
       youtubeVideoId,
       alt: alt || undefined,
