@@ -9,7 +9,7 @@ import { getAdminOrder } from "../lib/admin/orders/service";
 import { logDebugEmail } from "../lib/email/email-log-service";
 import { buildAdminNewOrderEmail } from "../lib/email/templates/admin-new-order";
 import { buildOrderConfirmationEmail } from "../lib/email/templates/order-confirmation";
-import type { ProductFormInput } from "../lib/products/validation";
+import { parseProductForm, ProductFormValidationError, type ProductFormInput } from "../lib/products/validation";
 import type { AdminSession } from "../lib/admin/auth";
 
 const prisma = new PrismaClient();
@@ -55,6 +55,37 @@ async function cleanup() {
   await prisma.adminUser.deleteMany({ where: { email: { endsWith: "@regression.local" } } });
 }
 
+async function assertParsedYouTubeMedia(label: string, fields: Record<string, string>, expectedUrl: string, expectedId = "dQw4w9WgXcQ") {
+  const formData = new FormData();
+  formData.set("name", `Regression Parser ${label}`);
+  formData.set("slug", `regression-parser-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`);
+  formData.set("sku", `REG-PARSER-${label}`);
+  formData.set("categoryId", "parser-category");
+  formData.set("price", "49.99");
+  formData.set("restricted", "on");
+  formData.set("restrictedClass", "STUN_GUN");
+  formData.set("status", "DRAFT");
+  formData.set("mediaSortOrder0", "0");
+  for (const [key, value] of Object.entries(fields)) formData.set(key, value);
+
+  const parsed = await parseProductForm(formData);
+  assert(parsed.media.length === 1, `${label} parser did not return one media row.`);
+  assert(parsed.media[0].type === "YOUTUBE", `${label} parser did not save YouTube media type.`);
+  assert(parsed.media[0].url === expectedUrl, `${label} parser did not preserve the original YouTube URL.`);
+  assert(parsed.media[0].youtubeVideoId === expectedId, `${label} parser did not extract YouTube video ID.`);
+}
+
+async function assertInvalidYouTubeFails() {
+  const invalidUrl = "https://www.youtube.com/watch?v=not-valid";
+  try {
+    await assertParsedYouTubeMedia("invalid-youtube", { mediaType0: "YOUTUBE", mediaYoutubeUrl0: invalidUrl }, invalidUrl, "not-valid");
+  } catch (error) {
+    assert(error instanceof ProductFormValidationError && error.message === "Media row 1: enter a valid YouTube URL.", "Invalid YouTube URL did not fail with the expected validation error.");
+    return;
+  }
+  throw new Error("Invalid YouTube URL unexpectedly parsed successfully.");
+}
+
 async function productInput(categoryId: string, overrides: Partial<ProductFormInput> = {}): Promise<ProductFormInput> {
   return { name: "Regression Draft Device", slug, brand: "Stun Fry", categoryId, restrictedClass: "STUN_GUN", description: "Regression product", status: "DRAFT", restricted: true, sku, priceCents: 4999, stockQuantity: 5, lowStockThreshold: 1, auditNote: "regression", features: [{ code: "safe", label: "Safety", value: "Preserved", restrictedRelevant: true }], media: [], contentSections: [{ sectionKey: "overview", title: "Overview", body: "Preserved section", sortOrder: 0 }], includedItems: [{ label: "Cable", quantity: 1, sortOrder: 0 }], specs: [{ label: "Battery", value: "Rechargeable", sortOrder: 0 }], faqs: [{ question: "Works?", answer: "Yes", sortOrder: 0 }], ...overrides };
 }
@@ -66,6 +97,14 @@ async function makeOrder(product: any, variant: any, mode: string, state = "TX")
 async function main() {
   if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required for regression smoke tests.");
   await cleanup();
+
+  await assertParsedYouTubeMedia("youtube-field", { mediaType0: "YOUTUBE", mediaYoutubeUrl0: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }, "https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+  await assertParsedYouTubeMedia("youtube-media-url", { mediaType0: "YOUTUBE", mediaUrl0: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }, "https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+  await assertParsedYouTubeMedia("image-autocorrect", { mediaType0: "IMAGE", mediaUrl0: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }, "https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+  await assertParsedYouTubeMedia("youtu-be", { mediaType0: "YOUTUBE", mediaUrl0: "https://youtu.be/dQw4w9WgXcQ" }, "https://youtu.be/dQw4w9WgXcQ");
+  await assertParsedYouTubeMedia("watch-url", { mediaType0: "YOUTUBE", mediaUrl0: "https://youtube.com/watch?v=dQw4w9WgXcQ" }, "https://youtube.com/watch?v=dQw4w9WgXcQ");
+  await assertParsedYouTubeMedia("nocookie-embed", { mediaType0: "YOUTUBE", mediaUrl0: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ" }, "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
+  await assertInvalidYouTubeFails();
   const category = await prisma.productCategory.upsert({ where: { slug: "stun-guns" }, update: {}, create: { slug: "stun-guns", name: "Stun Guns" } });
   const id = await createProduct(await productInput(category.id));
   assert(!(await getCatalogProducts()).some((p) => p.id === id), "Draft product appeared on storefront.");

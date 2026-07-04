@@ -84,6 +84,20 @@ if(mode==='lint'){
   const productForm = readFileSync('components/admin/products/product-form.tsx', 'utf8');
   const validation = readFileSync('lib/products/validation.ts', 'utf8');
   const gallery = readFileSync('components/store/product-media-gallery.tsx', 'utf8');
+
+  if (!productForm.includes('name={`mediaType${index}`} value={item.type}') || productForm.includes('type="hidden" name={`mediaType${index}`')) {
+    console.error('Admin product form media kind select must submit name={`mediaType${index}`} directly without a duplicate hidden mediaType input.');
+    process.exit(1);
+  }
+  if (!validation.includes('youtubeUrlFromMediaUrl') || !validation.includes('youtubeSourceUrl = youtubeUrl || (youtubeUrlFromMediaUrl ? url : "")') || !validation.includes('if (youtubeUrl || youtubeUrlFromMediaUrl) type = "YOUTUBE"')) {
+    console.error('Product media parser must auto-detect YouTube URLs from mediaUrl as well as mediaYoutubeUrl.');
+    process.exit(1);
+  }
+  if (!gallery.includes('youtube-nocookie.com/embed')) {
+    console.error('Product gallery must keep rendering YouTube iframes through youtube-nocookie.com/embed.');
+    process.exit(1);
+  }
+
   const requiredProductFormText = ['Basic product info', 'Pricing and inventory', 'Compliance', 'Product media', 'Product page content', 'SEO', 'Save / publish controls', 'mediaYoutubeUrl', 'STUN_GUN'];
   const missingProductFormText = requiredProductFormText.filter((text) => !productForm.includes(text));
   if(missingProductFormText.length){ console.error('Admin product form missing grouped UX text: ' + missingProductFormText.join(', ')); process.exit(1); }
