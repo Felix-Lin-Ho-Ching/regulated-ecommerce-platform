@@ -488,6 +488,42 @@ if (mode === "lint") {
     process.exit(1);
   }
 
+  if (
+    /product\.status === "ACTIVE" \? `\/products\/\$\{product\.slug\}`/.test(productForm)
+  ) {
+    console.error(
+      "Main admin product preview button must always use /admin/products/[id]/preview, not the public product URL.",
+    );
+    process.exit(1);
+  }
+  if (
+    !productForm.includes('href={`/admin/products/${product.id}/preview`}') ||
+    !productForm.includes("View live public page")
+  ) {
+    console.error(
+      "Admin product form must keep admin preview separate from the optional live public product link.",
+    );
+    process.exit(1);
+  }
+  if (
+    productActions.includes("applyInlineCategory") ||
+    productActions.includes("saveProductCategory")
+  ) {
+    console.error(
+      "Inline category creation must not happen in lib/products/actions.ts; it belongs in the product service transaction.",
+    );
+    process.exit(1);
+  }
+  if (
+    !productActions.includes('redirect(`/admin/products/${input.id}?saved=1`)') &&
+    !productForm.includes("router.refresh()")
+  ) {
+    console.error(
+      "Product update must force the edit page to reload after save via redirect or router.refresh().",
+    );
+    process.exit(1);
+  }
+
   const requiredProductFormText = [
     "Basic product info",
     "Pricing and inventory",

@@ -893,12 +893,22 @@ export function ProductForm({
           hint="Optional internal note for the audit trail. Required when archiving."
         />
         {product ? (
-          <Link
-            className="btn btn-secondary md:w-fit"
-            href={product.status === "ACTIVE" ? `/products/${product.slug}` : `/admin/products/${product.id}/preview`}
-          >
-            Preview product page
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              className="btn btn-secondary md:w-fit"
+              href={`/admin/products/${product.id}/preview`}
+            >
+              Preview product page
+            </Link>
+            {product.status === "ACTIVE" ? (
+              <Link
+                className="btn btn-secondary md:w-fit"
+                href={`/products/${product.slug}`}
+              >
+                View live public page
+              </Link>
+            ) : null}
+          </div>
         ) : (
           <span className="text-sm font-bold text-slate-500">
             Preview product page is available after saving.

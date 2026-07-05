@@ -177,14 +177,7 @@ export async function updateProductAction(
 
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${input.id}`);
-  return {
-    ok: true,
-    success:
-      input.status === "ACTIVE"
-        ? "Published. Product status is Active."
-        : "Product saved.",
-    intent: actionIntent(formData),
-  };
+  redirect(`/admin/products/${input.id}?saved=1`);
 }
 
 export async function archiveProductAction(
