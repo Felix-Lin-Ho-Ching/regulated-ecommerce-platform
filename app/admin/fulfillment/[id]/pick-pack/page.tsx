@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { AdminShell, EmptyState, SectionHeader, StatusBadge } from "@/components/ui";
 import { requireAdminSession } from "@/lib/admin/auth";
 import { prisma } from "@/lib/db/prisma";
@@ -22,7 +23,7 @@ function canViewPickPackOrder(
   }
 
   if (admin.role !== "FULFILLMENT") {
-    return true;
+    return false;
   }
 
   return order.assignedFulfillmentUserId === admin.adminId || (order.assignedFulfillmentUserId === null && order.fulfillmentStatus === "READY_TO_SHIP");
@@ -69,6 +70,11 @@ export default async function PickPackPage({ params }: { params: Promise<{ id: s
 
   if (!orderAccess) return <AdminShell title="Pick/pack"><EmptyState title="Order not found">This fulfillment order could not be found.</EmptyState></AdminShell>;
 
+  if (admin.role !== "FULFILLMENT") {
+    const orderNumber = await prisma.order.findUnique({ where: { id: orderAccess.id }, select: { orderNumber: true } });
+    redirect(`/admin/orders/${orderNumber?.orderNumber ?? orderAccess.id}`);
+  }
+
   if (!isFulfillmentReleased(orderAccess)) {
     return <NotReleasedState />;
   }
@@ -90,7 +96,7 @@ export default async function PickPackPage({ params }: { params: Promise<{ id: s
 
   const address = order.shippingAddress;
   const hasRestrictedItem = order.items.some((item: any) => item.product?.restricted);
-  const canConfirmShipment = order.status === "PAID" && order.fulfillmentStatus === "PICKING" && !order.shippedAt && (admin.role !== "FULFILLMENT" || order.assignedFulfillmentUserId === admin.adminId);
+  const canConfirmShipment = admin.role === "FULFILLMENT" && order.status === "PAID" && order.fulfillmentStatus === "PICKING" && !order.shippedAt && order.assignedFulfillmentUserId === admin.adminId;
 
   return (
     <AdminShell title={`Pick/pack ${order.orderNumber}`} currentPath="/admin/fulfillment">

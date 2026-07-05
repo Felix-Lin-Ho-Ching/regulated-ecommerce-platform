@@ -16,8 +16,10 @@ function getStatusTone(status: string) {
 }
 
 export function FulfillmentOrderRow({ admin, order }: { admin: AdminSession; order: FulfillmentOrderForAdmin }) {
-  const canClaim = order.status === "PAID" && order.fulfillmentStatus === "READY_TO_SHIP" && !order.assignedFulfillmentUserId;
-  const canShip = order.status === "PAID" && order.fulfillmentStatus === "PICKING" && (admin.role !== "FULFILLMENT" || order.assignedFulfillmentUserId === admin.adminId);
+  const canOperateFulfillment = admin.role === "FULFILLMENT";
+  const canClaim = canOperateFulfillment && order.status === "PAID" && order.fulfillmentStatus === "READY_TO_SHIP" && !order.assignedFulfillmentUserId;
+  const canShip = canOperateFulfillment && order.status === "PAID" && order.fulfillmentStatus === "PICKING" && order.assignedFulfillmentUserId === admin.adminId;
+  const canOpenPickPack = canOperateFulfillment && (canClaim || canShip || order.assignedFulfillmentUserId === admin.adminId);
   const customerName = order.customerName || order.shippingAddress?.name || "—";
   const customerEmail = order.customerEmail || "—";
   const shipTo = order.shippingAddress ? `${order.shippingAddress.state} ${order.shippingAddress.postalCode}` : "—";
@@ -28,8 +30,8 @@ export function FulfillmentOrderRow({ admin, order }: { admin: AdminSession; ord
 
   return (
     <tr>
-      <td>{canShip ? <Link className="btn btn-primary text-xs" href={`/admin/fulfillment/${order.id}/pick-pack`}>Ship order</Link> : canClaim ? <span className="text-xs text-slate-600">Ready</span> : "—"}</td>
-      <td className="font-bold"><Link className="text-teal-900 underline" href={`/admin/orders/${order.orderNumber}`}>{order.orderNumber}</Link><br /><Link className="text-xs font-bold text-slate-600 underline" href={`/admin/fulfillment/${order.id}/pick-pack`}>Pick/pack</Link></td>
+      {canOperateFulfillment ? <td>{canShip ? <Link className="btn btn-primary text-xs" href={`/admin/fulfillment/${order.id}/pick-pack`}>Ship order</Link> : canClaim ? <span className="text-xs text-slate-600">Ready</span> : "—"}</td> : null}
+      <td className="font-bold"><Link className="text-teal-900 underline" href={`/admin/orders/${order.orderNumber}`}>{order.orderNumber}</Link>{canOpenPickPack ? <><br /><Link className="text-xs font-bold text-slate-600 underline" href={`/admin/fulfillment/${order.id}/pick-pack`}>Pick/pack</Link></> : null}</td>
       <td>{customerName}<br /><span className="text-xs text-slate-600">{customerEmail}</span></td>
       <td>{shipTo}</td>
       <td>{hasRestrictedItem ? "Yes" : "No"}</td>

@@ -4,6 +4,8 @@ import { getCatalogProductBySlug, getCatalogProducts } from "../lib/db/catalog";
 import { processOrderPayment } from "../lib/payments/payment-service";
 import { releaseOrderAfterPaymentApproval } from "../lib/orders/order-service";
 import { getFulfillmentOrdersForAdmin } from "../lib/fulfillment/admin-queries";
+import { claimBatchForActor, claimOrderForActor } from "../lib/fulfillment/admin-actions";
+import { FULFILLMENT_OPERATIONS_ONLY_MESSAGE } from "../lib/fulfillment/policy";
 import { shipSingleOrder } from "../lib/fulfillment/ship-orders";
 import {
   createProduct,
@@ -587,6 +589,65 @@ async function makeOrder(
   });
 }
 
+async function createReadyFulfillmentOrder(product: any, variant: any, label: string) {
+  const order = await makeOrder(product, variant, `role-${label}`);
+  await prisma.order.update({
+    where: { id: order.id },
+    data: { status: "PAID", fulfillmentStatus: "READY_TO_SHIP", liveFulfillmentEnabled: true },
+  });
+  const inventory = await prisma.inventory.findUniqueOrThrow({ where: { variantId: variant.id } });
+  await prisma.inventory.update({
+    where: { id: inventory.id },
+    data: {
+      reserved: { increment: 1 },
+      reservations: { create: { orderItemId: order.items[0].id, quantity: 1 } },
+      transactions: { create: { type: "RESERVATION", quantity: 1, reason: `${order.orderNumber} role separation reservation` } },
+    },
+  });
+  return prisma.order.findUniqueOrThrow({ where: { id: order.id }, include: { items: true } });
+}
+
+async function assertFulfillmentRoleSeparation(product: any, variant: any, fulfillmentActor: AdminSession) {
+  const ownerRole = await prisma.adminRole.upsert({ where: { code: "OWNER" }, update: {}, create: { code: "OWNER", name: "Owner" } });
+  const adminRole = await prisma.adminRole.upsert({ where: { code: "ADMIN" }, update: {}, create: { code: "ADMIN", name: "Admin" } });
+  const ownerUser = await prisma.adminUser.create({ data: { email: `${run}-owner@regression.local`, name: "Regression Owner", passwordHash: "x", roleId: ownerRole.id } });
+  const adminUser = await prisma.adminUser.create({ data: { email: `${run}-admin@regression.local`, name: "Regression Admin", passwordHash: "x", roleId: adminRole.id } });
+  const ownerActor: AdminSession = { adminId: ownerUser.id, email: ownerUser.email, name: ownerUser.name, role: "OWNER", demo: false };
+  const adminActor: AdminSession = { adminId: adminUser.id, email: adminUser.email, name: adminUser.name, role: "ADMIN", demo: false };
+
+  const ownerBatchOrder = await createReadyFulfillmentOrder(product, variant, "owner-batch");
+  const adminBatchOrder = await createReadyFulfillmentOrder(product, variant, "admin-batch");
+  assert((await claimBatchForActor(ownerActor, 1)).error === FULFILLMENT_OPERATIONS_ONLY_MESSAGE, "OWNER could claim a fulfillment batch.");
+  assert((await claimBatchForActor(adminActor, 1)).error === FULFILLMENT_OPERATIONS_ONLY_MESSAGE, "ADMIN could claim a fulfillment batch.");
+  assert((await prisma.order.findUniqueOrThrow({ where: { id: ownerBatchOrder.id } })).assignedFulfillmentUserId === null, "OWNER batch denial still assigned an order.");
+  assert((await prisma.order.findUniqueOrThrow({ where: { id: adminBatchOrder.id } })).assignedFulfillmentUserId === null, "ADMIN batch denial still assigned an order.");
+  assert((await claimBatchForActor(fulfillmentActor, 1)).success?.startsWith("Claimed 1"), "FULFILLMENT could not claim a batch.");
+
+  const ownerSingleOrder = await createReadyFulfillmentOrder(product, variant, "owner-single");
+  const adminSingleOrder = await createReadyFulfillmentOrder(product, variant, "admin-single");
+  const fulfillmentSingleOrder = await createReadyFulfillmentOrder(product, variant, "fulfillment-single");
+  assert((await claimOrderForActor(ownerActor, ownerSingleOrder.id)).error === FULFILLMENT_OPERATIONS_ONLY_MESSAGE, "OWNER could claim a single order.");
+  assert((await claimOrderForActor(adminActor, adminSingleOrder.id)).error === FULFILLMENT_OPERATIONS_ONLY_MESSAGE, "ADMIN could claim a single order.");
+  assert((await claimOrderForActor(fulfillmentActor, fulfillmentSingleOrder.id)).success?.includes(fulfillmentSingleOrder.orderNumber), "FULFILLMENT could not claim a single order.");
+
+  const shipOrder = await createReadyFulfillmentOrder(product, variant, "ship-assigned");
+  await prisma.order.update({ where: { id: shipOrder.id }, data: { fulfillmentStatus: "PICKING", assignedFulfillmentUserId: fulfillmentActor.adminId, assignedAt: new Date() } });
+  assert((await shipSingleOrder({ orderId: shipOrder.id, actor: ownerActor, carrier: "UPS", trackingNumber: "1ZOWNERDENY" })).error === FULFILLMENT_OPERATIONS_ONLY_MESSAGE, "OWNER could confirm shipment.");
+  assert((await shipSingleOrder({ orderId: shipOrder.id, actor: adminActor, carrier: "UPS", trackingNumber: "1ZADMINDENY" })).error === FULFILLMENT_OPERATIONS_ONLY_MESSAGE, "ADMIN could confirm shipment.");
+
+  const otherFulfillmentUser = await prisma.adminUser.create({ data: { email: `${run}-other-fulfillment@regression.local`, name: "Other Fulfillment", passwordHash: "x", roleId: (await prisma.adminRole.findUniqueOrThrow({ where: { code: "FULFILLMENT" } })).id } });
+  const otherActor: AdminSession = { adminId: otherFulfillmentUser.id, email: otherFulfillmentUser.email, name: otherFulfillmentUser.name, role: "FULFILLMENT", demo: false };
+  assert(!(await shipSingleOrder({ orderId: shipOrder.id, actor: otherActor, carrier: "UPS", trackingNumber: "1ZOTHERDENY" })).shipped, "FULFILLMENT shipped an order assigned to another worker.");
+  assert((await shipSingleOrder({ orderId: shipOrder.id, actor: fulfillmentActor, carrier: "UPS", trackingNumber: "1ZASSIGNEDOK" })).shipped, "FULFILLMENT could not confirm shipment for their assigned order.");
+
+  const dashboardSource = await import("node:fs/promises").then((fs) => fs.readFile("components/admin/fulfillment/fulfillment-dashboard.tsx", "utf8"));
+  const rowSource = await import("node:fs/promises").then((fs) => fs.readFile("components/admin/fulfillment/fulfillment-order-row.tsx", "utf8"));
+  const tableSource = await import("node:fs/promises").then((fs) => fs.readFile("components/admin/fulfillment/fulfillment-orders-table.tsx", "utf8"));
+  assert(dashboardSource.includes('canOperateFulfillment ? <ClaimBatchForm') && dashboardSource.includes('admin.role === "FULFILLMENT"'), "Dashboard does not hide claim batch controls from OWNER/ADMIN.");
+  assert(rowSource.includes('canOperateFulfillment && order.status === "PAID"') && rowSource.includes('canOperateFulfillment ? <td>'), "Fulfillment order row does not gate operational controls to FULFILLMENT.");
+  assert(tableSource.includes('canOperateFulfillment ? <th>Action</th> : null'), "Fulfillment table does not render monitoring-only columns for OWNER/ADMIN.");
+}
+
 async function main() {
   if (!process.env.DATABASE_URL)
     throw new Error("DATABASE_URL is required for regression smoke tests.");
@@ -1131,6 +1192,7 @@ async function main() {
     demo: false,
   };
   const variant = saved.variants[0];
+  await assertFulfillmentRoleSeparation(saved, variant, actor);
   const approved = await makeOrder(saved, variant, "approved");
   assert(
     approved.customerEmail === "buyer123@example.com",
