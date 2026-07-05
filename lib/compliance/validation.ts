@@ -1,3 +1,5 @@
+import { isCoveredStateCode } from "@/lib/compliance/restricted-state-rules";
+
 export const ruleOutcomes = ["ALLOW", "BLOCK"] as const;
 export const ruleReviewStatuses = ["DRAFT", "MANUAL_REVIEW", "COUNSEL_REVIEW_REQUIRED", "INACTIVE", "ARCHIVED"] as const;
 
@@ -25,6 +27,18 @@ function oneOf<T extends string>(value: string, values: readonly T[], fallback: 
   return values.includes(value as T) ? (value as T) : fallback;
 }
 
+function validateStateCode(value: string): string {
+  const code = value.toUpperCase().slice(0, 2);
+  if (!isCoveredStateCode(code)) throw new Error("Select a valid US state or DC.");
+  return code;
+}
+
+function validateZip(value: string): string {
+  const zip = value.trim();
+  if (!/^\d{5}(?:-\d{4})?$/.test(zip)) throw new Error("Enter a valid 5-digit ZIP code for ZIP locality rules.");
+  return zip;
+}
+
 function parseDate(value: string, fallback?: Date): Date | undefined {
   if (!value) return fallback;
   const date = new Date(`${value}T00:00:00.000Z`);
@@ -36,7 +50,7 @@ export function parseComplianceRuleForm(formData: FormData): ComplianceRuleInput
 
   return {
     id: text(formData, "id") || undefined,
-    stateCode: text(formData, "stateCode").toUpperCase().slice(0, 2) || "UN",
+    stateCode: validateStateCode(text(formData, "stateCode")),
     restrictedClass: text(formData, "restrictedClass") || "STUN_GUN",
     productId: text(formData, "productId") || undefined,
     outcome: oneOf(text(formData, "outcome"), ruleOutcomes, "BLOCK"),
@@ -116,9 +130,9 @@ export type LocalRestrictionRuleInput = {
 
 export function parseLocalRestrictionRuleForm(formData: FormData): LocalRestrictionRuleInput {
   return {
-    stateCode: text(formData, "localStateCode").toUpperCase().slice(0, 2) || "UN",
+    stateCode: validateStateCode(text(formData, "localStateCode")),
     localityType: text(formData, "localityType").toUpperCase() || "ZIP",
-    localityName: text(formData, "localityName").toUpperCase().replace(/\s+/g, "") || "Unknown",
+    localityName: (text(formData, "localityType").toUpperCase() || "ZIP") === "ZIP" ? validateZip(text(formData, "localityName")) : (text(formData, "localityName").toUpperCase().replace(/\s+/g, "") || "Unknown"),
     restrictedClass: text(formData, "localRestrictedClass") || "STUN_GUN",
     productId: text(formData, "localProductId") || undefined,
     outcome: oneOf(text(formData, "localOutcome"), ruleOutcomes, "BLOCK"),

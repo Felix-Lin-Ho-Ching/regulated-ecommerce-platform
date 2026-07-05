@@ -5,8 +5,10 @@ import { createAuditLog, requireAuditNote } from "@/lib/audit/audit-service";
 import { STOREFRONT_SETTINGS_KEY } from "@/lib/storefront-content/defaults";
 import { upsertStorefrontContent } from "@/lib/storefront-content/service";
 import { parseStorefrontContentForm } from "@/lib/storefront-content/validation";
+import { requireOwnerOrAdmin } from "@/lib/admin/authorization";
 
 export async function saveStorefrontContentAction(formData: FormData) {
+  await requireOwnerOrAdmin("/admin/storefront");
   const content = parseStorefrontContentForm(formData);
   const noteValue = formData.get("auditNote");
   const note = requireAuditNote(typeof noteValue === "string" ? noteValue : "", "Storefront content update");

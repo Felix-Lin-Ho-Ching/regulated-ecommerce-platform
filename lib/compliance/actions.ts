@@ -5,9 +5,13 @@ import { createAuditLog } from "@/lib/audit/audit-service";
 import { reasonRequiredMessage, validateManualReason, type AdminActionState } from "@/lib/admin/action-state";
 import { createLocalRestrictionRule, upsertComplianceRule, upsertVerificationTemplate } from "@/lib/compliance/service";
 import { parseComplianceRuleForm, parseLocalRestrictionRuleForm, parseVerificationTemplateForm } from "@/lib/compliance/validation";
+import { requireOwnerOrAdminAction } from "@/lib/admin/authorization";
 
 export async function saveComplianceRuleAction(_state: AdminActionState, formData: FormData): Promise<AdminActionState> {
-  const input = parseComplianceRuleForm(formData);
+  const auth = await requireOwnerOrAdminAction("/admin/compliance-rules");
+  if ("error" in auth) return auth;
+  let input;
+  try { input = parseComplianceRuleForm(formData); } catch (error) { return { error: error instanceof Error ? error.message : "Compliance form is invalid." }; }
   const noteResult = validateManualReason(input.auditNote);
   if ("error" in noteResult) return { error: reasonRequiredMessage };
   const result = await upsertComplianceRule(input);
@@ -21,7 +25,10 @@ export async function saveComplianceRuleAction(_state: AdminActionState, formDat
 }
 
 export async function saveLocalRestrictionRuleAction(_state: AdminActionState, formData: FormData): Promise<AdminActionState> {
-  const input = parseLocalRestrictionRuleForm(formData);
+  const auth = await requireOwnerOrAdminAction("/admin/compliance-rules");
+  if ("error" in auth) return auth;
+  let input;
+  try { input = parseLocalRestrictionRuleForm(formData); } catch (error) { return { error: error instanceof Error ? error.message : "Compliance form is invalid." }; }
   const noteResult = validateManualReason(input.auditNote);
   if ("error" in noteResult) return { error: reasonRequiredMessage };
   const result = await createLocalRestrictionRule(input);
@@ -40,6 +47,8 @@ export async function saveLocalRestrictionRuleAction(_state: AdminActionState, f
 }
 
 export async function saveVerificationTemplateAction(_state: AdminActionState, formData: FormData): Promise<AdminActionState> {
+  const auth = await requireOwnerOrAdminAction("/admin/verification-templates");
+  if ("error" in auth) return auth;
   const input = parseVerificationTemplateForm(formData);
   const noteResult = validateManualReason(input.auditNote);
   if ("error" in noteResult) return { error: reasonRequiredMessage };

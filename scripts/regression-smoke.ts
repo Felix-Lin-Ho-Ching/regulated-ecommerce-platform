@@ -448,6 +448,7 @@ async function main() {
     await productInput(category.id, {
       id,
       status: "ACTIVE",
+      mediaSubmitted: true,
       media: [
         {
           type: "IMAGE",

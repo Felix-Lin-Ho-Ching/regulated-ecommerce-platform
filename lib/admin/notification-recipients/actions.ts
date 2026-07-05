@@ -3,11 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { prisma, isDatabaseConfigured } from "@/lib/db/prisma";
 import type { AdminActionState } from "@/lib/admin/action-state";
+import { requireOwnerOrAdminAction } from "@/lib/admin/authorization";
 
 function validEmail(email: string) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
 function bool(formData: FormData, name: string) { return formData.get(name) === "on"; }
 
 export async function saveNotificationRecipientAction(_state: AdminActionState, formData: FormData): Promise<AdminActionState> {
+  const auth = await requireOwnerOrAdminAction("/admin/notification-recipients");
+  if ("error" in auth) return auth;
   if (!isDatabaseConfigured) return { error: "Database is not configured." };
   const id = String(formData.get("id") || "");
   const email = String(formData.get("email") || "").trim().toLowerCase();
@@ -23,6 +26,8 @@ export async function saveNotificationRecipientAction(_state: AdminActionState, 
 }
 
 export async function deleteNotificationRecipientAction(_state: AdminActionState, formData: FormData): Promise<AdminActionState> {
+  const auth = await requireOwnerOrAdminAction("/admin/notification-recipients");
+  if ("error" in auth) return auth;
   if (!isDatabaseConfigured) return { error: "Database is not configured." };
   const id = String(formData.get("id") || "");
   if (!id) return { error: "Missing recipient id." };

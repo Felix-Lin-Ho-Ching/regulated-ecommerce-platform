@@ -374,6 +374,37 @@ if (mode === "lint") {
   }
 
   const productActions = readFileSync("lib/products/actions.ts", "utf8");
+
+  const adminActionFiles = [
+    "lib/product-categories/actions.ts",
+    "lib/inventory/actions.ts",
+    "lib/admin/notification-recipients/actions.ts",
+    "lib/compliance/actions.ts",
+    "lib/storefront/homepage-media-actions.ts",
+    "lib/storefront-content/actions.ts",
+    "lib/admin/employees-actions.ts",
+    "lib/products/actions.ts",
+  ];
+  for (const actionFile of adminActionFiles) {
+    const actionText = readFileSync(actionFile, "utf8");
+    if (!/(requireAdminSession|requireOwnerOrAdmin|requireOwnerOrAdminAction|requireEmployeeManager|requireProductEditor)/.test(actionText)) {
+      console.error(`Admin mutation action file lacks self-contained auth check: ${actionFile}`);
+      process.exit(1);
+    }
+  }
+  const paymentSettings = readFileSync("app/admin/payment-settings/page.tsx", "utf8");
+  const taxSettings = readFileSync("app/admin/tax-settings/page.tsx", "utf8");
+  for (const [name, text] of [["payment", paymentSettings], ["tax", taxSettings]]) {
+    if (!text.includes("Configured through environment variables, not editable here") || text.includes("mock_ready")) {
+      console.error(`${name} settings page must explicitly classify environment-only configuration and not use mock_ready.`);
+      process.exit(1);
+    }
+  }
+  const complianceValidation = readFileSync("lib/compliance/validation.ts", "utf8");
+  if (!complianceValidation.includes("isCoveredStateCode") || !complianceValidation.includes("validateZip")) {
+    console.error("Compliance validation must reject invalid state codes and invalid ZIP local rules.");
+    process.exit(1);
+  }
   if (
     productForm.includes('label="Slug" name="slug"') &&
     productForm.includes("required")

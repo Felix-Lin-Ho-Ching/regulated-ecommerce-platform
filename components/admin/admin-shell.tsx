@@ -88,14 +88,6 @@ export function AdminDataTable({
 }) {
   return (
     <div className="card overflow-x-auto">
-      <div className="flex gap-3 border-b p-4">
-        <input className="input max-w-xs" aria-label="Search table" placeholder="Search" />
-        <select className="input max-w-48" aria-label="Filter status">
-          <option>All statuses</option>
-          <option>Pending</option>
-          <option>Blocked</option>
-        </select>
-      </div>
       <table className="table">
         <thead>
           <tr>

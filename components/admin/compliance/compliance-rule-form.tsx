@@ -8,8 +8,7 @@ import { ruleOutcomes } from "@/lib/compliance/validation";
 import type { ComplianceRuleRow, VerificationTemplateRow } from "@/lib/compliance/service";
 import type { AdminProductDetail } from "@/lib/products/service";
 import { restrictedClassOptions } from "@/lib/products/validation";
-
-const exampleStates = ["CA", "HI", "IL", "UN"];
+import { usStateAndDcCodes } from "@/lib/compliance/restricted-state-rules";
 
 export function ComplianceRuleForm({
   products,
@@ -34,12 +33,9 @@ Use this page to block or allow restricted products by shipping state and local/
       {state.success ? <div className="md:col-span-2"><AlertPanel title="Restricted rule saved" tone="success">{state.success}</AlertPanel></div> : null}
       <label className="grid gap-2 text-sm font-bold text-slate-800">
         State
-        <input className="input" list="state-examples" maxLength={2} name="stateCode" defaultValue={rule?.stateCode ?? "UN"} />
-        <datalist id="state-examples">
-          {exampleStates.map((state) => (
-            <option key={state} value={state} />
-          ))}
-        </datalist>
+        <select className="input" name="stateCode" defaultValue={rule?.stateCode ?? "CA"}>
+          {usStateAndDcCodes.map((state) => <option key={state} value={state}>{state}</option>)}
+        </select>
       </label>
       <label className="grid gap-2 text-sm font-bold text-slate-800">
         Restricted product category

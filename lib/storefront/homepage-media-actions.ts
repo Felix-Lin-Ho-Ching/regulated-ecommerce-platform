@@ -5,6 +5,7 @@ import { createAuditLog } from "@/lib/audit/audit-service";
 import { HERO_SLIDE_MAX, deleteHomepageSlide, getHomepageSlidesForAdmin, upsertHomepageSlide, type HomepageMediaType, type HomepageSlide } from "@/lib/storefront/homepage-slides";
 import { IMAGE_MEDIA_TYPES, LocalMediaUploadError, MAX_IMAGE_UPLOAD_BYTES, detectMediaKindFromUpload, saveLocalMediaUpload, isUploadFile } from "@/lib/media/local-upload";
 import { extractYouTubeVideoId } from "@/lib/products/validation";
+import { requireOwnerOrAdminAction } from "@/lib/admin/authorization";
 
 export type HomepageMediaFormState = { ok: boolean; errors: Record<string, string> };
 
@@ -14,6 +15,8 @@ function isSafeUrl(value: string): boolean { if (!value) return false; if (value
 function optionalUrl(value: string): boolean { return !value || isSafeUrl(value); }
 
 export async function saveHomepageMediaAction(_prev: HomepageMediaFormState, formData: FormData): Promise<HomepageMediaFormState> {
+  const auth = await requireOwnerOrAdminAction("/admin/storefront");
+  if ("error" in auth) return { ok: false, errors: { form: auth.error || "Only OWNER and ADMIN users can perform this admin action." } };
   const intent = text(formData, "intent");
   const id = text(formData, "homepageId") || "new";
   if (intent === "delete") {
