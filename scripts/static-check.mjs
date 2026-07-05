@@ -699,3 +699,15 @@ if (mode === "lint") {
   }
   console.log(`Smoke check passed with ${routeCount} page routes.`);
 }
+if (mode === "lint") {
+  const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+  if (!pkg.dependencies?.resend) { console.error("Missing resend dependency."); process.exit(1); }
+  if (process.env.EMAIL_MODE === "live" && !process.env.RESEND_API_KEY) { console.error("RESEND_API_KEY is required when EMAIL_MODE=live."); process.exit(1); }
+  if (process.env.EMAIL_MODE === "live" && !process.env.EMAIL_FROM) { console.error("EMAIL_FROM is required when EMAIL_MODE=live."); process.exit(1); }
+  if (existsSync(".env.example")) {
+    const envExample = readFileSync(".env.example", "utf8");
+    if (/re_[A-Za-z0-9]{20,}|sk_(live|test)_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}/.test(envExample)) { console.error(".env.example contains real-looking secrets."); process.exit(1); }
+  }
+  const ship = readFileSync("lib/fulfillment/ship-orders.ts", "utf8");
+  if (ship.includes("logDebugEmail({ type: \"CUSTOMER_SHIPMENT\"")) { console.error("Shipment confirmation still calls debug-only email provider directly."); process.exit(1); }
+}

@@ -4,6 +4,7 @@ import { clearCart, getCartSnapshot, type CartSnapshot } from "@/lib/cart/cart-s
 import { getCustomerSession } from "@/lib/auth/session";
 import { isDatabaseConfigured, prisma } from "@/lib/db/prisma";
 import { logDebugEmail } from "@/lib/email/email-log-service";
+import { sendCustomerOrderTemplate, sendOrderTemplate } from "@/lib/email/send-transactional";
 import { buildOrderConfirmationEmail } from "@/lib/email/templates/order-confirmation";
 import { buildAdminNewOrderEmail } from "@/lib/email/templates/admin-new-order";
 import { createApprovedMockPaymentAttemptIfNeeded } from "@/lib/payments/payment-service";
@@ -54,7 +55,7 @@ export async function releaseOrderAfterPaymentApproval(orderId: string, actor?: 
     await tx.auditLog.create({ data: { actorAdminId: actor?.demo ? null : actor?.adminId ?? null, action: "PAYMENT", entityType: "Order", entityId: order.id, note: "Mock Authorize.net payment approved.", metadata: { orderNumber: order.orderNumber, actingUserEmail: actor?.email, actingRole: actor?.role, paymentStatus: "APPROVED", fulfillmentStatus: "READY_TO_SHIP", provider: "AUTHORIZE_NET_MOCK" } } });
     return updated;
   });
-  await logDebugEmail({ type: "PAYMENT_APPROVED", to: result.customerEmail || "debug@stunfry.example", subject: `Payment approved for ${result.orderNumber}`, text: `Payment approved for order ${result.orderNumber}; fulfillment released to READY_TO_SHIP.`, orderId: result.id, metadata: { orderNumber: result.orderNumber, status: "PAID", fulfillmentStatus: "READY_TO_SHIP" } }).catch(() => undefined);
+  await sendCustomerOrderTemplate("CUSTOMER_PAYMENT_CONFIRMATION", result, {}).catch(() => undefined);
   return result;
 }
 
@@ -319,13 +320,13 @@ export async function createOrderRequestFromCart(options: { opaqueData?: Payment
     }
 
     const confirmation = buildOrderConfirmationEmail({ orderNumber: readyOrder.orderNumber, createdAt: readyOrder.createdAt, items: readyOrder.items, totalCents: readyOrder.totalCents, shippingAddress: readyOrder.shippingAddress!, hasRestrictedItems: readyOrder.items.some((item: { product: { restricted: boolean } }) => item.product.restricted) });
-    await logDebugEmail({ type: "ORDER_REQUEST_CONFIRMATION", to: readyOrder.customerEmail ?? customerEmail ?? "", subject: confirmation.subject, text: confirmation.text, orderId: readyOrder.id, metadata: { orderNumber: readyOrder.orderNumber } }).catch(() => undefined);
+    await sendCustomerOrderTemplate("CUSTOMER_ORDER_CONFIRMATION", readyOrder).catch(() => undefined);
     const adminEmail = buildAdminNewOrderEmail({ orderNumber: readyOrder.orderNumber, customerEmail: readyOrder.customerEmail ?? customerEmail, totalCents: readyOrder.totalCents, hasRestrictedItems: readyOrder.items.some((item: { product: { restricted: boolean } }) => item.product.restricted), shippingState: readyOrder.shippingAddress?.state, shippingPostalCode: readyOrder.shippingAddress?.postalCode, adminOrderUrl: `/admin/orders/${readyOrder.orderNumber}` });
-    await logDebugEmail({ type: "ADMIN_NEW_ORDER", to: process.env.ADMIN_ORDER_EMAIL || process.env.ADMIN_EMAIL || "linhochingfelix@gmail.com", subject: adminEmail.subject, text: adminEmail.text, orderId: readyOrder.id, metadata: { orderNumber: readyOrder.orderNumber } }).catch(() => undefined);
+    await sendOrderTemplate("ADMIN_ORDER_NOTIFICATION", readyOrder, process.env.ADMIN_ORDER_EMAIL || process.env.ADMIN_EMAIL || "admin@example.com").catch(() => undefined);
 
     const recipients = await prisma.notificationRecipient.findMany({ where: { enabled: true, orderAlerts: true } });
     for (const recipient of recipients) {
-      await logDebugEmail({ type: "INTERNAL_ORDER", to: recipient.email, subject: `Order request ${readyOrder.orderNumber}`, text: adminEmail.text, orderId: readyOrder.id, metadata: { orderNumber: readyOrder.orderNumber, fulfillmentReleased: false } }).catch(() => undefined);
+      await sendOrderTemplate("ADMIN_ORDER_NOTIFICATION", readyOrder, recipient.email, { fulfillmentReleased: false }).catch(() => undefined);
     }
 
     await clearCart();

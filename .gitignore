@@ -10,3 +10,6 @@ public/uploads/*
 !public/uploads/homepage/.gitkeep
 !public/uploads/products/
 !public/uploads/products/.gitkeep
+
+.env.production
+.env*.local

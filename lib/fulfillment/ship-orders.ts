@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
-import { logDebugEmail } from "@/lib/email/email-log-service";
+import { sendCustomerOrderTemplate } from "@/lib/email/send-transactional";
 import type { AdminSession } from "@/lib/admin/auth";
 import { buildTrackingUrl } from "@/lib/orders/order-service";
 import { FULFILLMENT_OPERATIONS_ONLY_MESSAGE } from "@/lib/fulfillment/policy";
@@ -39,7 +39,7 @@ export async function shipSingleOrder(input: ShipSingleOrderInput): Promise<Ship
   const result = await (prisma as any).$transaction(async (tx: any) => {
     const errors: string[] = [];
     await tx.$queryRawUnsafe('SELECT id FROM "Order" WHERE id = $1 FOR UPDATE', orderId);
-    const order = await tx.order.findUnique({ where: { id: orderId }, include: { items: true } });
+    const order = await tx.order.findUnique({ where: { id: orderId }, include: { items: true, shippingAddress: true, paymentAttempts: { orderBy: { createdAt: "desc" }, take: 1 } } });
     if (!order) return { shipped: false, orderId, error: `Order ${orderId} was not found.` };
       if (order.status === "SHIPPED" || order.fulfillmentStatus === "SHIPPED" || order.shippedAt) {
         await tx.auditLog.create({ data: { actorAdminId: input.actor.demo ? null : input.actor.adminId, action: "SHIPMENT_SKIPPED_ALREADY_SHIPPED", entityType: "Order", entityId: order.id, note: "Shipment skipped because order was already shipped.", metadata: { actingUserEmail: input.actor.email, actingRole: input.actor.role, orderIds: [order.id], carrier: tracking.carrier, trackingNumber: tracking.trackingNumber } } });
@@ -71,9 +71,10 @@ export async function shipSingleOrder(input: ShipSingleOrderInput): Promise<Ship
       return { shipped: true, orderId: order.id, orderNumber: order.orderNumber, customerEmail: order.customerEmail };
   });
 
-  if (result.shipped && result.customerEmail) {
-    const trackingUrl = buildTrackingUrl(tracking.carrier, tracking.trackingNumber);
-    await logDebugEmail({ type: "CUSTOMER_SHIPMENT", to: result.customerEmail, subject: `Order ${result.orderNumber} shipped`, text: `Your order ${result.orderNumber} has shipped. Carrier: ${tracking.carrier}. Tracking number: ${tracking.trackingNumber}.${trackingUrl ? ` Track: ${trackingUrl}.` : ""}`, orderId: result.orderId, metadata: { orderNumber: result.orderNumber, carrier: tracking.carrier, trackingNumber: tracking.trackingNumber, trackingUrl } }).catch(() => undefined);
+  if (result.shipped && result.orderId && result.customerEmail) {
+    const trackingUrl = buildTrackingUrl(tracking.carrier, tracking.trackingNumber) || "";
+    const order = await (prisma as any).order.findUnique({ where: { id: result.orderId }, include: { items: true, shippingAddress: true, paymentAttempts: { orderBy: { createdAt: "desc" }, take: 1 } } });
+    if (order) await sendCustomerOrderTemplate("CUSTOMER_SHIPMENT", order, { trackingUrl }).catch(() => undefined);
   }
   return result;
 }
