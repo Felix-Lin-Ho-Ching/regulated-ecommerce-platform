@@ -5,7 +5,12 @@ import { processOrderPayment } from "../lib/payments/payment-service";
 import { releaseOrderAfterPaymentApproval } from "../lib/orders/order-service";
 import { getFulfillmentOrdersForAdmin } from "../lib/fulfillment/admin-queries";
 import { shipSingleOrder } from "../lib/fulfillment/ship-orders";
-import { createProduct, updateProduct } from "../lib/products/service";
+import {
+  createProduct,
+  inlineCategoryDuplicateMessage,
+  updateProduct,
+} from "../lib/products/service";
+import { getAdminProductById } from "../lib/products/service";
 import { getAdminOrder } from "../lib/admin/orders/service";
 import { logDebugEmail } from "../lib/email/email-log-service";
 import { buildAdminNewOrderEmail } from "../lib/email/templates/admin-new-order";
@@ -117,6 +122,9 @@ async function cleanup() {
     });
     await prisma.product.deleteMany({ where: { id: { in: productIds } } });
   }
+  await prisma.productCategory.deleteMany({
+    where: { slug: { startsWith: "regression-inline-" } },
+  });
   await prisma.homepageMedia.deleteMany({
     where: { title: { startsWith: "Regression" } },
   });
@@ -311,6 +319,100 @@ async function productInput(
     faqs: [{ question: "Works?", answer: "Yes", sortOrder: 0 }],
     ...overrides,
   };
+}
+
+
+async function assertInlineCategoryRegression(existingCategoryId: string) {
+  const invalidForm = new FormData();
+  invalidForm.set("intent", "draft");
+  invalidForm.set("name", "Regression Invalid Inline Category");
+  invalidForm.set("price", "0");
+  invalidForm.set("newCategoryName", "Regression Inline Invalid");
+  try {
+    await parseProductForm(invalidForm);
+    throw new Error("Invalid inline category product unexpectedly parsed.");
+  } catch (error) {
+    assert(
+      error instanceof ProductFormValidationError &&
+        error.message.includes("missing price"),
+      "Invalid product form with inline category did not fail product validation.",
+    );
+  }
+  assert(
+    !(await prisma.productCategory.findFirst({
+      where: { slug: "regression-inline-invalid" },
+    })),
+    "Invalid product form created an orphan inline category.",
+  );
+
+  const duplicateForm = new FormData();
+  duplicateForm.set("intent", "draft");
+  duplicateForm.set("name", "Regression Duplicate Inline Category Product");
+  duplicateForm.set("price", "19.99");
+  duplicateForm.set("newCategoryName", "Stun Guns");
+  const duplicateParsed = await parseProductForm(duplicateForm);
+  try {
+    await createProduct({
+      ...duplicateParsed,
+      slug: "regression-inline-duplicate-product",
+      sku: `REG-INLINE-DUP-${Date.now()}`,
+    });
+    throw new Error("Duplicate inline category unexpectedly created product.");
+  } catch (error) {
+    assert(
+      error instanceof Error && error.message === inlineCategoryDuplicateMessage,
+      "Duplicate inline category did not return the friendly duplicate message.",
+    );
+  }
+  assert(
+    !(await prisma.product.findUnique({
+      where: { slug: "regression-inline-duplicate-product" },
+    })),
+    "Duplicate inline category failure still saved a product.",
+  );
+
+  const validForm = new FormData();
+  const categoryName = `Regression Inline Valid ${Date.now()}`;
+  const categorySlug = categoryName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  validForm.set("intent", "draft");
+  validForm.set("name", "Regression Inline Valid Product");
+  validForm.set("slug", "regression-inline-valid-product");
+  validForm.set("sku", `REG-INLINE-${Date.now()}`);
+  validForm.set("price", "29.99");
+  validForm.set("newCategoryName", categoryName);
+  const validParsed = await parseProductForm(validForm);
+  const productId = await createProduct(validParsed);
+  const createdCategory = await prisma.productCategory.findUniqueOrThrow({
+    where: { slug: categorySlug },
+  });
+  const createdProduct = await prisma.product.findUniqueOrThrow({
+    where: { id: productId },
+  });
+  assert(
+    createdProduct.categoryId === createdCategory.id,
+    "Inline category create did not assign product.categoryId atomically.",
+  );
+  const editProduct = await getAdminProductById(productId);
+  assert(
+    editProduct?.categoryId === createdCategory.id,
+    "Reloading the edit page data did not select the inline category.",
+  );
+  assert(
+    editProduct?.restrictedClass === null,
+    "Inline category handling was incorrectly coupled to restrictedClass.",
+  );
+
+  await updateProduct(
+    await productInput(existingCategoryId, {
+      id: productId,
+      name: "Regression Inline Valid Product Updated",
+      slug: createdProduct.slug,
+      sku: validParsed.sku,
+      categoryId: createdCategory.id,
+      restricted: false,
+      restrictedClass: undefined,
+    }),
+  );
 }
 
 async function makeOrder(
@@ -529,6 +631,8 @@ async function main() {
       );
     }
   }
+
+  await assertInlineCategoryRegression(category.id);
 
   const id = await createProduct(await productInput(category.id));
   assert(

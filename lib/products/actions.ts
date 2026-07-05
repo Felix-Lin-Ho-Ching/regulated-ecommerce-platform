@@ -15,6 +15,7 @@ import {
   getAdminProductById,
   restoreProduct,
   updateProduct,
+  inlineCategoryDuplicateMessage,
 } from "@/lib/products/service";
 import {
   parseProductForm,
@@ -22,22 +23,12 @@ import {
   type ProductMediaType,
 } from "@/lib/products/validation";
 import { requireAdminSession } from "@/lib/admin/auth";
-import { saveProductCategory } from "@/lib/product-categories/service";
 import {
   PRODUCT_IMAGE_MAX_BYTES,
   PRODUCT_IMAGE_MEDIA_TYPES,
   ProductMediaStorageError,
   storeProductMediaFile,
 } from "@/lib/storage/product-media-storage";
-
-function categorySlug(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""); }
-
-async function applyInlineCategory(formData: FormData) {
-  const newName = String(formData.get("newCategoryName") || "").trim();
-  if (!newName) return;
-  const id = await saveProductCategory({ name: newName, slug: categorySlug(newName), status: "ACTIVE", sortOrder: 0 });
-  formData.set("categoryId", id);
-}
 
 function actionIntent(formData: FormData): string | undefined {
   const intent = formData.get("intent");
@@ -52,6 +43,8 @@ function productSaveError(error: unknown, intent?: string): ProductActionState {
       error: "SKU generation failed. Enter a custom SKU and try again.",
       intent,
     };
+  if (message === inlineCategoryDuplicateMessage)
+    return { error: inlineCategoryDuplicateMessage, intent };
   if (message.includes("Unique constraint") || message.includes("P2002"))
     return {
       error:
@@ -59,6 +52,17 @@ function productSaveError(error: unknown, intent?: string): ProductActionState {
       intent,
     };
   return { error: message, intent };
+}
+
+function productAuditNote(
+  auditNote: string,
+  fallback: string,
+  newCategoryName?: string,
+): string {
+  const note = optionalAuditNote(auditNote, fallback);
+  return newCategoryName
+    ? `${note} Category "${newCategoryName}" was created from the product form.`
+    : note;
 }
 
 export type ProductActionState = AdminActionState;
@@ -94,14 +98,17 @@ export async function createProductAction(
   await requireProductEditor();
   let input;
   try {
-    await applyInlineCategory(formData);
     input = await parseProductForm(formData, saveProductMediaUpload);
   } catch (error) {
     if (error instanceof ProductFormValidationError)
       return { error: error.message, intent: actionIntent(formData) };
     throw error;
   }
-  const note = optionalAuditNote(input.auditNote, "Owner created product.");
+  const note = productAuditNote(
+    input.auditNote,
+    "Owner created product.",
+    input.newCategoryName,
+  );
   let productId: string;
   try {
     productId = await createProduct(input);
@@ -128,7 +135,6 @@ export async function updateProductAction(
   await requireProductEditor();
   let input;
   try {
-    await applyInlineCategory(formData);
     input = await parseProductForm(formData, saveProductMediaUpload);
   } catch (error) {
     if (error instanceof ProductFormValidationError)
@@ -148,9 +154,10 @@ export async function updateProductAction(
   const noteResult = requiresManualReason
     ? validateManualReason(input.auditNote)
     : {
-        note: optionalAuditNote(
+        note: productAuditNote(
           input.auditNote,
           "Owner updated product details.",
+          input.newCategoryName,
         ),
       };
   if ("error" in noteResult) return noteResult;

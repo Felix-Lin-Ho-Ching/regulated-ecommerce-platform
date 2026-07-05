@@ -84,6 +84,8 @@ export type ProductFormInput = {
   slug: string;
   brand: string;
   categoryId?: string;
+  newCategoryName?: string;
+  newCategorySlug?: string;
   restrictedClass?: RestrictedClass;
   description: string;
   status: ProductStatus;
@@ -371,6 +373,8 @@ export async function parseProductForm(
   const slug = slugify(text(formData, "slug") || name);
   const sku = text(formData, "sku");
   const categoryId = text(formData, "categoryId") || undefined;
+  const newCategoryName = text(formData, "newCategoryName");
+  const newCategorySlug = newCategoryName ? slugify(newCategoryName) : "";
   const priceCents = centsFromDollars(text(formData, "price"));
   const restricted = formData.get("restricted") === "on";
   const restrictedClass = restricted
@@ -393,7 +397,7 @@ export async function parseProductForm(
   const missing: string[] = [];
   if (!name) missing.push("missing name");
   if (priceCents <= 0) missing.push("missing price");
-  if (!categoryId) missing.push("missing category");
+  if (!categoryId && !newCategoryName) missing.push("missing category");
   if (restricted && !restrictedClass)
     missing.push("missing compliance class for restricted product");
   if (status === "ACTIVE" && missing.length)
@@ -411,6 +415,8 @@ export async function parseProductForm(
     slug,
     brand: text(formData, "brand") || "Stun Fry",
     categoryId,
+    newCategoryName: newCategoryName || undefined,
+    newCategorySlug: newCategorySlug || undefined,
     restrictedClass,
     description:
       text(formData, "description") ||
