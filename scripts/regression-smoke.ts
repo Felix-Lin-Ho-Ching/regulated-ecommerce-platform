@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { PrismaClient } from "@prisma/client";
-import { getCatalogProducts } from "../lib/db/catalog";
+import { getCatalogProductBySlug, getCatalogProducts } from "../lib/db/catalog";
 import { processOrderPayment } from "../lib/payments/payment-service";
 import { releaseOrderAfterPaymentApproval } from "../lib/orders/order-service";
 import { getFulfillmentOrdersForAdmin } from "../lib/fulfillment/admin-queries";
@@ -123,7 +123,12 @@ async function cleanup() {
     await prisma.product.deleteMany({ where: { id: { in: productIds } } });
   }
   await prisma.productCategory.deleteMany({
-    where: { slug: { startsWith: "regression-inline-" } },
+    where: {
+      OR: [
+        { slug: { startsWith: "regression-inline-" } },
+        { slug: { startsWith: "regression-basic-" } },
+      ],
+    },
   });
   await prisma.homepageMedia.deleteMany({
     where: { title: { startsWith: "Regression" } },
@@ -415,6 +420,125 @@ async function assertInlineCategoryRegression(existingCategoryId: string) {
   );
 }
 
+
+async function assertBasicProductInfoPersistence(categoryId: string) {
+  const alternateCategory = await prisma.productCategory.upsert({
+    where: { slug: "regression-basic-alt" },
+    update: {},
+    create: { slug: "regression-basic-alt", name: "Regression Basic Alt" },
+  });
+
+  const createdId = await createProduct(
+    await productInput(categoryId, {
+      name: "Regression Basic Original",
+      slug: `regression-basic-${Date.now()}`,
+      sku: `REG-BASIC-${Date.now()}`,
+      status: "DRAFT",
+      priceCents: 2599,
+    }),
+  );
+  let saved = await prisma.product.findUniqueOrThrow({ where: { id: createdId } });
+  assert(
+    saved.name === "Regression Basic Original",
+    "Created product name did not equal the submitted name.",
+  );
+  assert(
+    saved.categoryId === categoryId,
+    "Created product categoryId did not equal the selected category.",
+  );
+  let reloaded = await getAdminProductById(createdId);
+  assert(
+    reloaded?.name === "Regression Basic Original" &&
+      reloaded.categoryId === categoryId,
+    "Reloaded admin product did not reflect created name/categoryId.",
+  );
+
+  await updateProduct(
+    await productInput(alternateCategory.id, {
+      id: createdId,
+      name: "Regression Basic Updated",
+      slug: saved.slug,
+      sku: `REG-BASIC-${createdId.slice(0, 8)}`,
+      status: "DRAFT",
+    }),
+  );
+  saved = await prisma.product.findUniqueOrThrow({ where: { id: createdId } });
+  reloaded = await getAdminProductById(createdId);
+  assert(
+    saved.name === "Regression Basic Updated" &&
+      saved.categoryId === alternateCategory.id,
+    "Updated product name/categoryId did not persist in the database.",
+  );
+  assert(
+    reloaded?.name === "Regression Basic Updated" &&
+      reloaded.categoryId === alternateCategory.id,
+    "Reloaded admin product did not reflect updated name/categoryId.",
+  );
+
+  await updateProduct(
+    await productInput(alternateCategory.id, {
+      id: createdId,
+      name: "Regression Basic Continue Editing",
+      slug: saved.slug,
+      sku: `REG-BASIC-${createdId.slice(0, 8)}`,
+      status: "DRAFT",
+    }),
+  );
+  saved = await prisma.product.findUniqueOrThrow({ where: { id: createdId } });
+  assert(
+    saved.categoryId === alternateCategory.id,
+    "Save and continue editing cleared categoryId.",
+  );
+
+  await updateProduct(
+    await productInput(alternateCategory.id, {
+      id: createdId,
+      name: "Regression Basic Published",
+      slug: saved.slug,
+      sku: `REG-BASIC-${createdId.slice(0, 8)}`,
+      status: "ACTIVE",
+    }),
+  );
+  saved = await prisma.product.findUniqueOrThrow({ where: { id: createdId } });
+  assert(
+    saved.status === "ACTIVE" && saved.categoryId === alternateCategory.id,
+    "Publish cleared categoryId.",
+  );
+}
+
+async function assertPreviewRegression(categoryId: string) {
+  const productFormSource = await import("node:fs/promises").then((fs) =>
+    fs.readFile("components/admin/products/product-form.tsx", "utf8"),
+  );
+  assert(
+    productFormSource.includes('href={`/admin/products/${product.id}/preview`}'),
+    "Product form draft preview link does not point to the admin preview route.",
+  );
+  assert(
+    productFormSource.includes("View live public page"),
+    "Product form does not expose the active-only live public page link.",
+  );
+  assert(
+    !productFormSource.includes('product.status === "ACTIVE" ? `/products/${product.slug}`'),
+    "Product form main preview link still switches active products to the public URL.",
+  );
+
+  const draftId = await createProduct(
+    await productInput(categoryId, {
+      name: "Regression Preview Draft",
+      slug: `regression-preview-draft-${Date.now()}`,
+      sku: `REG-PREVIEW-${Date.now()}`,
+      status: "DRAFT",
+    }),
+  );
+  const draft = await getAdminProductById(draftId);
+  assert(draft?.status === "DRAFT", "Admin preview test draft product was not loadable by id.");
+  assert(
+    !(await getCatalogProductBySlug(draft.slug)),
+    "Draft public /products/[slug] route data remained available.",
+  );
+}
+
 async function makeOrder(
   product: any,
   variant: any,
@@ -633,6 +757,8 @@ async function main() {
   }
 
   await assertInlineCategoryRegression(category.id);
+  await assertBasicProductInfoPersistence(category.id);
+  await assertPreviewRegression(category.id);
 
   const id = await createProduct(await productInput(category.id));
   assert(

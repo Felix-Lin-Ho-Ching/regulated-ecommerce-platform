@@ -6,8 +6,14 @@ import { AlertPanel } from "@/components/common/panels";
 import { AdminShell, EmptyState, SectionHeader, StatusBadge } from "@/components/ui";
 import { getAdminProductById } from "@/lib/products/service";
 
-export default async function ProductEditPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function ProductEditPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ saved?: string }>;
+}) {
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
   const [product, categoryRows] = await Promise.all([getAdminProductById(id), getProductCategories()]);
   const categories = categoryRows.map((category) => ({ ...category, archivedAt: category.archivedAt ? category.archivedAt.toISOString() : null }));
 
@@ -37,6 +43,13 @@ export default async function ProductEditPage({ params }: { params: Promise<{ id
           {product.hasInventory ? "Inventory attached" : "Inventory missing"}
         </StatusBadge>
       </div>
+      {sp.saved === "1" ? (
+        <div className="mb-6">
+          <AlertPanel title="Product saved" tone="success">
+            Product changes were saved and reloaded from the database.
+          </AlertPanel>
+        </div>
+      ) : null}
       {isArchived ? (
         <div className="mb-6">
           <AlertPanel title="Archived" tone="warning">
