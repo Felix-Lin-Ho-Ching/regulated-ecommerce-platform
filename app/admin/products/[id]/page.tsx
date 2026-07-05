@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { ArchiveProductForm, RestoreProductForm } from "@/components/admin/products/archive-product-form";
 import { ProductForm } from "@/components/admin/products/product-form";
-import { getActiveProductCategories } from "@/lib/product-categories/service";
+import { getProductCategories } from "@/lib/product-categories/service";
 import { AlertPanel } from "@/components/common/panels";
 import { AdminShell, EmptyState, SectionHeader, StatusBadge } from "@/components/ui";
 import { getAdminProductById } from "@/lib/products/service";
 
 export default async function ProductEditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [product, categories] = await Promise.all([getAdminProductById(id), getActiveProductCategories()]);
+  const [product, categoryRows] = await Promise.all([getAdminProductById(id), getProductCategories()]);
+  const categories = categoryRows.map((category) => ({ ...category, archivedAt: category.archivedAt ? category.archivedAt.toISOString() : null }));
 
   if (!product) {
     return (

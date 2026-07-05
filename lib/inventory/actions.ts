@@ -3,9 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/audit/audit-service";
 import type { AdminActionState } from "@/lib/admin/action-state";
-import { adjustInventory } from "@/lib/inventory/service";
+import { adjustInventory, getInventoryRow } from "@/lib/inventory/service";
+import { requireOwnerOrAdminAction } from "@/lib/admin/authorization";
 
 export async function adjustInventoryAction(_state: AdminActionState, formData: FormData): Promise<AdminActionState> {
+  const auth = await requireOwnerOrAdminAction("/admin/inventory");
+  if ("error" in auth) return auth;
   const inventoryValue = formData.get("inventoryId");
   const stockValue = formData.get("onHand");
   const reasonValue = formData.get("reason");
@@ -19,6 +22,8 @@ export async function adjustInventoryAction(_state: AdminActionState, formData: 
   }
 
   const typedReason = typeof reasonValue === "string" ? reasonValue.trim() : "";
+  const row = await getInventoryRow(inventoryId);
+  if (row?.restricted && !typedReason) return { error: "Reason is required when adjusting restricted product inventory." };
   const result = await adjustInventory(inventoryId, onHand, typedReason);
   if (!result) return { error: "Inventory record was not found." };
 

@@ -7,6 +7,7 @@ import { saveLocalRestrictionRuleAction } from "@/lib/compliance/actions";
 import { ruleOutcomes } from "@/lib/compliance/validation";
 import type { AdminProductDetail } from "@/lib/products/service";
 import { restrictedClassOptions } from "@/lib/products/validation";
+import { usStateAndDcCodes } from "@/lib/compliance/restricted-state-rules";
 
 export function LocalRestrictionRuleForm({ products }: { products: AdminProductDetail[] }) {
   const [state, formAction] = useActionState<AdminActionState, FormData>(saveLocalRestrictionRuleAction, {});
@@ -21,7 +22,9 @@ export function LocalRestrictionRuleForm({ products }: { products: AdminProductD
       {state.success ? <div className="md:col-span-2"><AlertPanel title="Local rule saved" tone="success">{state.success}</AlertPanel></div> : null}
       <label className="grid gap-2 text-sm font-bold text-slate-800">
         State
-        <input className="input" maxLength={2} name="localStateCode" defaultValue="UN" />
+        <select className="input" name="localStateCode" defaultValue="CA">
+          {usStateAndDcCodes.map((state) => <option key={state} value={state}>{state}</option>)}
+        </select>
       </label>
       <label className="grid gap-2 text-sm font-bold text-slate-800">
         Locality type

@@ -22,12 +22,22 @@ import {
   type ProductMediaType,
 } from "@/lib/products/validation";
 import { requireAdminSession } from "@/lib/admin/auth";
+import { saveProductCategory } from "@/lib/product-categories/service";
 import {
   PRODUCT_IMAGE_MAX_BYTES,
   PRODUCT_IMAGE_MEDIA_TYPES,
   ProductMediaStorageError,
   storeProductMediaFile,
 } from "@/lib/storage/product-media-storage";
+
+function categorySlug(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""); }
+
+async function applyInlineCategory(formData: FormData) {
+  const newName = String(formData.get("newCategoryName") || "").trim();
+  if (!newName) return;
+  const id = await saveProductCategory({ name: newName, slug: categorySlug(newName), status: "ACTIVE", sortOrder: 0 });
+  formData.set("categoryId", id);
+}
 
 function actionIntent(formData: FormData): string | undefined {
   const intent = formData.get("intent");
@@ -84,6 +94,7 @@ export async function createProductAction(
   await requireProductEditor();
   let input;
   try {
+    await applyInlineCategory(formData);
     input = await parseProductForm(formData, saveProductMediaUpload);
   } catch (error) {
     if (error instanceof ProductFormValidationError)
@@ -117,6 +128,7 @@ export async function updateProductAction(
   await requireProductEditor();
   let input;
   try {
+    await applyInlineCategory(formData);
     input = await parseProductForm(formData, saveProductMediaUpload);
   } catch (error) {
     if (error instanceof ProductFormValidationError)

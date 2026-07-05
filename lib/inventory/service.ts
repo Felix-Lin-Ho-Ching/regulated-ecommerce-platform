@@ -44,6 +44,11 @@ export async function getInventoryRows(): Promise<InventoryAdminRow[]> {
   }));
 }
 
+export async function getInventoryRow(inventoryId: string): Promise<InventoryAdminRow | null> {
+  const rows = await getInventoryRows();
+  return rows.find((row) => row.inventoryId === inventoryId) ?? null;
+}
+
 export async function adjustInventory(inventoryId: string, nextOnHand: number, reason: string): Promise<{ previousOnHand: number; reason: string } | null> {
   if (!isDatabaseConfigured) return { previousOnHand: nextOnHand, reason: reason.trim() || "Owner adjusted inventory count." };
 

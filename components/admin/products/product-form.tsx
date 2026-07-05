@@ -821,7 +821,7 @@ export function ProductForm({
   categories = [],
 }: {
   product?: AdminProductDetail;
-  categories?: Array<{ id: string; name: string; slug: string }>;
+  categories?: Array<{ id: string; name: string; slug: string; status?: string; archivedAt?: string | null }>;
 }) {
   const [state, formAction] = useActionState<ProductActionState, FormData>(
     product ? updateProductAction : createProductAction,
@@ -895,7 +895,7 @@ export function ProductForm({
         {product ? (
           <Link
             className="btn btn-secondary md:w-fit"
-            href={`/products/${product.slug}`}
+            href={product.status === "ACTIVE" ? `/products/${product.slug}` : `/admin/products/${product.id}/preview`}
           >
             Preview product page
           </Link>
@@ -986,6 +986,15 @@ export function ProductForm({
             Customer-facing product category used for browsing.
           </span>
         </label>
+        {product?.categoryId && categories.find((category) => category.id === product.categoryId && ((category.status && category.status !== "ACTIVE") || category.archivedAt)) ? (
+          <AlertPanel title="Assigned category is inactive" tone="warning">This product is assigned to an inactive or archived category. It remains selected so saving unrelated fields will not clear the category.</AlertPanel>
+        ) : null}
+        <Field
+          label="Create and assign new category"
+          name="newCategoryName"
+          placeholder="New category name"
+          hint="Optional. If filled, an ACTIVE category is created and assigned to this product on save."
+        />
         <Field
           label="Brand"
           name="brand"
