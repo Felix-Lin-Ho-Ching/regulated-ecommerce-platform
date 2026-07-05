@@ -1,5 +1,5 @@
-export type EmailProviderName = "debug";
-export type EmailLogStatus = "logged" | "skipped" | "failed";
+export type EmailProviderName = "debug" | "resend";
+export type EmailLogStatus = "logged" | "skipped" | "sent" | "failed";
 
 export type EmailMessage = {
   type: string;

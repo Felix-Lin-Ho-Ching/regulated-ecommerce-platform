@@ -868,6 +868,36 @@ model EmailLog {
   createdAt DateTime @default(now())
 }
 
+
+model EmailTemplate {
+  id         String                 @id @default(cuid())
+  type       String                 @unique
+  name       String
+  subject    String
+  textBody   String
+  htmlBody   String
+  enabled    Boolean                @default(true)
+  version    Int                    @default(1)
+  versions   EmailTemplateVersion[]
+  createdAt  DateTime               @default(now())
+  updatedAt  DateTime               @updatedAt
+  archivedAt DateTime?
+}
+
+model EmailTemplateVersion {
+  id           String        @id @default(cuid())
+  templateId   String
+  template     EmailTemplate @relation(fields: [templateId], references: [id])
+  subject      String
+  textBody     String
+  htmlBody     String
+  version      Int
+  actorAdminId String?
+  createdAt    DateTime      @default(now())
+
+  @@index([templateId, version])
+}
+
 model LaunchGate {
   id                     String           @id @default(cuid())
   code                   String           @unique
