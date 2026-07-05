@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 
 function fail(message) {
@@ -20,6 +20,13 @@ const validation = readFileSync('lib/products/validation.ts', 'utf8');
 const catalog = readFileSync('lib/db/catalog.ts', 'utf8');
 const fulfillment = readFileSync('lib/fulfillment/admin-queries.ts', 'utf8') + readFileSync('lib/fulfillment/ship-orders.ts', 'utf8');
 const form = readFileSync('components/admin/products/product-form.tsx', 'utf8');
+const currentUx = readFileSync('docs/current-ux.md', 'utf8');
+
+
+if (existsSync('app/admin/tax-settings/page.tsx')) fail('fake admin tax settings route still exists.');
+requireText(currentUx, 'Sales tax is calculated automatically during checkout from the customer shipping address using the configured tax provider. There is no manual admin tax settings page.', 'sales tax is not documented as automatic/provider-driven.');
+requireText(checkout, 'calculateCheckoutTax', 'checkout does not call calculateCheckoutTax.');
+for (const requiredOrderTaxText of ['taxCents: tax.taxCents', 'taxProvider: tax.provider', 'taxSnapshot: tax.snapshot']) requireText(orderService, requiredOrderTaxText, `order creation is missing tax persistence: ${requiredOrderTaxText}`);
 
 if (!adminAuth.includes('process.env.NODE_ENV === "production" && !configuredSecret')) fail('production admin sessions could use fallback AUTH_SECRET.');
 if (!session.includes('process.env.NODE_ENV === "production" && !configuredSecret')) fail('production customer sessions could use fallback AUTH_SECRET.');

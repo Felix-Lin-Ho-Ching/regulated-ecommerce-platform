@@ -1,2 +1,0 @@
-import { AdminShell, SectionHeader, AlertPanel } from "@/components/ui";
-export default function Page(){return <AdminShell title="tax settings"><SectionHeader eyebrow="Admin module" title="Tax settings">Configured through environment variables, not editable here.</SectionHeader><AlertPanel title="Environment-only configuration" tone="info">Tax calculation provider and nexus configuration are configured through environment variables, not editable here. This page is an explicit launch classification and does not claim mock settings are launch-ready.</AlertPanel></AdminShell>}

@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { PrismaClient } from "@prisma/client";
 import { getCatalogProducts } from "../lib/db/catalog";
 import { processOrderPayment } from "../lib/payments/payment-service";
@@ -20,6 +21,8 @@ import {
   upsertHomepageSlide,
 } from "../lib/storefront/homepage-slides";
 import type { AdminSession } from "../lib/admin/auth";
+import { calculateCheckoutTax } from "../lib/tax/tax-service";
+import type { TaxProvider } from "../lib/tax/types";
 
 const prisma = new PrismaClient();
 const run = `regression-${Date.now()}`;
@@ -162,6 +165,92 @@ async function assertParsedYouTubeMedia(
   );
 }
 
+async function assertCheckoutTaxRegression() {
+  assert(
+    !existsSync("app/admin/tax-settings/page.tsx"),
+    "Fake admin tax settings page still exists.",
+  );
+
+  let capturedInput: any;
+  const provider: TaxProvider = {
+    async calculateTax(input) {
+      capturedInput = input;
+      return {
+        taxCents: input.toAddress.state === "WA" ? 912 : 0,
+        provider: "regression-provider",
+        snapshot: { destination: input.toAddress, lineItems: input.lineItems },
+      };
+    },
+  };
+
+  const result = await calculateCheckoutTax(
+    {
+      toAddress: {
+        name: "Regression Buyer",
+        line1: "100 Pike St",
+        city: "Seattle",
+        state: "WA",
+        postalCode: "98101",
+        country: "US",
+      },
+      shippingCents: 1299,
+      lineItems: [
+        {
+          id: "variant-regression",
+          productId: "product-regression",
+          sku: "REG-TAX",
+          name: "Regression Taxed Item",
+          quantity: 2,
+          unitPriceCents: 4999,
+          productTaxCode: "31000",
+          categoryTaxCode: "30070",
+        },
+      ],
+    },
+    provider,
+  );
+
+  assert(result.taxCents === 912, "Provider tax result was not returned.");
+  assert(
+    capturedInput?.toAddress?.state === "WA" &&
+      capturedInput.toAddress.line1 === "100 Pike St" &&
+      capturedInput.toAddress.postalCode === "98101",
+    "Checkout tax did not use the shipping state/address input.",
+  );
+  assert(
+    capturedInput.lineItems[0]?.productTaxCode === "31000" &&
+      capturedInput.lineItems[0]?.categoryTaxCode === "30070" &&
+      capturedInput.lineItems[0]?.quantity === 2,
+    "Checkout tax did not pass cart line item tax metadata.",
+  );
+
+  const disabled = await calculateCheckoutTax(
+    {
+      toAddress: {
+        line1: "1 Main",
+        city: "Austin",
+        state: "TX",
+        postalCode: "78701",
+        country: "US",
+      },
+      shippingCents: 0,
+      lineItems: [
+        {
+          id: "variant-disabled",
+          name: "Disabled Tax Item",
+          quantity: 1,
+          unitPriceCents: 2500,
+        },
+      ],
+    },
+    null,
+  );
+  assert(
+    disabled.taxCents === 0 && disabled.provider === "disabled",
+    "Disabled tax mode did not return zero tax.",
+  );
+}
+
 async function assertInvalidYouTubeFails() {
   const invalidUrl = "https://www.youtube.com/watch?v=not-valid";
   try {
@@ -276,6 +365,8 @@ async function main() {
   if (!process.env.DATABASE_URL)
     throw new Error("DATABASE_URL is required for regression smoke tests.");
   await cleanup();
+
+  await assertCheckoutTaxRegression();
 
   await assertParsedYouTubeMedia(
     "youtube-field",

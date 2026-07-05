@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 const mode = process.argv[2] || "smoke";
 const files = [];
@@ -393,10 +393,27 @@ if (mode === "lint") {
     }
   }
   const paymentSettings = readFileSync("app/admin/payment-settings/page.tsx", "utf8");
-  const taxSettings = readFileSync("app/admin/tax-settings/page.tsx", "utf8");
-  for (const [name, text] of [["payment", paymentSettings], ["tax", taxSettings]]) {
-    if (!text.includes("Configured through environment variables, not editable here") || text.includes("mock_ready")) {
-      console.error(`${name} settings page must explicitly classify environment-only configuration and not use mock_ready.`);
+  if (!paymentSettings.includes("Configured through environment variables, not editable here") || paymentSettings.includes("mock_ready")) {
+    console.error("payment settings page must explicitly classify environment-only configuration and not use mock_ready.");
+    process.exit(1);
+  }
+  if (existsSync("app/admin/tax-settings/page.tsx")) {
+    console.error("Fake admin tax settings route must not exist; sales tax is automatic/API-driven during checkout.");
+    process.exit(1);
+  }
+  const currentUx = readFileSync("docs/current-ux.md", "utf8");
+  const requiredTaxDoc = "Sales tax is calculated automatically during checkout from the customer shipping address using the configured tax provider. There is no manual admin tax settings page.";
+  if (!currentUx.includes(requiredTaxDoc)) {
+    console.error("Current UX docs must state that sales tax is provider/API-driven and has no manual admin page.");
+    process.exit(1);
+  }
+  if (!checkoutActionsForEmail.includes("calculateCheckoutTax")) {
+    console.error("Checkout tax estimate action must still call calculateCheckoutTax.");
+    process.exit(1);
+  }
+  for (const requiredOrderTaxText of ["taxCents: tax.taxCents", "taxProvider: tax.provider", "taxSnapshot: tax.snapshot"]) {
+    if (!orderService.includes(requiredOrderTaxText)) {
+      console.error(`Order creation must store checkout tax details: ${requiredOrderTaxText}`);
       process.exit(1);
     }
   }
