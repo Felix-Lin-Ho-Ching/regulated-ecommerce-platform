@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db/prisma";
 import { logDebugEmail } from "@/lib/email/email-log-service";
 import type { AdminSession } from "@/lib/admin/auth";
 import { buildTrackingUrl } from "@/lib/orders/order-service";
+import { FULFILLMENT_OPERATIONS_ONLY_MESSAGE } from "@/lib/fulfillment/policy";
 
 export type ShipOrdersInput = { orderIds: string[]; actor: AdminSession; carrier?: string; trackingNumber?: string };
 export type ShipOrdersResult = { shipped: string[]; skipped: string[]; errors: string[] };
@@ -20,6 +21,7 @@ export function validateShipmentTracking(carrier?: string, trackingNumber?: stri
 }
 
 export async function shipOrders(input: ShipOrdersInput): Promise<ShipOrdersResult> {
+  if (input.actor.role !== "FULFILLMENT") return { shipped: [], skipped: [], errors: [FULFILLMENT_OPERATIONS_ONLY_MESSAGE] };
   const orderIds = Array.from(new Set(input.orderIds.filter(Boolean)));
   if (!orderIds.length) return { shipped: [], skipped: [], errors: ["Select at least one order."] };
   if (orderIds.length > 1) return { shipped: [], skipped: [], errors: ["Batch shipping with one shared tracking number is disabled. Ship each order individually."] };
@@ -28,6 +30,7 @@ export async function shipOrders(input: ShipOrdersInput): Promise<ShipOrdersResu
 }
 
 export async function shipSingleOrder(input: ShipSingleOrderInput): Promise<ShipSingleOrderResult> {
+  if (input.actor.role !== "FULFILLMENT") return { shipped: false, error: FULFILLMENT_OPERATIONS_ONLY_MESSAGE };
   const orderId = input.orderId;
   if (!orderId) return { shipped: false, error: "Select an order to ship." };
   const tracking = validateShipmentTracking(input.carrier, input.trackingNumber);
@@ -45,7 +48,7 @@ export async function shipSingleOrder(input: ShipSingleOrderInput): Promise<Ship
       if (order.status === "CANCELLED" || order.fulfillmentStatus === "BLOCKED") return { shipped: false, orderId: order.id, orderNumber: order.orderNumber, error: `Order ${order.orderNumber} is cancelled or blocked and cannot be shipped.` };
       if (order.status !== "PAID") return { shipped: false, orderId: order.id, orderNumber: order.orderNumber, error: `Order ${order.orderNumber} is unpaid and cannot be shipped. Payment must be collected before fulfillment release.` };
       if (order.fulfillmentStatus !== "PICKING") return { shipped: false, orderId: order.id, orderNumber: order.orderNumber, error: `Order ${order.orderNumber} must be claimed and picking before shipment.` };
-      if (input.actor.role === "FULFILLMENT" && order.assignedFulfillmentUserId !== input.actor.adminId) return { shipped: false, orderId: order.id, orderNumber: order.orderNumber, error: `Order ${order.orderNumber} is not assigned to you.` };
+      if (order.assignedFulfillmentUserId !== input.actor.adminId) return { shipped: false, orderId: order.id, orderNumber: order.orderNumber, error: `Order ${order.orderNumber} is not assigned to you.` };
 
       const itemStock: Array<{ item: any; inventory: any; reservation: any }> = [];
       for (const item of order.items) {

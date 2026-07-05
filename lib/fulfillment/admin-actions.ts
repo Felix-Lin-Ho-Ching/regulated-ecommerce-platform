@@ -3,8 +3,12 @@ import { revalidatePath } from "next/cache";
 import { requireAdminSession } from "@/lib/admin/auth";
 import { prisma } from "@/lib/db/prisma";
 import { shipOrders, shipSingleOrder } from "@/lib/fulfillment/ship-orders";
+import { FULFILLMENT_OPERATIONS_ONLY_MESSAGE } from "@/lib/fulfillment/policy";
 
 export type FulfillmentFormState = { error?: string; success?: string };
+function requireFulfillmentOperationsRole(role: string): FulfillmentFormState | null {
+  return role === "FULFILLMENT" ? null : { error: FULFILLMENT_OPERATIONS_ONLY_MESSAGE };
+}
 export type FulfillmentSettingsForAdmin = {
   defaultBatchSize: number;
   maxBatchSize: number;
@@ -28,12 +32,9 @@ export async function updateFulfillmentSettingsAction(_s: FulfillmentFormState, 
   revalidatePath("/admin/fulfillment");
   return { success: "Fulfillment settings saved." };
 }
-export async function claimBatchAction(_s: FulfillmentFormState, fd: FormData): Promise<FulfillmentFormState> {
-  const actor = await requireAdminSession("/admin/fulfillment");
-  if (!["OWNER", "ADMIN", "FULFILLMENT"].includes(actor.role)) return { error: "You cannot claim fulfillment orders." };
-  const settings = await getFulfillmentSettings();
-  const requested = fd.get("claimSize") ? Number(fd.get("claimSize")) : settings.defaultBatchSize;
-  const claimSize = settings.allowCustomClaim ? Math.min(Math.max(1, requested || settings.defaultBatchSize), settings.maxBatchSize) : settings.defaultBatchSize;
+export async function claimBatchForActor(actor: { adminId: string; email: string; role: string; demo?: boolean }, claimSize: number): Promise<FulfillmentFormState> {
+  const roleError = requireFulfillmentOperationsRole(actor.role);
+  if (roleError) return roleError;
   const claimed = await (prisma as any).$transaction(async (tx: any) => {
     const rows: Array<{ id: string }> = await tx.$queryRawUnsafe(`SELECT o.id FROM "Order" o WHERE o."assignedFulfillmentUserId" IS NULL AND o."fulfillmentStatus" = 'READY_TO_SHIP' AND o.status = 'PAID' AND o."shippedAt" IS NULL AND EXISTS (SELECT 1 FROM "OrderItem" i JOIN "InventoryReservation" r ON r."orderItemId" = i.id AND r.status = 'ACTIVE' WHERE i."orderId" = o.id) ORDER BY o."createdAt" ASC LIMIT $1 FOR UPDATE SKIP LOCKED`, claimSize);
     const ids = rows.map((r) => r.id);
@@ -43,20 +44,28 @@ export async function claimBatchAction(_s: FulfillmentFormState, fd: FormData): 
     await tx.auditLog.create({ data: { actorAdminId: actor.demo ? null : actor.adminId, action: "FULFILLMENT_BATCH_CLAIMED", entityType: "Order", entityId: ids[0], note: "Fulfillment batch claimed.", metadata: { actingUserEmail: actor.email, actingRole: actor.role, orderIds: ids, batchSize: claimSize } } });
     return ids;
   });
-  revalidatePath("/admin/fulfillment");
   return { success: claimed.length ? `Claimed ${claimed.length} order(s).` : "No ready-to-ship orders are available." };
+}
+
+export async function claimBatchAction(_s: FulfillmentFormState, fd: FormData): Promise<FulfillmentFormState> {
+  const actor = await requireAdminSession("/admin/fulfillment");
+  const settings = await getFulfillmentSettings();
+  const requested = fd.get("claimSize") ? Number(fd.get("claimSize")) : settings.defaultBatchSize;
+  const claimSize = settings.allowCustomClaim ? Math.min(Math.max(1, requested || settings.defaultBatchSize), settings.maxBatchSize) : settings.defaultBatchSize;
+  const result = await claimBatchForActor(actor, claimSize);
+  revalidatePath("/admin/fulfillment");
+  return result;
 }
 
 export async function claimOrderFormAction(fd: FormData): Promise<void> {
   await claimOrderAction({}, fd);
 }
 
-export async function claimOrderAction(_s: FulfillmentFormState, fd: FormData): Promise<FulfillmentFormState> {
-  const actor = await requireAdminSession("/admin/fulfillment");
-  if (!["OWNER", "ADMIN", "FULFILLMENT"].includes(actor.role)) return { error: "You cannot claim fulfillment orders." };
-  const orderId = String(fd.get("orderId") || "");
+export async function claimOrderForActor(actor: { adminId: string; email: string; role: string; demo?: boolean }, orderId: string): Promise<FulfillmentFormState> {
+  const roleError = requireFulfillmentOperationsRole(actor.role);
+  if (roleError) return roleError;
   if (!orderId) return { error: "Select an order to claim." };
-  const claimed = await (prisma as any).$transaction(async (tx: any) => {
+  return (prisma as any).$transaction(async (tx: any) => {
     await tx.$queryRawUnsafe('SELECT id FROM "Order" WHERE id = $1 FOR UPDATE', orderId);
     const order = await tx.order.findUnique({ where: { id: orderId }, select: { id: true, orderNumber: true, status: true, fulfillmentStatus: true, assignedFulfillmentUserId: true, shippedAt: true } });
     if (!order) return { error: "Order not found." };
@@ -66,12 +75,19 @@ export async function claimOrderAction(_s: FulfillmentFormState, fd: FormData): 
     await tx.auditLog.create({ data: { actorAdminId: actor.demo ? null : actor.adminId, action: "UPDATE", entityType: "Order", entityId: order.id, note: `Fulfillment claimed for order ${order.orderNumber}.`, metadata: { action: "FULFILLMENT_CLAIMED", orderNumber: order.orderNumber, staffUserId: actor.adminId, actingUserEmail: actor.email, actingRole: actor.role } } });
     return { success: `Claimed ${order.orderNumber}.` };
   });
+}
+
+export async function claimOrderAction(_s: FulfillmentFormState, fd: FormData): Promise<FulfillmentFormState> {
+  const actor = await requireAdminSession("/admin/fulfillment");
+  const result = await claimOrderForActor(actor, String(fd.get("orderId") || ""));
   revalidatePath("/admin/fulfillment");
-  return claimed;
+  return result;
 }
 
 export async function markSelectedShippedAction(_s: FulfillmentFormState, fd: FormData): Promise<FulfillmentFormState> {
   const actor = await requireAdminSession("/admin/fulfillment");
+  const roleError = requireFulfillmentOperationsRole(actor.role);
+  if (roleError) return roleError;
   const orderIds = fd.getAll("orderIds").map(String);
   const result = await shipOrders({ orderIds, actor, carrier: String(fd.get("carrier") || "").trim() || undefined, trackingNumber: String(fd.get("trackingNumber") || "").trim() || undefined });
   revalidatePath("/admin/fulfillment");
@@ -82,7 +98,8 @@ export async function markSelectedShippedAction(_s: FulfillmentFormState, fd: Fo
 
 export async function confirmSingleShipmentAction(_s: FulfillmentFormState, fd: FormData): Promise<FulfillmentFormState> {
   const actor = await requireAdminSession("/admin/fulfillment");
-  if (!["OWNER", "ADMIN", "FULFILLMENT"].includes(actor.role)) return { error: "You cannot confirm shipments." };
+  const roleError = requireFulfillmentOperationsRole(actor.role);
+  if (roleError) return roleError;
   const orderId = String(fd.get("orderId") || "").trim();
   const result = await shipSingleOrder({
     orderId,

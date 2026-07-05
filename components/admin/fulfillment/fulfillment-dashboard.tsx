@@ -26,6 +26,7 @@ export function FulfillmentDashboard({
   orders,
 }: FulfillmentDashboardProps) {
   const canEditSettings = ["OWNER", "ADMIN"].includes(admin.role);
+  const canOperateFulfillment = admin.role === "FULFILLMENT";
 
   return (
     <>
@@ -44,7 +45,7 @@ export function FulfillmentDashboard({
       </section>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
-        <ClaimBatchForm settings={settings} />
+        {canOperateFulfillment ? <ClaimBatchForm settings={settings} /> : null}
         <FulfillmentSettingsForm settings={settings} canEdit={canEditSettings} />
       </div>
 
