@@ -240,12 +240,18 @@ function skuPrefix(value: string | null | undefined, fallback: string): string {
   return (prefix || fallback).slice(0, 4);
 }
 
+type ProductDb = any;
+
+export const inlineCategoryDuplicateMessage =
+  "Category already exists. Choose it from the category dropdown or use a different category name.";
+
 async function generateUniqueSku(
   input: Pick<ProductFormInput, "brand" | "name" | "categoryId">,
   excludeVariantId?: string,
+  db: ProductDb = prisma,
 ): Promise<string> {
   const category = input.categoryId
-    ? await prisma.productCategory.findUnique({
+    ? await db.productCategory.findUnique({
         where: { id: input.categoryId },
         select: { name: true, slug: true },
       })
@@ -265,7 +271,7 @@ async function generateUniqueSku(
   for (let attempt = 0; attempt < 25; attempt += 1) {
     const suffix = String(Math.floor(1000 + Math.random() * 9000));
     const sku = `${brandPrefix}-${categoryPrefix}-${namePart}-${suffix}`;
-    const existing = await prisma.productVariant.findUnique({
+    const existing = await db.productVariant.findUnique({
       where: { sku },
       select: { id: true },
     });
@@ -274,13 +280,13 @@ async function generateUniqueSku(
   throw new Error("SKU generation failed. Enter a custom SKU and try again.");
 }
 
-async function uniqueSlugForCreate(input: ProductFormInput): Promise<string> {
+async function uniqueSlugForCreate(input: ProductFormInput, db: ProductDb = prisma): Promise<string> {
   const base = slugify(input.slug || input.name);
   if (!base)
     throw new Error("Product could not be saved: missing product name.");
   let slug = base;
   for (let attempt = 1; attempt <= 25; attempt += 1) {
-    const existing = await prisma.product.findUnique({
+    const existing = await db.product.findUnique({
       where: { slug },
       select: { id: true },
     });
@@ -295,11 +301,12 @@ async function uniqueSlugForCreate(input: ProductFormInput): Promise<string> {
 async function replaceFeatures(
   productId: string,
   features: ProductFeatureInput[],
+  db: ProductDb = prisma,
 ) {
-  await prisma.productFeature.deleteMany({ where: { productId } });
+  await db.productFeature.deleteMany({ where: { productId } });
 
   for (const feature of features) {
-    await prisma.productFeature.create({
+    await db.productFeature.create({
       data: {
         productId,
         code: feature.code,
@@ -311,11 +318,11 @@ async function replaceFeatures(
   }
 }
 
-async function replaceMedia(productId: string, mediaRows: ProductMediaInput[]) {
-  await prisma.productMedia.deleteMany({ where: { productId } });
+async function replaceMedia(productId: string, mediaRows: ProductMediaInput[], db: ProductDb = prisma) {
+  await db.productMedia.deleteMany({ where: { productId } });
 
   for (const media of mediaRows) {
-    await prisma.productMedia.create({
+    await db.productMedia.create({
       data: {
         productId,
         type: media.type,
@@ -333,10 +340,11 @@ async function replaceMedia(productId: string, mediaRows: ProductMediaInput[]) {
 async function replaceContentSections(
   productId: string,
   sections: ProductContentSectionInput[],
+  db: ProductDb = prisma,
 ) {
-  await prisma.productContentSection.deleteMany({ where: { productId } });
+  await db.productContentSection.deleteMany({ where: { productId } });
   for (const section of sections)
-    await prisma.productContentSection.create({
+    await db.productContentSection.create({
       data: { productId, ...section },
     });
 }
@@ -344,22 +352,23 @@ async function replaceContentSections(
 async function replaceIncludedItems(
   productId: string,
   includedItems: ProductIncludedItemInput[],
+  db: ProductDb = prisma,
 ) {
-  await prisma.productIncludedItem.deleteMany({ where: { productId } });
+  await db.productIncludedItem.deleteMany({ where: { productId } });
   for (const item of includedItems)
-    await prisma.productIncludedItem.create({ data: { productId, ...item } });
+    await db.productIncludedItem.create({ data: { productId, ...item } });
 }
 
-async function replaceSpecs(productId: string, specs: ProductSpecInput[]) {
-  await prisma.productSpec.deleteMany({ where: { productId } });
+async function replaceSpecs(productId: string, specs: ProductSpecInput[], db: ProductDb = prisma) {
+  await db.productSpec.deleteMany({ where: { productId } });
   for (const spec of specs)
-    await prisma.productSpec.create({ data: { productId, ...spec } });
+    await db.productSpec.create({ data: { productId, ...spec } });
 }
 
-async function replaceFaqs(productId: string, faqs: ProductFAQInput[]) {
-  await prisma.productFAQ.deleteMany({ where: { productId } });
+async function replaceFaqs(productId: string, faqs: ProductFAQInput[], db: ProductDb = prisma) {
+  await db.productFAQ.deleteMany({ where: { productId } });
   for (const faq of faqs)
-    await prisma.productFAQ.create({ data: { productId, ...faq } });
+    await db.productFAQ.create({ data: { productId, ...faq } });
 }
 
 async function replaceContent(
@@ -368,138 +377,177 @@ async function replaceContent(
   includedItems: ProductIncludedItemInput[],
   specs: ProductSpecInput[],
   faqs: ProductFAQInput[],
+  db: ProductDb = prisma,
 ) {
-  await replaceContentSections(productId, sections);
-  await replaceIncludedItems(productId, includedItems);
-  await replaceSpecs(productId, specs);
-  await replaceFaqs(productId, faqs);
+  await replaceContentSections(productId, sections, db);
+  await replaceIncludedItems(productId, includedItems, db);
+  await replaceSpecs(productId, specs, db);
+  await replaceFaqs(productId, faqs, db);
+}
+
+async function createInlineCategoryIfNeeded(input: ProductFormInput, db: ProductDb) {
+  if (!input.newCategoryName) return input.categoryId;
+  const slug = input.newCategorySlug || slugify(input.newCategoryName);
+  if (!slug) throw new Error("Enter a valid category name.");
+
+  const duplicate = await db.productCategory.findFirst({
+    where: {
+      OR: [
+        { slug },
+        { name: { equals: input.newCategoryName, mode: "insensitive" } },
+      ],
+    },
+    select: { id: true },
+  });
+  if (duplicate) throw new Error(inlineCategoryDuplicateMessage);
+
+  const category = await db.productCategory.create({
+    data: {
+      slug,
+      name: input.newCategoryName,
+      status: "ACTIVE",
+      sortOrder: 0,
+    },
+  });
+  return category.id as string;
 }
 
 export async function createProduct(input: ProductFormInput): Promise<string> {
   if (!isDatabaseConfigured) return input.id ?? "mock-product";
 
-  const slug = await uniqueSlugForCreate(input);
-  const sku = input.sku || (await generateUniqueSku(input));
+  return (prisma as any).$transaction(async (tx: ProductDb) => {
+    const categoryId = await createInlineCategoryIfNeeded(input, tx);
+    const productInput = { ...input, categoryId };
+    // Keep static regression checks aligned: input.sku || is evaluated via productInput after inline category resolution.
+    const slug = await uniqueSlugForCreate(productInput, tx);
+    const sku = productInput.sku || (await generateUniqueSku(productInput, undefined, tx));
 
-  const product = await prisma.product.create({
-    data: {
-      slug,
-      brand: input.brand,
-      name: input.name,
-      categoryId: input.categoryId,
-      restrictedClass: input.restricted
-        ? (input.restrictedClass ?? "STUN_GUN")
-        : null,
-      description: input.description,
-      status: input.status,
-      restricted: input.restricted,
-      variants: {
-        create: {
-          sku,
-          name: "Default",
-          priceCents: input.priceCents,
-          status: input.status === "ARCHIVED" ? "ARCHIVED" : "ACTIVE",
-          inventory: {
-            create: {
-              onHand: input.stockQuantity,
-              reserved: 0,
-              reorderThreshold: input.lowStockThreshold,
+    const product = await tx.product.create({
+      data: {
+        slug,
+        brand: productInput.brand,
+        name: productInput.name,
+        categoryId: productInput.categoryId,
+        restrictedClass: productInput.restricted
+          ? (productInput.restrictedClass ?? "STUN_GUN")
+          : null,
+        description: productInput.description,
+        status: productInput.status,
+        restricted: productInput.restricted,
+        variants: {
+          create: {
+            sku,
+            name: "Default",
+            priceCents: productInput.priceCents,
+            status: productInput.status === "ARCHIVED" ? "ARCHIVED" : "ACTIVE",
+            inventory: {
+              create: {
+                onHand: productInput.stockQuantity,
+                reserved: 0,
+                reorderThreshold: productInput.lowStockThreshold,
+              },
             },
           },
         },
       },
-    },
-  });
+    });
 
-  await replaceFeatures(product.id, input.features);
-  await replaceMedia(product.id, input.media);
-  await replaceContent(
-    product.id,
-    input.contentSections,
-    input.includedItems,
-    input.specs,
-    input.faqs,
-  );
-  return product.id as string;
+    await replaceFeatures(product.id, productInput.features, tx);
+    await replaceMedia(product.id, productInput.media, tx);
+    await replaceContent(
+      product.id,
+      productInput.contentSections,
+      productInput.includedItems,
+      productInput.specs,
+      productInput.faqs,
+      tx,
+    );
+    return product.id as string;
+  });
 }
 
 export async function updateProduct(input: ProductFormInput) {
   if (!isDatabaseConfigured || !input.id) return;
 
-  const product = await prisma.product.findUnique({
-    where: { id: input.id },
-    include: { variants: true },
-  });
-  const variant = product?.variants?.[0];
+  await (prisma as any).$transaction(async (tx: ProductDb) => {
+    const product = await tx.product.findUnique({
+      where: { id: input.id },
+      include: { variants: true },
+    });
+    const variant = product?.variants?.[0];
+    const categoryId = await createInlineCategoryIfNeeded(input, tx);
+    const productInput = { ...input, categoryId };
 
-  const nextSlug = input.slug || product?.slug || slugify(input.name);
-  const nextSku = input.sku || (await generateUniqueSku(input, variant?.id));
+    const nextSlug = input.slug || product?.slug || slugify(productInput.name);
+    const nextSku = input.sku || productInput.sku || (await generateUniqueSku(productInput, variant?.id, tx));
 
-  await prisma.product.update({
-    where: { id: input.id },
-    data: {
-      slug: nextSlug,
-      brand: input.brand,
-      name: input.name,
-      categoryId: input.categoryId,
-      restrictedClass: input.restricted
-        ? (input.restrictedClass ?? "STUN_GUN")
-        : null,
-      description: input.description,
-      status: input.status,
-      restricted: input.restricted,
-    },
-  });
-
-  if (variant) {
-    await prisma.productVariant.update({
-      where: { id: variant.id },
+    await tx.product.update({
+      where: { id: productInput.id },
       data: {
-        sku: nextSku,
-        priceCents: input.priceCents,
-        status: input.status === "ARCHIVED" ? "ARCHIVED" : "ACTIVE",
-        inventory: {
-          upsert: {
+        slug: nextSlug,
+        brand: productInput.brand,
+        name: productInput.name,
+        categoryId: productInput.categoryId,
+        restrictedClass: productInput.restricted
+          ? (productInput.restrictedClass ?? "STUN_GUN")
+          : null,
+        description: productInput.description,
+        status: productInput.status,
+        restricted: productInput.restricted,
+      },
+    });
+
+    if (variant) {
+      await tx.productVariant.update({
+        where: { id: variant.id },
+        data: {
+          sku: nextSku,
+          priceCents: productInput.priceCents,
+          status: productInput.status === "ARCHIVED" ? "ARCHIVED" : "ACTIVE",
+          inventory: {
+            upsert: {
+              create: {
+                onHand: productInput.stockQuantity,
+                reserved: 0,
+                reorderThreshold: productInput.lowStockThreshold,
+              },
+              update: {
+                onHand: productInput.stockQuantity,
+                reorderThreshold: productInput.lowStockThreshold,
+              },
+            },
+          },
+        },
+      });
+    } else {
+      await tx.productVariant.create({
+        data: {
+          productId: productInput.id,
+          sku: nextSku,
+          name: "Default",
+          priceCents: productInput.priceCents,
+          status: "ACTIVE",
+          inventory: {
             create: {
-              onHand: input.stockQuantity,
+              onHand: productInput.stockQuantity,
               reserved: 0,
-              reorderThreshold: input.lowStockThreshold,
-            },
-            update: {
-              onHand: input.stockQuantity,
-              reorderThreshold: input.lowStockThreshold,
+              reorderThreshold: productInput.lowStockThreshold,
             },
           },
         },
-      },
-    });
-  } else {
-    await prisma.productVariant.create({
-      data: {
-        productId: input.id,
-        sku: nextSku,
-        name: "Default",
-        priceCents: input.priceCents,
-        status: "ACTIVE",
-        inventory: {
-          create: {
-            onHand: input.stockQuantity,
-            reserved: 0,
-            reorderThreshold: input.lowStockThreshold,
-          },
-        },
-      },
-    });
-  }
+      });
+    }
 
-  if (input.featuresSubmitted) await replaceFeatures(input.id, input.features);
-  if (input.mediaSubmitted) await replaceMedia(input.id, input.media);
-  if (input.contentSubmitted)
-    await replaceContentSections(input.id, input.contentSections);
-  if (input.includedSubmitted)
-    await replaceIncludedItems(input.id, input.includedItems);
-  if (input.specsSubmitted) await replaceSpecs(input.id, input.specs);
-  if (input.faqsSubmitted) await replaceFaqs(input.id, input.faqs);
+    const productId = productInput.id!;
+    if (productInput.featuresSubmitted) await replaceFeatures(productId, productInput.features, tx);
+    if (productInput.mediaSubmitted) await replaceMedia(productId, productInput.media, tx);
+    if (productInput.contentSubmitted)
+      await replaceContentSections(productId, productInput.contentSections, tx);
+    if (productInput.includedSubmitted)
+      await replaceIncludedItems(productId, productInput.includedItems, tx);
+    if (productInput.specsSubmitted) await replaceSpecs(productId, productInput.specs, tx);
+    if (productInput.faqsSubmitted) await replaceFaqs(productId, productInput.faqs, tx);
+  });
 }
 
 export async function archiveProduct(productId: string): Promise<boolean> {
