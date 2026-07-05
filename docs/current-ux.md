@@ -20,6 +20,8 @@ Checkout contains the customer-facing decision point for restricted items:
 5. Age verification when the cart contains a restricted product.
 6. Order summary with items, quantity, price, discount-code entry, subtotal, shipping, tax, and total.
 
+Sales tax is calculated automatically during checkout from the customer shipping address using the configured tax provider. There is no manual admin tax settings page.
+
 ## Restricted item rules
 
 - If the cart has no restricted product, age verification is not required.
