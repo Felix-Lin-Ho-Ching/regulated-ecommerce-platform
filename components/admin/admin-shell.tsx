@@ -13,6 +13,7 @@ export function AdminSidebar({ role }: { role: string }) {
     ["/admin/inventory", "Inventory"],
     ["/admin/orders", "Orders"],
     ["/admin/fulfillment", "Fulfillment"],
+    ["/admin/shipping-carriers", "Shipping carriers"],
     ["/admin/storefront", "Storefront"],
     ["/admin/compliance-rules", "Restricted rules"],
     ["/admin/launch-gates", "Readiness"],

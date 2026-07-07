@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { hashPassword } from "../lib/auth/password";
 import { seedDefaultEmailTemplates } from "../lib/email/template-service";
+import { seedDefaultShippingCarriers } from "../lib/shipping/carriers";
 
 const prisma = new PrismaClient();
 const states = [
@@ -21,6 +22,7 @@ const templates = [
 
 async function main() {
   await seedDefaultEmailTemplates(prisma);
+  await seedDefaultShippingCarriers(prisma);
   const ownerRole = await prisma.adminRole.upsert({
     where: { code: "OWNER" },
     update: {},

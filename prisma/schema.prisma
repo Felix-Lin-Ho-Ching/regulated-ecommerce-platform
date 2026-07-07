@@ -255,6 +255,19 @@ model MembershipTier {
   updatedAt   DateTime     @updatedAt
 }
 
+model ShippingCarrier {
+  id                  String   @id @default(cuid())
+  name                String
+  code                String   @unique
+  trackingUrlTemplate String
+  enabled             Boolean  @default(true)
+  sortOrder           Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([enabled, sortOrder])
+}
+
 model StorefrontSettings {
   id                             String   @id @default(cuid())
   key                            String   @unique

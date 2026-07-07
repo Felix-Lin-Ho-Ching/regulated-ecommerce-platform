@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/db/prisma";
 import { sendCustomerOrderTemplate } from "@/lib/email/send-transactional";
 import type { AdminSession } from "@/lib/admin/auth";
-import { buildTrackingUrl } from "@/lib/orders/order-service";
+import { buildTrackingUrlFromCarrier } from "@/lib/orders/order-service";
+import { normalizeCarrierCode } from "@/lib/shipping/carriers";
 import { FULFILLMENT_OPERATIONS_ONLY_MESSAGE } from "@/lib/fulfillment/policy";
 
 export type ShipOrdersInput = { orderIds: string[]; actor: AdminSession; carrier?: string; trackingNumber?: string };
@@ -35,6 +36,13 @@ export async function shipSingleOrder(input: ShipSingleOrderInput): Promise<Ship
   if (!orderId) return { shipped: false, error: "Select an order to ship." };
   const tracking = validateShipmentTracking(input.carrier, input.trackingNumber);
   if (tracking.error) return { shipped: false, orderId, error: tracking.error };
+  let carrierName = tracking.carrier;
+  try {
+    const configured = await (prisma as any).shippingCarrier.findFirst({ where: { enabled: true, OR: [{ code: normalizeCarrierCode(tracking.carrier) }, { name: { equals: tracking.carrier, mode: "insensitive" } }] } });
+    if (configured) carrierName = configured.name;
+  } catch {
+    // If carrier lookup is unavailable, keep the submitted carrier and let tracking URL fallback handle legacy carriers.
+  }
 
   const result = await (prisma as any).$transaction(async (tx: any) => {
     const errors: string[] = [];
@@ -42,7 +50,7 @@ export async function shipSingleOrder(input: ShipSingleOrderInput): Promise<Ship
     const order = await tx.order.findUnique({ where: { id: orderId }, include: { items: true, shippingAddress: true, paymentAttempts: { orderBy: { createdAt: "desc" }, take: 1 } } });
     if (!order) return { shipped: false, orderId, error: `Order ${orderId} was not found.` };
       if (order.status === "SHIPPED" || order.fulfillmentStatus === "SHIPPED" || order.shippedAt) {
-        await tx.auditLog.create({ data: { actorAdminId: input.actor.demo ? null : input.actor.adminId, action: "SHIPMENT_SKIPPED_ALREADY_SHIPPED", entityType: "Order", entityId: order.id, note: "Shipment skipped because order was already shipped.", metadata: { actingUserEmail: input.actor.email, actingRole: input.actor.role, orderIds: [order.id], carrier: tracking.carrier, trackingNumber: tracking.trackingNumber } } });
+        await tx.auditLog.create({ data: { actorAdminId: input.actor.demo ? null : input.actor.adminId, action: "SHIPMENT_SKIPPED_ALREADY_SHIPPED", entityType: "Order", entityId: order.id, note: "Shipment skipped because order was already shipped.", metadata: { actingUserEmail: input.actor.email, actingRole: input.actor.role, orderIds: [order.id], carrier: carrierName, trackingNumber: tracking.trackingNumber } } });
         return { shipped: false, orderId: order.id, orderNumber: order.orderNumber, error: `Order ${order.orderNumber} is already shipped.` };
       }
       if (order.status === "CANCELLED" || order.fulfillmentStatus === "BLOCKED") return { shipped: false, orderId: order.id, orderNumber: order.orderNumber, error: `Order ${order.orderNumber} is cancelled or blocked and cannot be shipped.` };
@@ -66,13 +74,13 @@ export async function shipSingleOrder(input: ShipSingleOrderInput): Promise<Ship
       for (const { item, inventory } of itemStock) {
         await tx.inventory.update({ where: { id: inventory.id }, data: { reserved: { decrement: item.quantity }, onHand: { decrement: item.quantity }, transactions: { create: { type: "FULFILLMENT", quantity: item.quantity, reason: `Order ${order.orderNumber} shipped` } }, reservations: { updateMany: { where: { orderItemId: item.id, status: "ACTIVE" }, data: { status: "CONSUMED" } } } } });
       }
-      await tx.order.update({ where: { id: order.id }, data: { status: "SHIPPED", fulfillmentStatus: "SHIPPED", carrier: tracking.carrier, trackingNumber: tracking.trackingNumber, shippedAt: new Date() } });
-      await tx.auditLog.create({ data: { actorAdminId: input.actor.demo ? null : input.actor.adminId, action: "SHIPMENT_CONFIRMED", entityType: "Order", entityId: order.id, note: `Shipment confirmed for order ${order.orderNumber}.`, metadata: { orderNumber: order.orderNumber, actingUserEmail: input.actor.email, actingRole: input.actor.role, orderIds: [order.id], carrier: tracking.carrier, trackingNumber: tracking.trackingNumber } } });
+      await tx.order.update({ where: { id: order.id }, data: { status: "SHIPPED", fulfillmentStatus: "SHIPPED", carrier: carrierName, trackingNumber: tracking.trackingNumber, shippedAt: new Date() } });
+      await tx.auditLog.create({ data: { actorAdminId: input.actor.demo ? null : input.actor.adminId, action: "SHIPMENT_CONFIRMED", entityType: "Order", entityId: order.id, note: `Shipment confirmed for order ${order.orderNumber}.`, metadata: { orderNumber: order.orderNumber, actingUserEmail: input.actor.email, actingRole: input.actor.role, orderIds: [order.id], carrier: carrierName, trackingNumber: tracking.trackingNumber } } });
       return { shipped: true, orderId: order.id, orderNumber: order.orderNumber, customerEmail: order.customerEmail };
   });
 
   if (result.shipped && result.orderId && result.customerEmail) {
-    const trackingUrl = buildTrackingUrl(tracking.carrier, tracking.trackingNumber) || "";
+    const trackingUrl = (await buildTrackingUrlFromCarrier(carrierName, tracking.trackingNumber)) || "";
     const order = await (prisma as any).order.findUnique({ where: { id: result.orderId }, include: { items: true, shippingAddress: true, paymentAttempts: { orderBy: { createdAt: "desc" }, take: 1 } } });
     if (order) await sendCustomerOrderTemplate("CUSTOMER_SHIPMENT", order, { trackingUrl }).catch(() => undefined);
   }
