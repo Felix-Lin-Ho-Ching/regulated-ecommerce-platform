@@ -50,7 +50,12 @@ requireText(fulfillment, 'status: "PAID"', 'fulfillment queries/actions are not 
 requireText(fulfillment, 'fulfillmentStatus: { in: ["READY_TO_SHIP", "PICKING"] }', 'fulfillment does not require releasable states.');
 
 if (process.env.LAUNCH_AUDIT_SKIP_REGRESSION !== '1') {
-  const result = spawnSync('npm', ['run', 'regression:test'], { stdio: 'inherit', shell: false });
+  const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+  const result = spawnSync(npmCommand, ["run", "regression:test"], { stdio: "inherit", shell: false });
+  if (result.error) {
+    console.error(`Launch audit failed to run regression test via ${npmCommand}: ${result.error.message}`);
+    process.exit(1);
+  }
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 console.log('Launch audit passed.');
