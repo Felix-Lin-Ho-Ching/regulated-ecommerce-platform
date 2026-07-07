@@ -6,6 +6,7 @@ const dashboardCards = [
   ["Inventory", "Adjust stock and review inventory rows.", "/admin/inventory"],
   ["Orders", "Review customer order requests and order status.", "/admin/orders"],
   ["Fulfillment", "Claim, batch, and ship ready orders.", "/admin/fulfillment"],
+  ["Shipping carriers", "Configure tracking URL templates for fulfillment shipment emails.", "/admin/shipping-carriers"],
   ["Storefront slideshow", "Manage homepage slideshow media and visible section copy.", "/admin/storefront"],
   ["Restricted rules", "Maintain state and ZIP/local restricted-product rules.", "/admin/compliance-rules"],
   ["Employees", "Manage owner/admin employee access.", "/admin/employees"],

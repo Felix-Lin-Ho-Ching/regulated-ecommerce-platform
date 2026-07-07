@@ -11,6 +11,7 @@ import { createApprovedMockPaymentAttemptIfNeeded } from "@/lib/payments/payment
 import { paymentGateway } from "@/lib/payments/gateways/payment-gateway";
 import type { PaymentAddress, PaymentCardSummary, PaymentOpaqueData } from "@/lib/payments/gateways/authorize-net-types";
 import { calculateCheckoutTax } from "@/lib/tax/tax-service";
+import { buildTrackingUrlFromCarrier } from "@/lib/shipping/carriers";
 
 export function isApprovedPaymentMode(paymentMode = process.env.PAYMENT_MODE || "order_request") {
   return paymentMode === "authorize_net" || paymentMode === "mock_approved";
@@ -26,6 +27,8 @@ export function buildTrackingUrl(carrier?: string | null, trackingNumber?: strin
   if (normalizedCarrier.includes("fedex") || normalizedCarrier.includes("fed ex")) return `https://www.fedex.com/fedextrack/?trknbr=${encoded}`;
   return null;
 }
+
+export { buildTrackingUrlFromCarrier };
 
 async function reserveOrderInventory(tx: any, order: { id: string; orderNumber: string; items: Array<{ id: string; variantId: string; quantity: number; sku: string }> }) {
   for (const item of order.items) {
