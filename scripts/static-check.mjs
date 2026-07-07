@@ -33,6 +33,28 @@ if (mode === "lint") {
     console.error("Unexpected backend TODO markers:", bad.join(", "));
     process.exit(1);
   }
+
+  const clientUiBarrelImports = files
+    .filter((f) => /\.(tsx|ts)$/.test(f))
+    .filter((f) => {
+      const text = readFileSync(f, "utf8");
+      return (
+        /^\s*["']use client["'];?/m.test(text) &&
+        /from\s+["']@\/components\/ui["']/.test(text)
+      );
+    });
+  if (clientUiBarrelImports.length) {
+    console.error(
+      [
+        'Client components must not import from "@/components/ui".',
+        '"@/components/ui" re-exports server-only components (AppShell, StoreHeader, and StoreFooter) that pull next/headers into the client graph.',
+        "Use direct safe component imports instead:",
+        ...clientUiBarrelImports,
+      ].join("\n"),
+    );
+    process.exit(1);
+  }
+
   const customerFacingFiles = files
     .filter((file) => /\.(tsx|ts)$/.test(file))
     .filter(

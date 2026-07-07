@@ -2,7 +2,7 @@
 import { useMemo, useState, useActionState } from "react";
 import { saveShippingCarrierAction, disableShippingCarrierAction } from "@/lib/shipping/admin-actions";
 import { renderTrackingUrl, type ShippingCarrierOption } from "@/lib/shipping/tracking";
-import { AlertPanel } from "@/components/ui";
+import { AlertPanel } from "@/components/common/panels";
 
 export function ShippingCarrierForm({ carrier }: { carrier?: ShippingCarrierOption }) {
   const [state, action, pending] = useActionState(saveShippingCarrierAction, {});

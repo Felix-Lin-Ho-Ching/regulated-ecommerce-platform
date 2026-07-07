@@ -13,19 +13,19 @@ Use these commands to validate local changes before opening a pull request:
 - `npm run regression:test` = regression smoke test.
 - `npm run launch:audit` = launch readiness audit, including the internal regression run.
 
-Recommended local pre-commit/manual sequence:
+Recommended full local gate on Windows PowerShell:
 
-```bash
+```powershell
 npm install
 npx prisma generate
-npm run typecheck
-npm run lint
-npm run lint:static
-npm run smoke
-npm run compliance:test
-npm run concurrency:test
-npm run pipeline:test
-npm run regression:test
-npm run launch:audit
-npm run build
+npm.cmd run typecheck
+npm.cmd run lint
+npm.cmd run lint:static
+npm.cmd run smoke
+npm.cmd run compliance:test
+npm.cmd run concurrency:test
+npm.cmd run pipeline:test
+npm.cmd run regression:test
+npm.cmd run launch:audit
+npm.cmd run build
 ```
