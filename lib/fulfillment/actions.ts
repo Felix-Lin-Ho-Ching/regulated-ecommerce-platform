@@ -12,7 +12,7 @@ export async function confirmShipmentAction(_state: FulfillmentActionState, form
   const token = String(formData.get("token") || "");
   const tracking = validateShipmentTracking(String(formData.get("carrier") || ""), String(formData.get("trackingNumber") || ""));
   if (!token) return { error: "Missing fulfillment token." };
-  if (tracking.error) return { error: tracking.error };
+  if (!tracking.ok) return { error: tracking.error };
   const tokenHash = hashFulfillmentToken(token);
 
   const result = await (prisma as any).$transaction(async (tx: any) => {

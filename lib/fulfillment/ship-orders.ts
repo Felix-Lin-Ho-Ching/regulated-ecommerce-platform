@@ -9,16 +9,17 @@ export type ShipOrdersInput = { orderIds: string[]; actor: AdminSession; carrier
 export type ShipOrdersResult = { shipped: string[]; skipped: string[]; errors: string[] };
 export type ShipSingleOrderInput = { orderId: string; actor: AdminSession; carrier?: string; trackingNumber?: string };
 export type ShipSingleOrderResult = { shipped: boolean; orderId?: string; orderNumber?: string; error?: string };
+export type ShipmentTrackingValidation = { ok: false; error: string } | { ok: true; carrier: string; trackingNumber: string };
 
 const MIN_TRACKING_LENGTH = 6;
 
-export function validateShipmentTracking(carrier?: string, trackingNumber?: string) {
+export function validateShipmentTracking(carrier?: string, trackingNumber?: string): ShipmentTrackingValidation {
   const cleanCarrier = (carrier || "").trim();
   const cleanTrackingNumber = (trackingNumber || "").trim();
-  if (!cleanCarrier) return { error: "Carrier is required before marking an order shipped." };
-  if (!cleanTrackingNumber) return { error: "Tracking number is required before marking an order shipped." };
-  if (cleanTrackingNumber.length < MIN_TRACKING_LENGTH) return { error: `Tracking number must be at least ${MIN_TRACKING_LENGTH} characters.` };
-  return { carrier: cleanCarrier, trackingNumber: cleanTrackingNumber };
+  if (!cleanCarrier) return { ok: false, error: "Carrier is required before marking an order shipped." };
+  if (!cleanTrackingNumber) return { ok: false, error: "Tracking number is required before marking an order shipped." };
+  if (cleanTrackingNumber.length < MIN_TRACKING_LENGTH) return { ok: false, error: `Tracking number must be at least ${MIN_TRACKING_LENGTH} characters.` };
+  return { ok: true, carrier: cleanCarrier, trackingNumber: cleanTrackingNumber };
 }
 
 export async function shipOrders(input: ShipOrdersInput): Promise<ShipOrdersResult> {
@@ -35,7 +36,7 @@ export async function shipSingleOrder(input: ShipSingleOrderInput): Promise<Ship
   const orderId = input.orderId;
   if (!orderId) return { shipped: false, error: "Select an order to ship." };
   const tracking = validateShipmentTracking(input.carrier, input.trackingNumber);
-  if (tracking.error) return { shipped: false, orderId, error: tracking.error };
+  if (!tracking.ok) return { shipped: false, orderId, error: tracking.error };
   let carrierName = tracking.carrier;
   try {
     const configured = await (prisma as any).shippingCarrier.findFirst({ where: { enabled: true, OR: [{ code: normalizeCarrierCode(tracking.carrier) }, { name: { equals: tracking.carrier, mode: "insensitive" } }] } });
