@@ -19,7 +19,11 @@
     "concurrency:test": "tsx scripts/concurrency-test.ts",
     "compliance:test": "tsx scripts/compliance-rules-test.ts",
     "regression:test": "tsx scripts/regression-smoke.ts",
-    "launch:audit": "node scripts/launch-audit.mjs"
+    "launch:audit": "node scripts/launch-audit.mjs",
+    "load:read": "node scripts/load-read.mjs",
+    "load:checkout": "node scripts/load-tsx-runner.mjs scripts/load-checkout.ts",
+    "load:verify": "node scripts/load-tsx-runner.mjs scripts/load-verify.ts",
+    "load:full": "npm run load:read && npm run load:checkout && npm run load:verify"
   },
   "dependencies": {
     "next": "^15.5.6",
