@@ -1192,7 +1192,29 @@ async function main() {
     demo: false,
   };
   const variant = saved.variants[0];
-  await assertFulfillmentRoleSeparation(saved, variant, actor);
+  const roleSeparationProductId = await createProduct(
+    await productInput(category.id, {
+      name: "Regression Fulfillment Role Separation",
+      slug: `${run}-fulfillment-role-separation`,
+      sku: `REG-ROLE-${Date.now()}`,
+      status: "ACTIVE",
+      stockQuantity: 50,
+    }),
+  );
+  const roleSeparationProduct = await prisma.product.findUniqueOrThrow({
+    where: { id: roleSeparationProductId },
+    include: { variants: { include: { inventory: true } } },
+  });
+  const roleSeparationVariant = roleSeparationProduct.variants[0];
+  assert(
+    roleSeparationVariant?.inventory?.onHand === 50,
+    "Fulfillment role-separation product did not start with dedicated stock.",
+  );
+  await assertFulfillmentRoleSeparation(
+    roleSeparationProduct,
+    roleSeparationVariant,
+    actor,
+  );
   const approved = await makeOrder(saved, variant, "approved");
   assert(
     approved.customerEmail === "buyer123@example.com",
