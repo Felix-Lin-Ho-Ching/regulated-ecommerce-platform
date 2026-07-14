@@ -19,7 +19,10 @@ const productService = readFileSync('lib/products/service.ts', 'utf8');
 const validation = readFileSync('lib/products/validation.ts', 'utf8');
 const catalog = readFileSync('lib/db/catalog.ts', 'utf8');
 const fulfillment = readFileSync('lib/fulfillment/admin-queries.ts', 'utf8') + readFileSync('lib/fulfillment/ship-orders.ts', 'utf8');
-const form = readFileSync('components/admin/products/product-form.tsx', 'utf8');
+const form = [
+  'components/admin/products/product-form.tsx',
+  'components/admin/products/product-form/product-media-section.tsx',
+].map((formPath) => readFileSync(formPath, 'utf8')).join('\n');
 const currentUx = readFileSync('docs/current-ux.md', 'utf8');
 
 

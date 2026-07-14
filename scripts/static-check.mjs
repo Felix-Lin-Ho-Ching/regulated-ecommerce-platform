@@ -254,10 +254,18 @@ if (mode === "lint") {
     }
   }
 
-  const productForm = readFileSync(
+  const productForm = [
     "components/admin/products/product-form.tsx",
-    "utf8",
-  );
+    "components/admin/products/product-form/product-media-section.tsx",
+    "components/admin/products/product-form/product-content-blocks-section.tsx",
+    "components/admin/products/product-form/product-features-section.tsx",
+    "components/admin/products/product-form/product-included-items-section.tsx",
+    "components/admin/products/product-form/product-specifications-section.tsx",
+    "components/admin/products/product-form/product-faq-section.tsx",
+    "components/admin/products/product-form/product-save-controls.tsx",
+  ]
+    .map((productFormPath) => readFileSync(productFormPath, "utf8"))
+    .join("\n");
   const validation = readFileSync("lib/products/validation.ts", "utf8");
   const gallery = readFileSync(
     "components/store/product-media-gallery.tsx",
