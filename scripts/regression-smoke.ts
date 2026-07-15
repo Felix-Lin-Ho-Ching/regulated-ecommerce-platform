@@ -509,9 +509,16 @@ async function assertBasicProductInfoPersistence(categoryId: string) {
 }
 
 async function assertPreviewRegression(categoryId: string) {
-  const productFormSource = await import("node:fs/promises").then((fs) =>
-    fs.readFile("components/admin/products/product-form.tsx", "utf8"),
-  );
+  const fs = await import("node:fs/promises");
+  const productFormSource = (
+    await Promise.all([
+      fs.readFile("components/admin/products/product-form.tsx", "utf8"),
+      fs.readFile(
+        "components/admin/products/product-form/product-save-controls.tsx",
+        "utf8",
+      ),
+    ])
+  ).join("\n");
   assert(
     productFormSource.includes('href={`/admin/products/${product.id}/preview`}'),
     "Product form draft preview link does not point to the admin preview route.",
