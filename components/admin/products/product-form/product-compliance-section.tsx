@@ -1,0 +1,5 @@
+import { AlertPanel } from "@/components/common/panels";
+import { restrictedClassOptions } from "@/lib/products/validation";
+import type { AdminProductDetail } from "@/lib/products/service";
+import { Select } from "./form-controls";
+export function ProductComplianceSection({ product }: { product?: AdminProductDetail }) { return <><label className="flex items-center gap-2 text-sm font-bold"><input defaultChecked={product?.restricted} name="restricted" type="checkbox"/>Restricted product<span className="text-xs font-medium text-slate-500">Turn this on for stun guns or other regulated self-defense products.</span></label><Select label="Restricted class" name="restrictedClass" defaultValue={product?.restrictedClass ?? "STUN_GUN"} values={restrictedClassOptions} hint="Used by checkout to apply state and age rules. Options include STUN_GUN."/><AlertPanel title="Age requirement display" tone="warning">Restricted products require DOB verification at checkout.</AlertPanel><AlertPanel title="State restriction coverage" tone="warning">Checkout blocks states with BLOCK rules and allows states with ALLOW rules.</AlertPanel></>; }
